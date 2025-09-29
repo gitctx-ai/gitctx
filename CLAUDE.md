@@ -29,6 +29,92 @@ Every feature follows **BDD/TDD development**:
 
 **For detailed workflow examples, see `tests/e2e/CLAUDE.md` and `tests/unit/CLAUDE.md`**
 
+## Branch Naming Conventions
+
+Branches must be named identically to their corresponding tickets:
+
+### Format
+- `STORY-NNNN.N.N` - For story development
+- `TASK-NNNN.N.N.N` - For individual tasks (if needed)
+- `EPIC-NNNN.N` - For epic-level work
+- `BUG-NNNN` - For bug fixes
+- `INIT-NNNN` - For initiative-level changes
+
+### Examples
+```bash
+# Create branch for a story
+git checkout -b STORY-0001.1.0
+
+# Create branch for a bug fix
+git checkout -b BUG-0042
+
+# Create branch for an epic
+git checkout -b EPIC-0001.2
+```
+
+### Best Practices
+- Branch name must exactly match the ticket ID
+- Create branch before starting work on ticket
+- Delete branch after merge to main
+- Never reuse branch names
+
+## Commit Message Standards
+
+All commits must follow this format to maintain clear project history:
+
+### Format
+```
+type(scope): description
+
+[optional body]
+[optional footer]
+```
+
+### Types
+- `feat` - New feature or functionality
+- `fix` - Bug fix
+- `docs` - Documentation changes
+- `test` - Test additions or modifications
+- `refactor` - Code restructuring without behavior change
+- `style` - Code formatting, whitespace, etc.
+- `chore` - Maintenance tasks, dependencies, etc.
+
+### Scope
+Use ticket IDs when working on specific tickets:
+- `STORY-NNNN.N.N` - For story-level changes
+- `TASK-NNNN.N.N.N` - For task-level changes
+- `EPIC-NNNN.N` - For epic-level changes
+- `BUG-NNNN` - For bug fixes
+- Component names for non-ticket work: `cli`, `core`, `tests`, etc.
+
+### Examples
+```bash
+# Working on a story (current branch: STORY-0001.1.0)
+feat(STORY-0001.1.0): Add development environment setup with BDD/TDD framework
+
+# Working on a specific task
+test(TASK-0001.1.0.3): Add comprehensive fixture architecture for test isolation
+
+# Bug fix with ticket reference
+fix(BUG-0042): Correct git isolation in E2E tests to prevent SSH key access
+
+# Documentation update
+docs(EPIC-0001.1): Update CLI foundation epic with implementation details
+
+# General component work
+feat(cli): Add --verbose flag to index command
+
+# Chore work
+chore(deps): Update pytest-bdd to v6.1.1 for better Gherkin support
+```
+
+### Best Practices
+- Keep first line under 72 characters
+- Use imperative mood ("Add" not "Added")
+- Reference ticket IDs for traceability
+- Include "why" in body for complex changes
+- Branch name should match the scope when working on tickets
+
 ## Repository Structure
 
 Each directory has its own CLAUDE.md with context-appropriate guidelines:

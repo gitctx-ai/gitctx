@@ -25,7 +25,7 @@ Feature: CLI Foundation
 
   Scenario: Display configuration
     Given the configuration contains API keys
-    When I run "gitctx config get"
+    When I run "gitctx config list"
     Then the output should show all settings
     And sensitive values should be masked
 
