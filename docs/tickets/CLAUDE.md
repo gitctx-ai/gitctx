@@ -13,6 +13,23 @@ Tickets should:
 3. Link to parent and child tickets
 4. Track progress transparently
 
+## Directory Structure
+
+```bash
+docs/tickets/
+├── INIT-NNNN/           # Initiative
+│   ├── README.md
+│   └── EPIC-NNNN.N/     # Epic
+│       ├── README.md
+│       └── STORY-NNNN.N.N/  # Story
+│           ├── README.md
+│           └── TASK-NNNN.N.N.N.md  # Tasks
+└── CLAUDE.md
+
+# The naming convention IS the organization:
+# No redundant directory names needed!
+```
+
 ## Ticket Hierarchy
 
 ```bash
@@ -30,11 +47,11 @@ Bug (BUG-N)                  # Independent of hierarchy
 
 | Type | Format | Example | File Path |
 |------|--------|---------|-----------|
-| Initiative | INIT-{NNNN} | INIT-0001 | initiatives/INIT-0001/README.md |
-| Epic | EPIC-{NNNN}.{E} | EPIC-0001.2 | initiatives/INIT-0001/epics/EPIC-0001.2.md |
-| Story | STORY-{NNNN}.{E}.{S} | STORY-0001.2.3 | initiatives/INIT-0001/stories/STORY-0001.2.3.md |
-| Task | TASK-{NNNN}.{E}.{S}.{T} | TASK-0001.2.3.4 | initiatives/INIT-0001/tasks/TASK-0001.2.3.4.md |
-| Bug | BUG-{NNNN} | BUG-0015 | bugs/BUG-0015.md |
+| Initiative | INIT-{NNNN} | INIT-0001 | INIT-0001/README.md |
+| Epic | EPIC-{NNNN}.{E} | EPIC-0001.2 | INIT-0001/EPIC-0001.2/README.md |
+| Story | STORY-{NNNN}.{E}.{S} | STORY-0001.2.3 | INIT-0001/EPIC-0001.2/STORY-0001.2.3/README.md |
+| Task | TASK-{NNNN}.{E}.{S}.{T} | TASK-0001.2.3.4 | INIT-0001/EPIC-0001.2/STORY-0001.2.3/TASK-0001.2.3.4.md |
+| Bug | BUG-{NNNN} | BUG-0015 | BUG-0015.md |
 
 Where:
 

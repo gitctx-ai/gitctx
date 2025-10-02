@@ -21,12 +21,12 @@ Build the complete command-line interface with all commands working against mock
 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
-| [STORY-0001.1.0](../stories/STORY-0001.1.0.md) | Development Environment Setup | ✅ Complete | 5 |
-| [STORY-0001.1.1](../stories/STORY-0001.1.1.md) | CLI Framework Setup | 🔵 Not Started | 3 |
-| [STORY-0001.1.2](../stories/STORY-0001.1.2.md) | Config Command | 🔵 Not Started | 3 |
-| [STORY-0001.1.3](../stories/STORY-0001.1.3.md) | Index Command (Mocked) | 🔵 Not Started | 2 |
-| [STORY-0001.1.4](../stories/STORY-0001.1.4.md) | Search Command (Mocked) | 🔵 Not Started | 3 |
-| [STORY-0001.1.5](../stories/STORY-0001.1.5.md) | Clear Command | 🔵 Not Started | 2 |
+| [STORY-0001.1.0](STORY-0001.1.0/README.md) | Development Environment Setup | ✅ Complete | 5 |
+| [STORY-0001.1.1](STORY-0001.1.1/README.md) | CLI Framework Setup | 🔵 Not Started | 3 |
+| STORY-0001.1.2 | Config Command | 🔵 Not Started | 3 |
+| STORY-0001.1.3 | Index Command (Mocked) | 🔵 Not Started | 2 |
+| STORY-0001.1.4 | Search Command (Mocked) | 🔵 Not Started | 3 |
+| STORY-0001.1.5 | Clear Command | 🔵 Not Started | 2 |
 
 ## BDD Specifications
 

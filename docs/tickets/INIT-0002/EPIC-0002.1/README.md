@@ -1,6 +1,6 @@
 # EPIC-0002.1: Intelligent Context Assembly
 
-**Parent Initiative**: [INIT-0002](../README.md)  
+**Parent Initiative**: [INIT-0002](../initiatives/INIT-0002/README.md)  
 **Status**: 🔵 Not Started  
 **Estimated**: 21 story points  
 **Progress**: ░░░░░░░░░░ 0%

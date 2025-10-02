@@ -1,6 +1,6 @@
 # EPIC-0001.2: Real Indexing Implementation
 
-**Parent Initiative**: [INIT-0001](../README.md)  
+**Parent Initiative**: [INIT-0001](../README.md)
 **Status**: 🔵 Not Started  
 **Estimated**: 21 story points  
 **Progress**: ░░░░░░░░░░ 0%
@@ -21,11 +21,11 @@ Replace the mock indexing from EPIC-0001.1 with actual functionality that scans 
 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
-| [STORY-0001.2.1](../stories/STORY-0001.2.1.md) | Git-Aware File Scanner | 🔵 Not Started | 5 |
-| [STORY-0001.2.2](../stories/STORY-0001.2.2.md) | Language-Agnostic Code Chunking | 🔵 Not Started | 5 |
-| [STORY-0001.2.3](../stories/STORY-0001.2.3.md) | OpenAI Embedding Generation | 🔵 Not Started | 5 |
-| [STORY-0001.2.4](../stories/STORY-0001.2.4.md) | Safetensors Storage Implementation | 🔵 Not Started | 3 |
-| [STORY-0001.2.5](../stories/STORY-0001.2.5.md) | Progress Tracking and Cost Estimation | 🔵 Not Started | 3 |
+| [STORY-0001.2.1](.././active/STORY-0001.2.1.md) | Git-Aware File Scanner | 🔵 Not Started | 5 |
+| [STORY-0001.2.2](.././active/STORY-0001.2.2.md) | Language-Agnostic Code Chunking | 🔵 Not Started | 5 |
+| [STORY-0001.2.3](.././active/STORY-0001.2.3.md) | OpenAI Embedding Generation | 🔵 Not Started | 5 |
+| [STORY-0001.2.4](.././active/STORY-0001.2.4.md) | Safetensors Storage Implementation | 🔵 Not Started | 3 |
+| [STORY-0001.2.5](.././active/STORY-0001.2.5.md) | Progress Tracking and Cost Estimation | 🔵 Not Started | 3 |
 
 ## BDD Specifications
 

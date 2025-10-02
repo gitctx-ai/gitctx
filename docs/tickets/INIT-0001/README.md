@@ -20,9 +20,9 @@ Build the core functionality users need to search their codebase intelligently. 
 
 | ID | Title | Status | Progress | Owner |
 |----|-------|--------|----------|-------|
-| [EPIC-0001.1](epics/EPIC-0001.1.md) | CLI Foundation | 🟡 In Progress | ████░░░░░░ 38% | Core Team |
-| [EPIC-0001.2](epics/EPIC-0001.2.md) | Real Indexing | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
-| [EPIC-0001.3](epics/EPIC-0001.3.md) | Vector Search | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
+| [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | 🟡 In Progress | ████░░░░░░ 38% | Core Team |
+| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
+| [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 
 ## Success Metrics
 

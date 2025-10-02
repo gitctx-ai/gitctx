@@ -1,6 +1,6 @@
 # EPIC-0001.3: Vector Search Implementation
 
-**Parent Initiative**: [INIT-0001](../README.md)  
+**Parent Initiative**: [INIT-0001](../README.md)
 **Status**: 🔵 Not Started  
 **Estimated**: 21 story points  
 **Progress**: ░░░░░░░░░░ 0%
@@ -21,11 +21,11 @@ Replace mock search results with actual vector similarity search using LanceDB. 
 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
-| [STORY-0001.3.1](../stories/STORY-0001.3.1.md) | LanceDB Setup | 🔵 Not Started | 5 |
-| [STORY-0001.3.2](../stories/STORY-0001.3.2.md) | Query Embedding Generation | 🔵 Not Started | 3 |
-| [STORY-0001.3.3](../stories/STORY-0001.3.3.md) | Vector Similarity Search | 🔵 Not Started | 5 |
-| [STORY-0001.3.4](../stories/STORY-0001.3.4.md) | Result Formatting | 🔵 Not Started | 3 |
-| [STORY-0001.3.5](../stories/STORY-0001.3.5.md) | Search Performance Optimization | 🔵 Not Started | 5 |
+| [STORY-0001.3.1](.././active/STORY-0001.3.1.md) | LanceDB Setup | 🔵 Not Started | 5 |
+| [STORY-0001.3.2](.././active/STORY-0001.3.2.md) | Query Embedding Generation | 🔵 Not Started | 3 |
+| [STORY-0001.3.3](.././active/STORY-0001.3.3.md) | Vector Similarity Search | 🔵 Not Started | 5 |
+| [STORY-0001.3.4](.././active/STORY-0001.3.4.md) | Result Formatting | 🔵 Not Started | 3 |
+| [STORY-0001.3.5](.././active/STORY-0001.3.5.md) | Search Performance Optimization | 🔵 Not Started | 5 |
 
 ## BDD Specifications
 
