@@ -1,0 +1,105 @@
+# See https://pre-commit.com for more information
+default_install_hook_types: [pre-commit, commit-msg]
+default_language_version:
+  python: python3
+repos:
+  # Ruff - Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.13.2
+    hooks:
+      - id: ruff
+        name: Ruff linter
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: Ruff formatter
+        types_or: [python, pyi]
+
+  # Mypy - Static type checker
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+      - id: mypy
+        name: Type check with mypy
+        args: [--config-file=pyproject.toml, src]
+        additional_dependencies:
+          - types-pyyaml
+          - typer
+        files: ^src/
+        pass_filenames: false
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-toml
+        name: Check TOML syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: debug-statements
+        name: Check for debug statements
+      - id: mixed-line-ending
+        name: Check line endings
+        args: [--fix=lf]
+
+  # Custom pytest hook for critical tests
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: Run critical tests
+        entry: uv run pytest
+        language: system
+        args: [tests/unit/test_package.py, -v, --tb=short, --no-cov]
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # Commit message format
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.9.1
+    hooks:
+      - id: commitizen
+        name: Check commit message format
+        stages: [commit-msg]
+
+  # Security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: .*\.lock|package-lock\.json
+
+# Configuration for specific tools
+exclude: |
+  (?x)^(
+    docs/.*|
+    \.git/.*|
+    \.mypy_cache/.*|
+    \.pytest_cache/.*|
+    \.ruff_cache/.*|
+    __pycache__/.*|
+    htmlcov/.*|
+    \.coverage
+  )$
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [pytest-check, mypy]  # These don't work in pre-commit.ci
+  submodules: false

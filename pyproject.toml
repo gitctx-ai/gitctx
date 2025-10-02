@@ -181,3 +181,11 @@ cmd = "pytest tests/e2e -v"
 
 [tool.poe.tasks.test-cov]
 cmd = "pytest --cov=src/gitctx --cov-report=html"
+
+[tool.poe.tasks.install-hooks]
+sequence = [
+    { cmd = "pre-commit install --install-hooks" },
+    { cmd = "pre-commit install --hook-type commit-msg" },
+    { cmd = "pre-commit run --all-files" },
+]
+help = "Install and test pre-commit hooks"

@@ -7,7 +7,7 @@
 When working in gitctx, read the appropriate nested CLAUDE.md based on your task:
 
 - **BDD/E2E Testing** → Read `tests/e2e/CLAUDE.md`
-- **Unit Testing/TDD** → Read `tests/unit/CLAUDE.md`  
+- **Unit Testing/TDD** → Read `tests/unit/CLAUDE.md`
 - **Documentation** → Read `docs/CLAUDE.md` and subdirectories
 - **Architecture** → Read `docs/architecture/CLAUDE.md`
 - **Ticket Workflow** → Read `docs/tickets/CLAUDE.md`

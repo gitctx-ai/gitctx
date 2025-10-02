@@ -1,9 +1,9 @@
 # STORY-0001.1.0: Development Environment Setup
 
-**Parent Epic**: [EPIC-0001.1](../epics/EPIC-0001.1.md)  
-**Status**: 🔵 Not Started  
-**Story Points**: 5  
-**Progress**: ░░░░░░░░░░ 0%
+**Parent Epic**: [EPIC-0001.1](../epics/EPIC-0001.1.md)
+**Status**: 🟡 In Progress
+**Story Points**: 5
+**Progress**: ████████░░ 80%
 
 ## User Story
 
@@ -26,10 +26,10 @@ So that **I can develop gitctx following best practices from the start**
 
 | ID | Title | Status | Hours |
 |----|-------|--------|-------|
-| [TASK-0001.1.0.1](../tasks/TASK-0001.1.0.1.md) | Project Structure Setup | 🔵 Not Started | 2 |
-| [TASK-0001.1.0.2](../tasks/TASK-0001.1.0.2.md) | pyproject.toml Configuration | 🔵 Not Started | 3 |
-| [TASK-0001.1.0.3](../tasks/TASK-0001.1.0.3.md) | BDD/TDD Framework Setup | 🔵 Not Started | 4 |
-| [TASK-0001.1.0.4](../tasks/TASK-0001.1.0.4.md) | Pre-commit Hooks Configuration | 🔵 Not Started | 2 |
+| [TASK-0001.1.0.1](../tasks/TASK-0001.1.0.1.md) | Project Structure Setup | ✅ Complete | 2 |
+| [TASK-0001.1.0.2](../tasks/TASK-0001.1.0.2.md) | pyproject.toml Configuration | ✅ Complete | 3 |
+| [TASK-0001.1.0.3](../tasks/TASK-0001.1.0.3.md) | BDD/TDD Framework Setup | ✅ Complete | 4 |
+| [TASK-0001.1.0.4](../tasks/TASK-0001.1.0.4.md) | Pre-commit Hooks Configuration | ✅ Complete | 2 |
 | [TASK-0001.1.0.5](../tasks/TASK-0001.1.0.5.md) | CI/CD Pipeline Setup | 🔵 Not Started | 3 |
 
 ## BDD Specifications

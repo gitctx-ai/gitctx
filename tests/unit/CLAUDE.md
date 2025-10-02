@@ -68,7 +68,7 @@ def test_chunker_respects_max_tokens():
 class Chunker:
     def __init__(self, max_tokens=100):
         self.max_tokens = max_tokens
-    
+
     def chunk(self, text):
         words = text.split()
         chunks, current = [], []
@@ -80,7 +80,7 @@ class Chunker:
         if current:
             chunks.append(" ".join(current))
         return chunks
-    
+
     def count_tokens(self, text):
         return len(text.split())
 ```
@@ -100,10 +100,10 @@ def test_search_engine_finds_relevant_results():
     engine = SearchEngine()
     engine.index_document("auth.py", "def authenticate(user): pass")
     engine.index_document("login.py", "def login(username): pass")
-    
+
     # ACT - Perform the action being tested
     results = engine.search("authentication")
-    
+
     # ASSERT - Check the outcome
     assert len(results) > 0
     assert "auth.py" in results[0].file_path
@@ -161,7 +161,7 @@ Every component MUST test:
 class TestChunker:
     def test_empty_text(self):
         assert Chunker().chunk("") == []
-    
+
     def test_unicode_text(self):
         text = "Hello 世界 🌍"
         chunks = Chunker().chunk(text)
@@ -286,26 +286,26 @@ def test_search_performance(benchmark, large_dataset):
     """Ensure search completes within performance targets."""
     engine = SearchEngine()
     engine.index_dataset(large_dataset)
-    
+
     # Use pytest-benchmark
     result = benchmark(engine.search, "test query")
-    
+
     assert benchmark.stats['mean'] < 2.0  # Mean time < 2 seconds
     assert len(result) > 0
 
 def test_chunker_memory_usage():
     """Ensure chunker doesn't consume excessive memory."""
     import tracemalloc
-    
+
     tracemalloc.start()
-    
+
     chunker = Chunker()
     large_text = "word " * 1_000_000
     chunks = chunker.chunk(large_text)
-    
+
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    
+
     # Should use less than 100MB for 1M words
     assert peak / 1024 / 1024 < 100
 ```
@@ -319,7 +319,7 @@ def test_config_handles_corrupted_file():
     """Config gracefully handles corrupted config files."""
     with patch('builtins.open', side_effect=IOError("Corrupted")):
         config = Config()
-        
+
         # Should use defaults when file is corrupted
         assert config.get("api_key") == ""
         assert config.get("model") == "gpt-4"
@@ -327,7 +327,7 @@ def test_config_handles_corrupted_file():
 def test_api_client_retries_on_rate_limit():
     """API client implements exponential backoff."""
     client = APIClient()
-    
+
     with patch('time.sleep') as mock_sleep:
         with patch('requests.post') as mock_post:
             mock_post.side_effect = [
@@ -335,9 +335,9 @@ def test_api_client_retries_on_rate_limit():
                 RateLimitError(),
                 {"success": True}
             ]
-            
+
             result = client.call_api("test")
-            
+
             assert result == {"success": True}
             assert mock_sleep.call_count == 2
             # Check exponential backoff
@@ -351,9 +351,9 @@ def test_cache_creates_directory_if_missing(tmp_path):
     """Cache creates its directory structure."""
     cache_dir = tmp_path / "nonexistent" / "cache"
     cache = Cache(cache_dir)
-    
+
     cache.store("key", "value")
-    
+
     assert cache_dir.exists()
     assert cache.get("key") == "value"
 ```

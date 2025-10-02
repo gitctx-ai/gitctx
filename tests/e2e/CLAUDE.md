@@ -5,7 +5,7 @@ This document defines the **mandatory BDD testing approach** for all end-to-end 
 **Related Documentation:**
 
 - [Root CLAUDE.md](../../CLAUDE.md) - Overview and workflow
-- [Unit Testing](../unit/CLAUDE.md) - TDD practices  
+- [Unit Testing](../unit/CLAUDE.md) - TDD practices
 - [Documentation](../../docs/CLAUDE.md) - Documentation standards
 
 ## 🚨 CRITICAL: BDD Test Requirements
@@ -55,7 +55,7 @@ Feature: [User-focused feature name]
   Scenario Outline: [Parameterized test]
     When I run "<command>" with "<option>"
     Then I should see <expected_result>
-    
+
     Examples:
       | command | option | expected_result |
       | search  | --json | JSON output     |
@@ -92,12 +92,12 @@ def indexed_repository(tmp_path, sample_repo):
     """Create and index a sample repository."""
     repo_path = tmp_path / "test_repo"
     sample_repo.copy_to(repo_path)
-    
+
     # Mock or real indexing
     runner = CliRunner()
     result = runner.invoke(app, ["index"], cwd=repo_path)
     assert result.exit_code == 0
-    
+
     return repo_path
 
 @when(parsers.parse('I run "{command}"'))
@@ -266,7 +266,7 @@ def check_gitctx_dir(repo_path):
     gitctx_dir = repo_path / ".gitctx"
     assert gitctx_dir.exists(), f"Directory {gitctx_dir} does not exist"
     assert gitctx_dir.is_dir()
-    
+
     # Check expected structure
     assert (gitctx_dir / "embeddings").exists()
     assert (gitctx_dir / "manifest.json").exists()
@@ -355,7 +355,7 @@ def test_large_repo():
 Scenario Outline: Search with different queries
   When I run "gitctx search '<query>'"
   Then results should include "<expected>"
-  
+
   Examples:
     | query          | expected        |
     | authentication | login function  |
