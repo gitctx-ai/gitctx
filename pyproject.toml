@@ -125,6 +125,8 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["src/gitctx"]
+parallel = true
+concurrency = ["multiprocessing"]
 omit = [
     "*/tests/*",
     "*/__main__.py",

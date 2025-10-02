@@ -67,10 +67,10 @@ def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -
     isolated_env["PYTHONPATH"] = pythonpath
 
     # Set COVERAGE_PROCESS_START to enable subprocess coverage
-    # Point to .coveragerc in project root
-    coveragerc = project_root / ".coveragerc"
-    if coveragerc.exists():
-        isolated_env["COVERAGE_PROCESS_START"] = str(coveragerc)
+    # Point to pyproject.toml in project root
+    pyproject_toml = project_root / "pyproject.toml"
+    if pyproject_toml.exists():
+        isolated_env["COVERAGE_PROCESS_START"] = str(pyproject_toml)
 
     # Pass through other coverage environment variables
     for cov_var in [

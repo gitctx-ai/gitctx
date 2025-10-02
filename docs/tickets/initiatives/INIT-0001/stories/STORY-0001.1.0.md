@@ -20,7 +20,7 @@ So that **I can develop gitctx following best practices from the start**
 - [x] Pre-commit hooks working for ruff, mypy, and tests
 - [x] GitHub Actions CI pipeline running on all pushes
 - [x] Project structure follows Python best practices
-- [x] All configurations in pyproject.toml (except .coveragerc for subprocess coverage)
+- [x] All configurations in pyproject.toml
 
 ## Child Tasks
 
@@ -60,14 +60,17 @@ After completing all 5 tasks, we made additional improvements during PR review:
 2. **Comprehensive Validation** - Added 4 new security validation tests
    - Tests verify git operations, GPG isolation, and gitctx subprocess execution
 3. **Subprocess Coverage** - Enabled coverage tracking for subprocess calls
-   - Created `.coveragerc` and `sitecustomize.py` for subprocess coverage
+   - Added `parallel = true` and `concurrency = ["multiprocessing"]` to `pyproject.toml`
+   - Created `sitecustomize.py` for subprocess coverage auto-start
    - Passes coverage env vars to subprocesses via fixtures
+   - Consolidated all coverage config to `pyproject.toml` (removed `.coveragerc`)
 
 **Impact**:
 - Tests increased from 12 → **16**
-- Coverage maintained at **85.00%** (meets 85% threshold)
+- Coverage improved to **86.67%** (exceeds 85% threshold)
 - True subprocess security isolation verified
 - Workflow fully documented for future development
+- All configurations consolidated to `pyproject.toml`
 
 ## BDD Specifications
 
