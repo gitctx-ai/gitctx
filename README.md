@@ -1,5 +1,12 @@
 # gitctx
 
+[![CI](https://github.com/gitctx-ai/gitctx/actions/workflows/ci.yml/badge.svg)](https://github.com/gitctx-ai/gitctx/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/gitctx-ai/gitctx/branch/main/graph/badge.svg)](https://codecov.io/gh/gitctx-ai/gitctx)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![uv](https://img.shields.io/badge/uv-latest-green.svg)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 git native context enhancement for agentic coding.
 
 ## What is gitctx?

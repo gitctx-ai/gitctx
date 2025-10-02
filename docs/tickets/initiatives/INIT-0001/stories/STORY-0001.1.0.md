@@ -1,9 +1,9 @@
 # STORY-0001.1.0: Development Environment Setup
 
 **Parent Epic**: [EPIC-0001.1](../epics/EPIC-0001.1.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 5
-**Progress**: ████████░░ 80%
+**Progress**: ██████████ 100%
 
 ## User Story
 
@@ -13,14 +13,14 @@ So that **I can develop gitctx following best practices from the start**
 
 ## Acceptance Criteria
 
-- [ ] Project can be installed with `uv sync --all-extras`
-- [ ] All quality gates run successfully with single command
-- [ ] BDD framework set up with pytest-bdd and first test passing
-- [ ] TDD framework ready with pytest and coverage configured
-- [ ] Pre-commit hooks working for ruff, mypy, and tests
-- [ ] GitHub Actions CI pipeline running on all pushes
-- [ ] Project structure follows Python best practices
-- [ ] All configurations in pyproject.toml (no separate config files)
+- [x] Project can be installed with `uv sync --all-extras`
+- [x] All quality gates run successfully with single command
+- [x] BDD framework set up with pytest-bdd and first test passing
+- [x] TDD framework ready with pytest and coverage configured
+- [x] Pre-commit hooks working for ruff, mypy, and tests
+- [x] GitHub Actions CI pipeline running on all pushes
+- [x] Project structure follows Python best practices
+- [x] All configurations in pyproject.toml (no separate config files)
 
 ## Child Tasks
 
@@ -30,7 +30,7 @@ So that **I can develop gitctx following best practices from the start**
 | [TASK-0001.1.0.2](../tasks/TASK-0001.1.0.2.md) | pyproject.toml Configuration | ✅ Complete | 3 |
 | [TASK-0001.1.0.3](../tasks/TASK-0001.1.0.3.md) | BDD/TDD Framework Setup | ✅ Complete | 4 |
 | [TASK-0001.1.0.4](../tasks/TASK-0001.1.0.4.md) | Pre-commit Hooks Configuration | ✅ Complete | 2 |
-| [TASK-0001.1.0.5](../tasks/TASK-0001.1.0.5.md) | CI/CD Pipeline Setup | 🔵 Not Started | 3 |
+| [TASK-0001.1.0.5](../tasks/TASK-0001.1.0.5.md) | CI/CD Pipeline Setup | ✅ Complete | 3 |
 
 ## BDD Specifications
 
