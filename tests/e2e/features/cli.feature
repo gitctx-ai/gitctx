@@ -14,11 +14,12 @@ Feature: CLI Foundation
 
   # TODO: Enable when commands are implemented in future tasks
 
-  # Scenario: Display help
-  #   When I run "gitctx --help"
-  #   Then the exit code should be 0
-  #   And the output should contain "Usage: gitctx"
-  #   And the output should contain "Commands:"
+  Scenario: Display help
+    When I run "gitctx --help"
+    Then the exit code should be 0
+    And the output should contain "Usage:"
+    And the output should contain "gitctx"
+    And the output should contain "Context optimization engine"
 
   # Scenario: Configure API key
   #   When I run "gitctx config set api_keys.openai sk-test123"

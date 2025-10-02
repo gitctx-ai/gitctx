@@ -35,13 +35,19 @@ def run_command(
 
     This is NOT the same as CliRunner.invoke() which runs in-process.
     """
-    # Remove "gitctx" from command and prepare args
-    args = command.replace("gitctx", "").strip().split() if command.strip() != "gitctx" else []
+    # Parse the command and convert gitctx to python -m gitctx
+    # This ensures the command works in all environments (local, CI, etc.)
+    if command.startswith("gitctx"):
+        # Replace 'gitctx' with 'python -m gitctx' for reliable execution
+        args = command.replace("gitctx", "").strip().split() if command.strip() != "gitctx" else []
+        cmd_parts = [sys.executable, "-m", "gitctx"] + args
+    else:
+        cmd_parts = command.strip().split()
 
     # Run gitctx as subprocess with full isolation
-    # Use python -m gitctx to ensure we're using the installed package
+    # Uses python -m gitctx to ensure it works in all environments
     result = subprocess.run(
-        [sys.executable, "-m", "gitctx"] + args,
+        cmd_parts,
         env=e2e_git_isolation_env,
         capture_output=True,
         text=True,
