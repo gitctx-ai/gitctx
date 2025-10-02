@@ -67,7 +67,9 @@ CLAUDE.md                        # Root - BDD/TDD workflow
 
 Currently implementing **INIT-0001: MVP Foundation** (Q4 2025)
 
-- 🔵 CLI Foundation (not started)
+- 🟡 CLI Foundation (in progress - ~38% complete)
+  - ✅ Development Environment Setup (STORY-0001.1.0)
+  - 🔵 CLI Framework, Config, Commands (remaining stories)
 - 🔵 Real Indexing (not started)
 - 🔵 Vector Search (not started)
 

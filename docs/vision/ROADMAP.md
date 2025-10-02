@@ -31,7 +31,7 @@ See [success-metrics.md](success-metrics.md) for detailed KPIs and tracking.
 
 ### 🚀 Initiative 1: MVP Foundation
 
-**Timeline**: Q4 2025 | **Status**: 📝 Planning
+**Timeline**: Q4 2025 | **Status**: 🚧 In Progress
 
 Build the core functionality users need to search their codebase intelligently.
 
@@ -39,8 +39,8 @@ Build the core functionality users need to search their codebase intelligently.
 
 **Epics**:
 
-- EPIC-0001.1: CLI Foundation - 🔵 Not Started
-- EPIC-0001.2: Real Indexing - 🔵 Not Started  
+- EPIC-0001.1: CLI Foundation - 🟡 In Progress (~38% - 5/13 story points complete)
+- EPIC-0001.2: Real Indexing - 🔵 Not Started
 - EPIC-0001.3: Vector Search - 🔵 Not Started
 
 **Key Deliverables:**

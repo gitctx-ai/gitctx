@@ -1,9 +1,9 @@
 # INIT-0001: MVP Foundation
 
-**Timeline**: Q4 2025  
-**Status**: 📝 Planning  
-**Owner**: Core Team  
-**Progress**: ░░░░░░░░░░ 0%
+**Timeline**: Q4 2025
+**Status**: 🚧 In Progress
+**Owner**: Core Team
+**Progress**: ██░░░░░░░░ ~15% (STORY-0001.1.0 complete)
 
 ## Objective
 
@@ -20,7 +20,7 @@ Build the core functionality users need to search their codebase intelligently. 
 
 | ID | Title | Status | Progress | Owner |
 |----|-------|--------|----------|-------|
-| [EPIC-0001.1](epics/EPIC-0001.1.md) | CLI Foundation | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
+| [EPIC-0001.1](epics/EPIC-0001.1.md) | CLI Foundation | 🟡 In Progress | ████░░░░░░ 38% | Core Team |
 | [EPIC-0001.2](epics/EPIC-0001.2.md) | Real Indexing | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 | [EPIC-0001.3](epics/EPIC-0001.3.md) | Vector Search | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 
