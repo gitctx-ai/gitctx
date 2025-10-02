@@ -278,6 +278,111 @@ When moving a ticket to a different parent:
 4. Update child references in old and new parents
 5. Update any cross-references
 
+## PR Workflow and GitHub Links
+
+### Story-Driven PR Creation
+
+When all tasks in a story are complete:
+
+1. **One PR per story** - Never create PRs for individual tasks
+2. **PR body mirrors story ticket** - Copy the story ticket content exactly
+3. **Fix all GitHub links** - Use proper blob URLs with branch name
+4. **All CI must pass** - Green checks required before merge
+
+### GitHub Link Format
+
+**❌ Wrong (relative paths that break in PRs):**
+```markdown
+[EPIC-0001.1](docs/tickets/initiatives/INIT-0001/epics/EPIC-0001.1.md)
+```
+
+This creates broken URL: `https://github.com/{org}/{repo}/pull/docs/tickets/...`
+
+**✅ Correct (blob URLs with branch name):**
+```markdown
+[EPIC-0001.1](https://github.com/gitctx-ai/gitctx/blob/STORY-0001.1.0/docs/tickets/initiatives/INIT-0001/epics/EPIC-0001.1.md)
+```
+
+Format: `https://github.com/{org}/{repo}/blob/{branch}/{path}`
+
+### Example PR Body Structure
+
+```markdown
+# STORY-0001.1.0: Development Environment Setup
+
+**Parent Epic**: [EPIC-0001.1](https://github.com/gitctx-ai/gitctx/blob/STORY-0001.1.0/docs/tickets/initiatives/INIT-0001/epics/EPIC-0001.1.md)
+**Status**: ✅ Complete
+**Story Points**: 8
+**Progress**: ████████████████████ 100%
+
+## User Story
+
+As a developer
+I want a fully configured development environment with BDD/TDD tooling
+So that I can contribute to gitctx following best practices
+
+## Acceptance Criteria
+
+- [x] Project structure with src-layout
+- [x] pyproject.toml with all tool configs
+- [x] BDD framework with pytest-bdd
+- [x] TDD unit test structure
+- [x] Pre-commit hooks configured
+- [x] CI/CD pipeline passing
+
+## Child Tasks
+
+- [TASK-0001.1.0.1](https://github.com/gitctx-ai/gitctx/blob/STORY-0001.1.0/docs/tickets/initiatives/INIT-0001/tasks/TASK-0001.1.0.1.md): ✅ Complete
+- [TASK-0001.1.0.2](https://github.com/gitctx-ai/gitctx/blob/STORY-0001.1.0/docs/tickets/initiatives/INIT-0001/tasks/TASK-0001.1.0.2.md): ✅ Complete
+- [TASK-0001.1.0.3](https://github.com/gitctx-ai/gitctx/blob/STORY-0001.1.0/docs/tickets/initiatives/INIT-0001/tasks/TASK-0001.1.0.3.md): ✅ Complete
+- [TASK-0001.1.0.4](https://github.com/gitctx-ai/gitctx/blob/STORY-0001.1.0/docs/tickets/initiatives/INIT-0001/tasks/TASK-0001.1.0.4.md): ✅ Complete
+- [TASK-0001.1.0.5](https://github.com/gitctx-ai/gitctx/blob/STORY-0001.1.0/docs/tickets/initiatives/INIT-0001/tasks/TASK-0001.1.0.5.md): ✅ Complete
+
+## Implementation Summary
+
+This story establishes the complete development environment for gitctx with:
+- Modern Python tooling (uv, ruff, mypy)
+- Comprehensive testing framework (pytest, pytest-bdd)
+- Automated quality gates (pre-commit, GitHub Actions)
+- Security-isolated test fixtures
+
+All CI checks passing across Python 3.11-3.13 on Linux/macOS/Windows.
+```
+
+### Commands for PR Creation
+
+```bash
+# 1. Ensure all commits are on story branch
+git log --oneline main..STORY-0001.1.0
+
+# 2. Push story branch
+git push -u origin STORY-0001.1.0
+
+# 3. Create PR with story content as body
+gh pr create --title "STORY-0001.1.0: Story Title" --body "$(cat docs/tickets/initiatives/INIT-XXXX/stories/STORY-XXXX.X.X.md)"
+
+# 4. Fix GitHub links in PR body
+gh pr edit <number> --body "$(cat updated-body.md)"
+
+# 5. Monitor CI
+gh run list --limit 1
+gh run watch
+```
+
+### PR Review Checklist
+
+Before requesting review:
+
+- [ ] PR title matches story ID and title
+- [ ] PR body mirrors story ticket exactly
+- [ ] All GitHub links use blob URLs with branch name
+- [ ] All tasks marked ✅ Complete in story ticket
+- [ ] All CI checks passing (lint, type-check, tests)
+- [ ] Coverage meets threshold (≥85%)
+- [ ] No merge conflicts with main
+
+See [Root CLAUDE.md](../../CLAUDE.md#story-driven-development-workflow) for the complete story-driven workflow including commit standards.
+
 ## Best Practices
 
 ### DO

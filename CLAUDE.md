@@ -29,6 +29,46 @@ Every feature follows **BDD/TDD development**:
 
 **For detailed workflow examples, see `tests/e2e/CLAUDE.md` and `tests/unit/CLAUDE.md`**
 
+## Story-Driven Development Workflow
+
+**All development work follows a strict story-driven approach:**
+
+### Core Principles
+
+1. **Never work ad-hoc** - Every change must be driven by a story/task ticket
+2. **Branch name = Ticket ID** - Create branch matching ticket exactly (e.g., `STORY-0001.1.0`)
+3. **1 Task = 1 Commit** - Each task gets exactly one commit after manual review/approval
+4. **Manual approval gates** - Stop after each task for user review before committing
+5. **Track progress continuously** - Update task and story files with each commit
+
+### Workflow Steps
+
+For each task in a story:
+
+```bash
+# 1. Complete the task implementation following BDD/TDD
+# 2. Run all quality gates
+uv run ruff check src tests && uv run ruff format src tests && uv run mypy src && uv run pytest
+
+# 3. Update task file - mark status ✅ Complete, check all boxes, set Actual Hours
+# 4. Update parent story file - increment progress %, update child task statuses
+# 5. Get manual approval from user
+# 6. Commit with format: feat(TASK-ID): description
+# 7. Continue to next task
+```
+
+### Creating Pull Requests
+
+When all tasks in a story are complete:
+
+- **1 PR = 1 Story** - Create one PR per story (not per task)
+- PR body mirrors the story ticket content exactly
+- Use proper GitHub blob URLs for all file links (see [docs/tickets/CLAUDE.md](docs/tickets/CLAUDE.md#pr-workflow-and-github-links))
+- All CI checks must pass before merge
+- Push to branch named after story ID
+
+See [PR Workflow section](docs/tickets/CLAUDE.md#pr-workflow-and-github-links) for detailed PR creation guidelines.
+
 ## Branch Naming Conventions
 
 Branches must be named identically to their corresponding tickets:
@@ -80,40 +120,46 @@ type(scope): description
 - `chore` - Maintenance tasks, dependencies, etc.
 
 ### Scope
-Use ticket IDs when working on specific tickets:
-- `STORY-NNNN.N.N` - For story-level changes
-- `TASK-NNNN.N.N.N` - For task-level changes
+
+**For ticket-driven work (the standard workflow):**
+
+Use the **current task ID** as the scope when committing task completion:
+- `TASK-NNNN.N.N.N` - Most commits (one per task)
+- `STORY-NNNN.N.N` - Only for story-level changes without specific task
 - `EPIC-NNNN.N` - For epic-level changes
 - `BUG-NNNN` - For bug fixes
-- Component names for non-ticket work: `cli`, `core`, `tests`, etc.
 
-### Examples
+**For non-ticket work:**
+- Component names: `cli`, `core`, `tests`, etc.
+
+### Examples from Story-Driven Development
+
 ```bash
-# Working on a story (current branch: STORY-0001.1.0)
-feat(STORY-0001.1.0): Add development environment setup with BDD/TDD framework
+# Standard workflow: Each task gets one commit (STORY-0001.1.0 branch)
+feat(TASK-0001.1.0.1): Create project structure with CLI foundation
+feat(TASK-0001.1.0.2): Configure pyproject.toml with all tool settings
+feat(TASK-0001.1.0.3): Set up comprehensive BDD/TDD framework with security isolation
+feat(TASK-0001.1.0.4): Configure pre-commit hooks for code quality
+feat(TASK-0001.1.0.5): Set up CI/CD pipeline with GitHub Actions
 
-# Working on a specific task
-test(TASK-0001.1.0.3): Add comprehensive fixture architecture for test isolation
+# Fix discovered during CI
+fix(TASK-0001.1.0.5): Resolve CI failures on macOS and file size check
 
 # Bug fix with ticket reference
 fix(BUG-0042): Correct git isolation in E2E tests to prevent SSH key access
 
-# Documentation update
-docs(EPIC-0001.1): Update CLI foundation epic with implementation details
-
-# General component work
+# General component work (no ticket)
 feat(cli): Add --verbose flag to index command
-
-# Chore work
 chore(deps): Update pytest-bdd to v6.1.1 for better Gherkin support
 ```
 
 ### Best Practices
 - Keep first line under 72 characters
 - Use imperative mood ("Add" not "Added")
-- Reference ticket IDs for traceability
+- Use TASK-ID scope for standard workflow (1 task = 1 commit)
+- Branch name matches the story ID, commit scope matches the task ID
 - Include "why" in body for complex changes
-- Branch name should match the scope when working on tickets
+- Update task/story tracking files before each commit
 
 ## Repository Structure
 
