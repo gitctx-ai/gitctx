@@ -35,10 +35,10 @@ jobs:
 
       - name: Check for large files
         run: |
-          # Find files larger than 1MB
-          large_files=$(find . -type f -size +1M | grep -v "^./.git")
+          # Check only git-tracked files for size (respects .gitignore)
+          large_files=$(git ls-files | xargs -I {} sh -c 'if [ -f "{}" ] && [ $(stat -f%z "{}" 2>/dev/null || stat -c%s "{}") -gt 1048576 ]; then echo "{}"; fi')
           if [ -n "$large_files" ]; then
-            echo "Error: Large files detected (>1MB):"
+            echo "Error: Large files detected in git (>1MB):"
             echo "$large_files"
             exit 1
           fi
