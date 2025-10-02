@@ -1,8 +1,10 @@
 """Step definitions for CLI tests."""
 
+import subprocess
+import sys
+
 import pytest
 from pytest_bdd import given, parsers, then, when
-from typer.testing import CliRunner
 
 
 # Store results in pytest context
@@ -21,15 +23,32 @@ def gitctx_installed() -> None:
 
 
 @when(parsers.parse('I run "{command}"'))
-def run_command(command: str, e2e_cli_runner: CliRunner, context: dict[str, str | int]) -> None:
-    """Execute a CLI command."""
-    from gitctx.cli.main import app
+def run_command(
+    command: str, e2e_git_isolation_env: dict[str, str], context: dict[str, str | int]
+) -> None:
+    """
+    Execute a CLI command as subprocess with full isolation.
 
-    args = command.replace("gitctx", "").strip().split()
-    result = e2e_cli_runner.invoke(app, args)
+    CRITICAL: Uses subprocess.run() with isolated environment to ensure
+    true isolation from developer SSH keys, GPG keys, and git config.
+
+    This is NOT the same as CliRunner.invoke() which runs in-process.
+    """
+    # Remove "gitctx" from command and prepare args
+    args = command.replace("gitctx", "").strip().split() if command.strip() != "gitctx" else []
+
+    # Run gitctx as subprocess with full isolation
+    # Use python -m gitctx to ensure we're using the installed package
+    result = subprocess.run(
+        [sys.executable, "-m", "gitctx"] + args,
+        env=e2e_git_isolation_env,
+        capture_output=True,
+        text=True,
+    )
+
     context["result"] = result
     context["output"] = result.stdout
-    context["exit_code"] = result.exit_code
+    context["exit_code"] = result.returncode
 
 
 @then(parsers.parse('the output should contain "{text}"'))
