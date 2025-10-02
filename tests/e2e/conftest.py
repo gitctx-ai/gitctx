@@ -56,6 +56,31 @@ def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -
         "LC_ALL": "C.UTF-8",
     }
 
+    # Enable coverage for subprocesses (for E2E tests that spawn gitctx)
+    # This ensures subprocess.run() calls still contribute to coverage
+    # Add tests/ to PYTHONPATH so sitecustomize.py is found
+    tests_dir = Path(__file__).parent.parent
+    project_root = tests_dir.parent
+    pythonpath = str(tests_dir)
+    if "PYTHONPATH" in os.environ:
+        pythonpath = f"{os.environ['PYTHONPATH']}:{pythonpath}"
+    isolated_env["PYTHONPATH"] = pythonpath
+
+    # Set COVERAGE_PROCESS_START to enable subprocess coverage
+    # Point to .coveragerc in project root
+    coveragerc = project_root / ".coveragerc"
+    if coveragerc.exists():
+        isolated_env["COVERAGE_PROCESS_START"] = str(coveragerc)
+
+    # Pass through other coverage environment variables
+    for cov_var in [
+        "COV_CORE_SOURCE",
+        "COV_CORE_CONFIG",
+        "COV_CORE_DATAFILE",
+    ]:
+        if cov_var in os.environ:
+            isolated_env[cov_var] = os.environ[cov_var]
+
     # Add git isolation
     isolated_env.update(git_isolation_base)
 
