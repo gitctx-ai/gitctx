@@ -1,7 +1,5 @@
 """Main CLI application."""
 
-from typing import Optional
-
 import typer
 
 from gitctx import __version__
@@ -22,7 +20,7 @@ def version_callback(value: bool) -> None:
 
 @app.callback()
 def main(
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         callback=version_callback,

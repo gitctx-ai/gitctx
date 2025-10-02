@@ -1,0 +1,183 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gitctx"
+version = "0.1.0"
+description = "Context optimization engine for coding workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Bram Swenson", email="bram@craniumisajar.com"},
+]
+keywords = ["git", "context", "search", "embeddings", "AI"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "pyyaml>=6.0.1",
+    "shellingham>=1.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-bdd>=7.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+    "poethepoet>=0.24.0",
+    "mypy>=1.8.0",
+    "ruff>=0.1.0",
+    "pre-commit>=3.6.0",
+    "types-pyyaml>=6.0.12",
+    "commitizen>=3.13.0",
+    "detect-secrets>=1.4.0",
+]
+
+[project.scripts]
+gitctx = "gitctx.cli.main:app"
+
+[project.urls]
+"Homepage" = "https://gitctx.ai"
+"Repository" = "https://github.com/gitctx-ai/gitctx"
+"Bug Tracker" = "https://github.com/gitctx-ai/gitctx/issues"
+"Documentation" = "https://github.com/gitctx-ai/gitctx/docs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gitctx"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "ARG",  # flake8-unused-arguments
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src/gitctx",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/gitctx"]
+omit = [
+    "*/tests/*",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 50
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# Custom scripts
+[tool.poe.tasks]
+
+[tool.poe.tasks.quality]
+sequence = [
+    { cmd = "ruff check src tests" },
+    { cmd = "ruff format --check src tests" },
+    { cmd = "mypy src" },
+    { cmd = "pytest" },
+]
+ignore_fail = false
+
+[tool.poe.tasks.fix]
+sequence = [
+    { cmd = "ruff check --fix src tests" },
+    { cmd = "ruff format src tests" },
+]
+
+[tool.poe.tasks.test]
+cmd = "pytest"
+
+[tool.poe.tasks.test-unit]
+cmd = "pytest tests/unit -v"
+
+[tool.poe.tasks.test-e2e]
+cmd = "pytest tests/e2e -v"
+
+[tool.poe.tasks.test-cov]
+cmd = "pytest --cov=src/gitctx --cov-report=html"
