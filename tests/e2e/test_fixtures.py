@@ -27,8 +27,6 @@ def test_e2e_git_isolation_env_security(e2e_git_isolation_env: dict[str, str]) -
     assert e2e_git_isolation_env["GIT_CONFIG_SYSTEM"] == "/dev/null"
 
     # Check HOME is isolated (different from user's actual home)
-    assert e2e_git_isolation_env["HOME"] != os.path.expanduser("~")
-    # Verify it's in a temporary location (platform-agnostic check)
     home = e2e_git_isolation_env["HOME"]
     assert home != os.path.expanduser("~"), "HOME should be isolated from user's home"
 

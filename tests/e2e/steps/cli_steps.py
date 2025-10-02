@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 from pytest_bdd import given, parsers, then, when
@@ -9,7 +10,7 @@ from pytest_bdd import given, parsers, then, when
 
 # Store results in pytest context
 @pytest.fixture
-def context() -> dict[str, str | int]:
+def context() -> dict[str, Any]:
     """Store test context between steps."""
     return {}
 
@@ -24,7 +25,7 @@ def gitctx_installed() -> None:
 
 @when(parsers.parse('I run "{command}"'))
 def run_command(
-    command: str, e2e_git_isolation_env: dict[str, str], context: dict[str, str | int]
+    command: str, e2e_git_isolation_env: dict[str, str], context: dict[str, Any]
 ) -> None:
     """
     Execute a CLI command as subprocess with full isolation.
@@ -52,7 +53,7 @@ def run_command(
 
 
 @then(parsers.parse('the output should contain "{text}"'))
-def check_output_contains(text: str, context: dict[str, str | int]) -> None:
+def check_output_contains(text: str, context: dict[str, Any]) -> None:
     """Verify text appears in output."""
     output = context["output"]
     assert isinstance(output, str)
@@ -60,13 +61,13 @@ def check_output_contains(text: str, context: dict[str, str | int]) -> None:
 
 
 @then("the exit code should be 0")
-def check_exit_code_zero(context: dict[str, str | int]) -> None:
+def check_exit_code_zero(context: dict[str, Any]) -> None:
     """Verify command succeeded."""
     exit_code = context["exit_code"]
     assert exit_code == 0, f"Expected exit code 0, got {exit_code}"
 
 
 @then(parsers.parse("the exit code should be {code:d}"))
-def check_exit_code(code: int, context: dict[str, str | int]) -> None:
+def check_exit_code(code: int, context: dict[str, Any]) -> None:
     """Verify specific exit code."""
     assert context["exit_code"] == code

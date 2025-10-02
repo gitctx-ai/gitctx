@@ -191,7 +191,18 @@ def e2e_env_factory(e2e_git_isolation_env: dict[str, str]):
         env = e2e_git_isolation_env.copy()
 
         # Security check - don't allow overriding critical vars
-        forbidden = {"GIT_SSH_COMMAND", "SSH_AUTH_SOCK", "GNUPGHOME", "GPG_TTY"}
+        # Prevent re-enabling prompts, SSH, GPG, or git config access
+        forbidden = {
+            "GIT_SSH_COMMAND",
+            "SSH_AUTH_SOCK",
+            "SSH_ASKPASS",
+            "GNUPGHOME",
+            "GPG_TTY",
+            "GIT_ASKPASS",
+            "GIT_TERMINAL_PROMPT",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_SYSTEM",
+        }
         if forbidden & set(kwargs.keys()):
             raise ValueError(
                 f"Cannot override security-critical vars: {forbidden & set(kwargs.keys())}"

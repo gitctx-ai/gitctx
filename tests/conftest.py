@@ -36,6 +36,10 @@ def git_isolation_base() -> dict[str, str]:
     - Push operations
 
     All git-related fixtures MUST use this as a base.
+
+    NOTE: Unix-specific paths (/dev/null, /bin/false) are intentional for
+    security isolation. Git on Windows typically runs under Unix-like environments
+    (WSL, Git Bash, MSYS2). Our CI tests verify this works across all platforms.
     """
     return {
         # Disable git configuration access

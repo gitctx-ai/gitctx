@@ -19,6 +19,7 @@ def test_main_entry_point_exists() -> None:
         [sys.executable, "-m", "gitctx", "--version"],
         capture_output=True,
         text=True,
+        timeout=3,
     )
     assert result.returncode == 0
     assert "gitctx" in result.stdout.lower()
