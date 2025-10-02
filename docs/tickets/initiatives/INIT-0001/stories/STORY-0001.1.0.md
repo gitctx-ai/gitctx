@@ -20,7 +20,7 @@ So that **I can develop gitctx following best practices from the start**
 - [x] Pre-commit hooks working for ruff, mypy, and tests
 - [x] GitHub Actions CI pipeline running on all pushes
 - [x] Project structure follows Python best practices
-- [x] All configurations in pyproject.toml (no separate config files)
+- [x] All configurations in pyproject.toml (except .coveragerc for subprocess coverage)
 
 ## Child Tasks
 
@@ -28,9 +28,46 @@ So that **I can develop gitctx following best practices from the start**
 |----|-------|--------|-------|
 | [TASK-0001.1.0.1](../tasks/TASK-0001.1.0.1.md) | Project Structure Setup | ✅ Complete | 2 |
 | [TASK-0001.1.0.2](../tasks/TASK-0001.1.0.2.md) | pyproject.toml Configuration | ✅ Complete | 3 |
-| [TASK-0001.1.0.3](../tasks/TASK-0001.1.0.3.md) | BDD/TDD Framework Setup | ✅ Complete | 4 |
+| [TASK-0001.1.0.3](../tasks/TASK-0001.1.0.3.md) | BDD/TDD Framework Setup | ✅ Complete | 6 |
 | [TASK-0001.1.0.4](../tasks/TASK-0001.1.0.4.md) | Pre-commit Hooks Configuration | ✅ Complete | 2 |
 | [TASK-0001.1.0.5](../tasks/TASK-0001.1.0.5.md) | CI/CD Pipeline Setup | ✅ Complete | 3 |
+
+## Post-Story Enhancements
+
+After completing all 5 tasks, we made additional improvements during PR review:
+
+### Workflow Documentation (Commit: docs(STORY-0001.1.0))
+
+- Updated `CLAUDE.md` with comprehensive "Story-Driven Development Workflow" section
+  - Core principles: 1 task = 1 commit, manual approval gates, continuous tracking
+  - Workflow steps for each task with quality gates
+  - PR creation guidelines with cross-references
+- Added "PR Workflow and GitHub Links" guide to `docs/tickets/CLAUDE.md`
+  - Documented proper GitHub blob URL format for PR bodies
+  - Provided complete example PR body structure
+  - Added PR creation commands and review checklist
+- Documented commit message standards with TASK-ID scope pattern
+- Locked in story-driven workflow for future development sessions
+
+### Security Hardening (2 Commits on TASK-0001.1.0.3)
+
+**Issue Discovered**: E2E tests were using `CliRunner.invoke()` (in-process), not true subprocess execution. This did not provide complete isolation from developer SSH keys, GPG keys, and git config.
+
+**Fixes Applied**:
+1. **Subprocess Isolation** - Changed E2E step definitions to use `subprocess.run()`
+   - Now executes `python -m gitctx` as actual subprocess
+   - Provides REAL isolation matching how users run gitctx
+2. **Comprehensive Validation** - Added 4 new security validation tests
+   - Tests verify git operations, GPG isolation, and gitctx subprocess execution
+3. **Subprocess Coverage** - Enabled coverage tracking for subprocess calls
+   - Created `.coveragerc` and `sitecustomize.py` for subprocess coverage
+   - Passes coverage env vars to subprocesses via fixtures
+
+**Impact**:
+- Tests increased from 12 → **16**
+- Coverage maintained at **85.00%** (meets 85% threshold)
+- True subprocess security isolation verified
+- Workflow fully documented for future development
 
 ## BDD Specifications
 
