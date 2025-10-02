@@ -46,15 +46,17 @@ Every feature follows **BDD/TDD development**:
 For each task in a story:
 
 ```bash
-# 1. Complete the task implementation following BDD/TDD
-# 2. Run all quality gates
+# 1. Branch name tells you where to work: git checkout -b STORY-0001.1.1
+# 2. Find your story: cd $(find docs/tickets -name "STORY-0001.1.1" -type d)
+# 3. Complete the task implementation following BDD/TDD
+# 4. Run all quality gates
 uv run ruff check src tests && uv run ruff format src tests && uv run mypy src && uv run pytest
 
-# 3. Update task file - mark status ✅ Complete, check all boxes, set Actual Hours
-# 4. Update parent story file - increment progress %, update child task statuses
-# 5. Get manual approval from user
-# 6. Commit with format: feat(TASK-ID): description
-# 7. Continue to next task
+# 5. Update task file - mark status ✅ Complete, check all boxes, set Actual Hours
+# 6. Update parent story README.md - increment progress %, update child task statuses
+# 7. Get manual approval from user
+# 8. Commit with format: feat(TASK-ID): description
+# 9. Continue to next task
 ```
 
 ### Creating Pull Requests
