@@ -11,20 +11,22 @@ Replace the mock indexing from EPIC-0001.1 with actual functionality that scans 
 
 ## Goals
 
-- Scan repository files respecting .gitignore
-- Chunk files intelligently for embedding
+- Walk commit graph and extract blobs from commit trees
+- Deduplicate blobs by SHA (same content indexed once)
+- Track blob → commit relationships for result attribution
+- Chunk blob content intelligently for embedding
 - Generate embeddings via OpenAI text-embedding-3-large
-- Store embeddings in safetensors format for 5x space savings
+- Store embeddings with blob_sha as primary key (safetensors)
 - Track costs and provide accurate progress
 
 ## Child Stories
 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
-| [STORY-0001.2.1](.././active/STORY-0001.2.1.md) | Git-Aware File Scanner | 🔵 Not Started | 5 |
-| [STORY-0001.2.2](.././active/STORY-0001.2.2.md) | Language-Agnostic Code Chunking | 🔵 Not Started | 5 |
+| [STORY-0001.2.1](.././active/STORY-0001.2.1.md) | Commit Graph Walker with Blob Deduplication | 🔵 Not Started | 5 |
+| [STORY-0001.2.2](.././active/STORY-0001.2.2.md) | Blob Content Chunking | 🔵 Not Started | 5 |
 | [STORY-0001.2.3](.././active/STORY-0001.2.3.md) | OpenAI Embedding Generation | 🔵 Not Started | 5 |
-| [STORY-0001.2.4](.././active/STORY-0001.2.4.md) | Safetensors Storage Implementation | 🔵 Not Started | 3 |
+| [STORY-0001.2.4](.././active/STORY-0001.2.4.md) | Blob-Centric Safetensors Storage | 🔵 Not Started | 3 |
 | [STORY-0001.2.5](.././active/STORY-0001.2.5.md) | Progress Tracking and Cost Estimation | 🔵 Not Started | 3 |
 
 ## BDD Specifications
@@ -41,12 +43,12 @@ Feature: Repository Indexing
     Given OpenAI API key is configured
 
   Scenario: Index a small repository
-    Given a repository with 10 Python files
+    Given a repository with 10 commits
+    And 5 unique blobs across those commits
     When I run "gitctx index"
-    Then the output should show progress
-    And embeddings should be created in .gitctx/embeddings/
-    And files should have .safetensors extension
-    And manifest.json should be created
+    Then the output should show "Indexed 10 commits (5 unique blobs)"
+    And 5 .safetensors files should be created in .gitctx/blobs/
+    And metadata should track blob→commit relationships
 
   Scenario: Respect gitignore rules
     Given a repository with node_modules directory
@@ -78,31 +80,68 @@ Feature: Repository Indexing
 
 ## Technical Design
 
-### File Scanner
+### Commit Walker
 
 ```python
-# src/gitctx/core/scanner.py
+# src/gitctx/core/commit_walker.py
 from pathlib import Path
-from gitignore_parser import parse_gitignore
+from typing import Set, Dict, List, Iterator, Tuple
+from dataclasses import dataclass, asdict
+import pygit2
 
-class FileScanner:
+@dataclass
+class CommitRef:
+    """Reference to a commit containing a blob."""
+    commit_sha: str
+    path: str
+    author: str
+    date: int
+    message: str
+    is_head: bool
+
+@dataclass
+class Blob:
+    """Git blob with content."""
+    sha: str
+    content: bytes
+
+class CommitWalker:
+    """Walk commit graph extracting unique blobs with deduplication."""
+
     def __init__(self, repo_path: Path):
-        self.repo_path = repo_path
-        self.gitignore = self._load_gitignore()
-    
-    def scan(self) -> List[Path]:
-        """Scan repository for indexable files."""
-        files = []
-        for path in self.repo_path.rglob("*"):
-            if self._should_index(path):
-                files.append(path)
-        return files
-    
-    def _should_index(self, path: Path) -> bool:
-        # Check gitignore
-        # Check if binary
-        # Check file size
-        return True
+        self.repo = pygit2.Repository(repo_path)
+        self.seen_blobs: Set[str] = set()
+        self.blob_commits: Dict[str, List[CommitRef]] = {}
+
+    def walk(self) -> Iterator[Blob]:
+        """Walk commits, yield unique blobs, track all commit refs."""
+        for commit in self.repo.walk(self.repo.head.target):
+            for blob_sha, path in self._extract_blobs(commit.tree):
+                # Track this commit reference
+                if blob_sha not in self.blob_commits:
+                    self.blob_commits[blob_sha] = []
+
+                self.blob_commits[blob_sha].append(CommitRef(
+                    commit_sha=commit.hex,
+                    path=path,
+                    author=commit.author.name,
+                    date=commit.commit_time,
+                    message=commit.message,
+                    is_head=(commit.hex == self.repo.head.target.hex)
+                ))
+
+                # Yield blob content if first occurrence
+                if blob_sha not in self.seen_blobs:
+                    blob = self.repo[blob_sha]
+                    yield Blob(sha=blob_sha, content=blob.data)
+                    self.seen_blobs.add(blob_sha)
+
+    def _extract_blobs(self, tree) -> Iterator[Tuple[str, str]]:
+        """Recursively extract (blob_sha, path) from tree."""
+        # Walk tree recursively
+        # Yield (blob.hex, path) for each blob
+        # Skip binary files, respect size limits
+        pass
 ```
 
 ### Chunker
@@ -147,35 +186,56 @@ class Embedder:
         return embeddings
 ```
 
-### Safetensors Storage
+### Blob Store
 
 ```python
-# src/gitctx/storage/safetensors_cache.py
+# src/gitctx/storage/blob_store.py
 from safetensors.numpy import save_file, load_file
 import numpy as np
+import json
+from pathlib import Path
+from typing import List
 
-class EmbeddingCache:
+class BlobStore:
+    """Store embeddings and metadata for git blobs."""
+
     def __init__(self, cache_dir: Path):
-        self.cache_dir = cache_dir
-        self.vectors_dir = cache_dir / "vectors"
-        self.vectors_dir.mkdir(parents=True, exist_ok=True)
-    
-    def store(self, blob_hash: str, embeddings: List[np.ndarray]):
-        """Store embeddings in safetensors format."""
+        self.blobs_dir = cache_dir / "blobs"
+        self.metadata_dir = cache_dir / "metadata"
+        self.blobs_dir.mkdir(parents=True, exist_ok=True)
+        self.metadata_dir.mkdir(parents=True, exist_ok=True)
+
+    def store_blob(
+        self,
+        blob_sha: str,
+        embeddings: List[np.ndarray],
+        commit_refs: List[CommitRef]
+    ):
+        """Store blob embeddings and commit metadata."""
+        # Store embeddings
         embeddings_dict = {
-            f"chunk_{i}": emb 
+            f"chunk_{i}": emb
             for i, emb in enumerate(embeddings)
         }
         metadata = {
             "model": "text-embedding-3-large",
             "dimensions": "3072",
-            "blob_hash": blob_hash,
+            "blob_sha": blob_sha,
             "chunks": str(len(embeddings))
         }
         save_file(
             embeddings_dict,
-            self.vectors_dir / f"{blob_hash}.safetensors",
+            self.blobs_dir / f"{blob_sha}.safetensors",
             metadata=metadata
+        )
+
+        # Store commit references
+        refs_data = {
+            "blob_sha": blob_sha,
+            "occurrences": [asdict(ref) for ref in commit_refs]
+        }
+        (self.metadata_dir / f"{blob_sha}.json").write_text(
+            json.dumps(refs_data, indent=2)
         )
 ```
 
@@ -197,10 +257,46 @@ class EmbeddingCache:
 
 ## Performance Targets
 
-- Index 100 files in <60 seconds
-- Storage <0.2x of source code size
+- Index 100 commits in <60 seconds
+- Deduplication: Skip 70%+ of blobs (typical unchanged rate)
+- Storage <0.05x of source code size (5% due to deduplication)
 - Memory usage <500MB during indexing
-- Cost <$0.001 per file average
+- Cost <$0.0001 per unique blob average
+
+## Architectural Constraint: Committed Files Only
+
+**Decision**: gitctx indexes ONLY committed files, never working directory changes.
+
+**Rationale**:
+- Temporal context: Every result traceable to exact commit with metadata
+- Reproducibility: Search results are stable, tied to git history
+- Collaboration: Team sees same results for same commits
+- Simplicity: No tracking of uncommitted changes
+
+**Implementation**:
+- Index HEAD commit + full git history
+- Working directory changes are invisible to gitctx
+- Users must commit before indexing new/changed files
+
+**User Impact**:
+- **Workflow change**: "Commit to search" (not "save to search")
+- **Benefit**: Results include who/when/why context from commit metadata
+- **Trade-off**: Must commit more frequently during development
+
+## Architecture: Blob-Centric Indexing
+
+**gitctx indexes git blobs, not "files".**
+
+Git stores content as **blobs** (content-addressed by SHA-256). Same blob SHA across commits = identical content.
+
+**Key principle:** Index each unique blob once, track all commits containing it.
+
+**Example deduplication:**
+- 10,000 commits × 1,000 files = 10M "file instances"
+- 70% unchanged = 3,000 unique blobs
+- **Index 3,000 blobs (not 10M), save 3,333x cost**
+
+See implementation in STORY-0001.2.1 (Commit Graph Walker).
 
 ## Notes
 
@@ -211,5 +307,5 @@ class EmbeddingCache:
 
 ---
 
-**Created**: 2025-09-28  
-**Last Updated**: 2025-09-28
+**Created**: 2025-09-28
+**Last Updated**: 2025-10-03

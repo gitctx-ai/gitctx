@@ -13,14 +13,17 @@ So that **I can immediately test the interface and provide feedback before backe
 
 ## Acceptance Criteria
 
-- [ ] All core commands (`index`, `search`, `config`, `clear`) are executable
+- [ ] Core commands (`index`, `search`, `config`, `clear`) are executable with mocked implementations
 - [ ] Each command has comprehensive help text with examples
-- [ ] Commands provide mock responses demonstrating expected behavior
-- [ ] Error messages are clear and actionable
-- [ ] Output uses Rich formatting for better terminal UX
+- [ ] Commands implement three output modes: Default (terse), Verbose (detailed), Quiet (silent)
+- [ ] Default output matches TUI_GUIDE.md: git-like terse format (no panels/progress bars)
+- [ ] Mock implementations demonstrate git history + HEAD behavior (search)
+- [ ] Config command manages settings with in-memory storage (testing isolation)
+- [ ] Error messages are clear, actionable, and include exit codes
 - [ ] Invalid commands show helpful suggestions
 - [ ] Missing arguments show usage instructions
 - [ ] All BDD scenarios for CLI commands pass
+- [ ] Platform-aware symbol rendering (Unicode for modern terminals, ASCII fallback for Windows cmd.exe)
 
 ## Child Tasks
 
@@ -57,11 +60,11 @@ app = typer.Typer(
     name="gitctx",
     help="Context optimization engine for coding workflows",
     add_completion=False,
-    rich_markup_mode="rich",  # Enable Rich formatting
+    rich_markup_mode="markdown",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
-# Each command module registers itself
+# Each command module registers itself explicitly
 from gitctx.cli import index, search, config, clear
 
 index.register(app)
@@ -72,48 +75,69 @@ clear.register(app)
 
 ### Command Modules
 
-Each command lives in its own module with a `register()` function:
+Each command lives in its own module with a `register()` function for explicit registration:
 
 ```python
 # src/gitctx/cli/index.py
 import typer
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 console = Console()
 
 def register(app: typer.Typer) -> None:
-    """Register the index command."""
-    app.command()(index_command)
+    """Register the index command with the app."""
+    app.command(name="index")(index_command)
 
 def index_command(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output except errors"),
     force: bool = typer.Option(False, "--force", "-f", help="Force reindexing"),
 ) -> None:
     """Index the repository for searching."""
-    # Mock implementation
+    # Mock implementation - see TUI_GUIDE.md for output formats
 ```
 
-### Mock Implementations
+**Why `register()` pattern?**
+- **No circular imports** - Commands don't import `app` from main
+- **Better testability** - Commands can be tested without full app initialization
+- **Explicit control** - Clear registration flow in main.py
+- **Dependency injection** - App passed in, not imported globally
 
-Mock implementations should demonstrate the expected UX:
+### Mock Implementation Guidelines
 
+Mock implementations MUST follow TUI_GUIDE.md output specifications:
+
+**Default Mode (Terse)**:
 ```python
-# Index command mock
-with Progress(
-    SpinnerColumn(),
-    TextColumn("[progress.description]{task.description}"),
-    console=console,
-) as progress:
-    task = progress.add_task("Indexing repository...", total=100)
-    # Simulate work
-    progress.update(task, completed=100)
-
-console.print("[green]✓[/green] Repository indexed successfully")
-console.print("  Files: 1,234")
-console.print("  Chunks: 5,678")
-console.print("  Embeddings: 5,678")
+# Single-line output, git-like style
+console.print("Indexed 5678 commits (1234 unique blobs) in 8.2s")
 ```
+
+**Verbose Mode (Detailed)**:
+```python
+# Multi-line with detailed progress
+console.print("→ Walking commit graph")
+console.print("  Found 5678 commits")
+console.print()
+console.print("→ Extracting blobs")
+console.print("  Total blob references: 4567")
+console.print("  Unique blobs: 1234")
+# etc...
+```
+
+**Quiet Mode (Silent)**:
+```python
+# No output on success, only errors
+if not quiet:
+    console.print(output)
+```
+
+**Key Principles**:
+- Use `console.print()` directly, not Rich Panels or Tables
+- Default = terse (one line)
+- Verbose = multi-line with details
+- Quiet = silent success
+- Platform-aware symbols via Rich's automatic detection
 
 ## Dependencies
 
@@ -125,27 +149,99 @@ console.print("  Embeddings: 5,678")
 
 - **Command Discovery**: Users can explore all commands via `--help`
 - **Response Time**: All mock commands respond in <50ms
-- **Error Clarity**: 100% of errors provide actionable next steps
+- **Error Clarity**: 100% of errors provide actionable next steps with correct exit codes
+- **Output Compliance**: All output matches TUI_GUIDE.md specifications
 - **Test Coverage**: Maintain >85% coverage
-- **BDD Scenarios**: 14+ scenarios passing (up from 2)
+- **BDD Scenarios**: 10+ scenarios passing (up from 2)
 
 ## Risks & Mitigations
 
 | Risk | Mitigation |
 |------|------------|
-| Mock responses set wrong expectations | Clear "mock" indicators in output |
+| Mock outputs don't match TUI_GUIDE.md specs | Strict acceptance criteria requiring TUI_GUIDE.md compliance |
+| Mock responses set wrong expectations | Demonstrate both git history and HEAD results in search mocks |
 | Command interface changes after backend impl | BDD tests lock in the interface contract |
-| Users confused by non-functional commands | Help text clearly states "mock implementation" |
+| Overly complex mocks slow development | Use simple console.print(), avoid Rich panels/tables |
 
 ## Notes
 
-- This story establishes the complete CLI interface contract
-- Mock implementations allow immediate user testing
-- Focus on UX patterns that will persist through development
-- All error messages and help text should be finalized here
-- Rich formatting should make the CLI feel polished even with mocks
+- This story establishes the complete CLI interface contract per TUI_GUIDE.md
+- Mock implementations MUST be terse by default (git-like single-line output)
+- Verbose mode demonstrates the detailed output users will see in production
+- Focus on UX patterns that will persist: terse defaults, helpful errors, platform-aware symbols
+- All error messages should be finalized here with proper exit codes
+- Config command uses in-memory storage for testing isolation (no file I/O)
+
+## Mock Behavior Boundaries
+
+**What mocks SHOULD validate:**
+- Git repository exists (check for `.git` directory)
+- Required arguments are provided
+- Flag combinations are valid
+
+**What mocks SHOULD fake:**
+- Actual git operations (commit walking, blob extraction)
+- Embedding generation
+- File I/O (no `.gitctx` directory creation)
+- Network calls (no OpenAI API)
+
+**Configuration storage:**
+- Use in-memory dict, not actual YAML file
+- This ensures test isolation and no side effects
+
+## Git History Indexing - Technical Notes
+
+### Core Design: Blob-Centric Indexing
+
+**All content comes from git blobs** (content-addressed by SHA).
+
+**Critical insight:** We index **blobs** (git's content storage), not "files".
+
+**Deduplication:**
+- Same blob SHA across commits = identical content = index ONCE
+- Different blob SHA = different content = index separately
+- Typical repos: 70% of files unchanged between commits
+- Typical savings: 10-100x reduction in indexing cost
+
+**Example:**
+- Repository: 10,000 commits × 1,000 files = 10M "file instances"
+- Unchanged rate: 70% → 3,000 unique blobs
+- **Index 3,000 blobs (not 10M files) = 3,333x cost savings**
+
+**Storage structure:**
+```
+.gitctx/
+  blobs/
+    abc123.safetensors      # Embeddings for blob abc123
+  metadata/
+    abc123.json             # All commits containing blob abc123
+```
+
+**Result Format** - ALL results show commit metadata:
+
+Modern terminals:
+```
+src/auth.py:45:0.92 ● f9e8d7c (HEAD, 2025-10-02, Alice) "Add OAuth"
+src/old.py:12:0.87   a1b2c3d (2024-09-15, Bob) "Add middleware"
+```
+
+Legacy Windows cmd.exe:
+```
+src/auth.py:45:0.92 [HEAD] f9e8d7c (2025-10-02, Alice) "Add OAuth"
+src/old.py:12:0.87         a1b2c3d (2024-09-15, Bob) "Add middleware"
+```
+
+**HEAD Indicator**:
+- Symbol: `●` (modern) or `[HEAD]` (legacy Windows)
+- Shows which results are from current branch HEAD vs historical commits
+
+**Implementation Notes**:
+- Index entire git history as graph structure
+- Each result includes: commit SHA, date, author, message
+- Temporal search: "who wrote authentication logic" across all history
+- See [TUI_GUIDE.md](../../../../TUI_GUIDE.md#result-attribution) for complete visual design
 
 ---
 
 **Created**: 2025-10-01
-**Last Updated**: 2025-10-01
+**Last Updated**: 2025-10-03
