@@ -71,6 +71,19 @@ def temp_home(tmp_path: Path) -> Path:
     return home
 
 
+@pytest.fixture
+def cli_runner():
+    """
+    CLI test runner with colors disabled for consistent output.
+
+    Returns:
+        CliRunner: Typer test runner configured with NO_COLOR environment
+    """
+    from typer.testing import CliRunner
+
+    return CliRunner(env={"NO_COLOR": "1"})
+
+
 # === PHASE 2: Repository Fixtures (TODO - Next Sprint) ===
 # TODO: unit_git_repo - Simple repo for unit tests (monkeypatch)
 # TODO: unit_mock_filesystem - Mock file operations

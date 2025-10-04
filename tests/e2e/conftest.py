@@ -54,6 +54,7 @@ def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -
         "TERM": "dumb",
         "LANG": "C.UTF-8",
         "LC_ALL": "C.UTF-8",
+        "NO_COLOR": "1",  # Disable colors for consistent test output
     }
 
     # Enable coverage for subprocesses (for E2E tests that spawn gitctx)

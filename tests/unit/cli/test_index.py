@@ -1,22 +1,20 @@
 """Unit tests for index command."""
 
-from typer.testing import CliRunner
 
 from gitctx.cli.main import app
 
-runner = CliRunner()
 
 
-def test_index_command_exists():
+def test_index_command_exists(cli_runner):
     """Verify index command is registered."""
-    result = runner.invoke(app, ["index", "--help"])
+    result = cli_runner.invoke(app, ["index", "--help"])
     assert result.exit_code == 0
     assert "Index the repository" in result.stdout
 
 
-def test_index_default_output():
+def test_index_default_output(cli_runner):
     """Verify default mode is terse (single line)."""
-    result = runner.invoke(app, ["index"])
+    result = cli_runner.invoke(app, ["index"])
     assert result.exit_code == 0
     lines = [line for line in result.stdout.split("\n") if line.strip()]
     # Default should be 1 line: "Indexed N commits (M unique blobs) in Xs"
@@ -26,9 +24,9 @@ def test_index_default_output():
     assert "unique blobs" in result.stdout
 
 
-def test_index_verbose_flag():
+def test_index_verbose_flag(cli_runner):
     """Verify --verbose flag shows detailed output."""
-    result = runner.invoke(app, ["index", "--verbose"])
+    result = cli_runner.invoke(app, ["index", "--verbose"])
     assert result.exit_code == 0
     # Verbose should have multiple sections
     assert "Walking commit graph" in result.stdout or "→" in result.stdout
@@ -37,34 +35,34 @@ def test_index_verbose_flag():
     assert len(lines) > 5  # Multiple lines in verbose mode
 
 
-def test_index_quiet_flag():
+def test_index_quiet_flag(cli_runner):
     """Verify --quiet flag suppresses output."""
-    result = runner.invoke(app, ["index", "--quiet"])
+    result = cli_runner.invoke(app, ["index", "--quiet"])
     assert result.exit_code == 0
     # Quiet mode should have NO output on success
     assert result.stdout.strip() == ""
 
 
-def test_index_force_flag():
+def test_index_force_flag(cli_runner):
     """Verify --force flag is accepted."""
-    result = runner.invoke(app, ["index", "--force"])
+    result = cli_runner.invoke(app, ["index", "--force"])
     assert result.exit_code == 0
     assert "Cleared existing index" in result.stdout or "force" in result.stdout.lower()
 
 
-def test_index_short_flags():
+def test_index_short_flags(cli_runner):
     """Verify -v, -q, -f short flags work."""
-    result = runner.invoke(app, ["index", "-v", "-f"])
+    result = cli_runner.invoke(app, ["index", "-v", "-f"])
     assert result.exit_code == 0
 
-    result = runner.invoke(app, ["index", "-q"])
+    result = cli_runner.invoke(app, ["index", "-q"])
     assert result.exit_code == 0
     assert result.stdout.strip() == ""
 
 
-def test_index_help_text():
+def test_index_help_text(cli_runner):
     """Verify help text includes all options."""
-    result = runner.invoke(app, ["index", "--help"])
+    result = cli_runner.invoke(app, ["index", "--help"])
     assert "--verbose" in result.stdout
     assert "-v" in result.stdout
     assert "--quiet" in result.stdout
@@ -73,12 +71,12 @@ def test_index_help_text():
     assert "-f" in result.stdout
 
 
-def test_index_not_git_repository(tmp_path, monkeypatch):
+def test_index_not_git_repository(cli_runner, tmp_path, monkeypatch):
     """Verify index fails with proper error in non-git directory."""
     # Change to non-git directory
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(app, ["index"])
+    result = cli_runner.invoke(app, ["index"])
     assert result.exit_code == 3  # Exit code 3 = not a git repository
     # Error message goes to stderr (via console_err)
     output = (result.stdout + result.stderr).lower()
