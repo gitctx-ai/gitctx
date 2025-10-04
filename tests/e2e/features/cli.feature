@@ -80,3 +80,9 @@ Feature: CLI Foundation
   Scenario: Missing required arguments
     When I run "gitctx search"
     Then the exit code should not be 0
+
+  Scenario: Empty command shows quick start
+    When I run "gitctx"
+    Then the exit code should be 0
+    And the output should contain "Quick start"
+    And the output should contain "gitctx index"

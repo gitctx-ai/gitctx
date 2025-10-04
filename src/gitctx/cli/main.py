@@ -1,8 +1,11 @@
 """Main CLI application."""
 
 import typer
+from rich.console import Console
 
 from gitctx import __version__
+
+console = Console()
 
 app = typer.Typer(
     name="gitctx",
@@ -18,9 +21,10 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
-    version: bool | None = typer.Option(
+    ctx: typer.Context,
+    version: bool | None = typer.Option(  # noqa: ARG001
         None,
         "--version",
         callback=version_callback,
@@ -29,7 +33,16 @@ def main(
     ),
 ) -> None:
     """gitctx - Context optimization engine for coding workflows."""
-    pass
+    # If no command is provided, show quick start guide
+    if ctx.invoked_subcommand is None:
+        console.print("[bold]gitctx[/bold] - Context optimization engine")
+        console.print()
+        console.print("Use [cyan]gitctx --help[/cyan] to see available commands")
+        console.print()
+        console.print("[bold]Quick start:[/bold]")
+        console.print("  1. [cyan]gitctx config set api_keys.openai <your-key>[/cyan]")
+        console.print("  2. [cyan]gitctx index[/cyan]")
+        console.print('  3. [cyan]gitctx search "your query"[/cyan]')
 
 
 # Register commands
