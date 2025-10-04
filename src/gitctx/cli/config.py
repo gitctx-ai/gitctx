@@ -11,14 +11,13 @@ console = Console()
 # In-memory storage for mock configuration (NO file I/O for testing isolation)
 _config_store: dict[str, Any] = {}
 
+# Create a sub-app for config commands
+config_app = typer.Typer(help="Manage gitctx configuration")
+
 
 def register(app: typer.Typer) -> None:
     """Register the config command group with the CLI app."""
     app.add_typer(config_app, name="config")
-
-
-# Create a sub-app for config commands
-config_app = typer.Typer(help="Manage gitctx configuration")
 
 
 def _parse_dot_notation(key: str) -> list[str]:

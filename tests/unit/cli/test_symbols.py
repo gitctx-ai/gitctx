@@ -5,6 +5,26 @@ import sys
 from pathlib import Path
 
 
+def _find_project_root(start_path: Path) -> Path:
+    """Find project root by locating pyproject.toml.
+
+    Args:
+        start_path: Starting path to search from
+
+    Returns:
+        Path to project root directory
+
+    Raises:
+        RuntimeError: If pyproject.toml not found in any parent directory
+    """
+    current = start_path.resolve()
+    while current != current.parent:
+        if (current / "pyproject.toml").exists():
+            return current
+        current = current.parent
+    raise RuntimeError("Could not find project root (pyproject.toml not found)")
+
+
 def test_symbols_modern_terminals():
     """Verify symbols are correctly set based on terminal type."""
     from gitctx.cli.symbols import SYMBOLS, _console
@@ -64,7 +84,7 @@ with patch("rich.console.Console") as MockConsole:
         [sys.executable, "-c", test_script],
         capture_output=True,
         text=True,
-        cwd=Path(__file__).parent.parent.parent.parent,  # Run from repo root
+        cwd=_find_project_root(Path(__file__)),  # Run from repo root
     )
 
     # Check that the test passed

@@ -67,8 +67,7 @@ def search_command(
         raise typer.Exit(code=2)
 
     # Mock implementation: query is validated by Typer but not used in mock results
-    # Real implementation would use query for semantic search
-    _ = query  # Acknowledge parameter (used by Typer for validation)
+    # TODO: Use query for actual semantic search in real implementation
 
     # Mock search results: demonstrate both git history AND HEAD
     # TUI_GUIDE.md lines 404-411 (default), 417-465 (verbose)
