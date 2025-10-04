@@ -21,23 +21,19 @@ Feature: CLI Foundation
     And the output should contain "gitctx"
     And the output should contain "Context optimization engine"
 
-  # Scenario: Configure API key
-  #   When I run "gitctx config set api_keys.openai sk-test123"
-  #   Then the configuration should be saved
-  #   When I run "gitctx config get api_keys.openai"
-  #   Then the output should contain "sk-...123"
+  Scenario: Config set command
+    When I run "gitctx config set api_keys.openai sk-test123"
+    Then the exit code should be 0
+    And the output should contain "Set"
 
-  # Scenario: Display configuration
-  #   Given the configuration contains API keys
-  #   When I run "gitctx config list"
-  #   Then the output should show all settings
-  #   And sensitive values should be masked
+  Scenario: Config get command
+    When I run "gitctx config get nonexistent.key"
+    Then the exit code should be 0
+    And the output should contain "not set"
 
-  # Scenario: Environment variable override
-  #   Given the environment variable "OPENAI_API_KEY" is set to "sk-env123"
-  #   When I run "gitctx config get api_keys.openai"
-  #   Then the output should contain "sk-...123"
-  #   And the environment value should take precedence
+  Scenario: Config list command
+    When I run "gitctx config list"
+    Then the exit code should be 0
 
   Scenario: Index command help
     When I run "gitctx index --help"

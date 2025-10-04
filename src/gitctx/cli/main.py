@@ -33,7 +33,8 @@ def main(
 
 
 # Register commands
-from gitctx.cli import index, search  # noqa: E402
+from gitctx.cli import config, index, search  # noqa: E402
 
 index.register(app)
 search.register(app)
+config.register(app)
