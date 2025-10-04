@@ -10,6 +10,15 @@ Future Expansion: See roadmap in comments below
 Author: gitctx team
 """
 
+import os
+
+# CRITICAL: Set environment variables BEFORE any CLI module imports
+# This ensures Rich Console objects are created without ANSI escape codes
+# Console checks these at __init__ time, so they must be set before import
+os.environ["TTY_COMPATIBLE"] = "0"  # Rich 2025 standard - disables ANSI codes
+os.environ["NO_COLOR"] = "1"        # Standard fallback for no color
+os.environ["TERM"] = "dumb"         # Simple terminal type
+
 import sys
 from pathlib import Path
 
@@ -74,14 +83,19 @@ def temp_home(tmp_path: Path) -> Path:
 @pytest.fixture
 def cli_runner():
     """
-    CLI test runner with colors disabled for consistent output.
+    CLI test runner for unit tests.
 
-    Returns:
-        CliRunner: Typer test runner configured with NO_COLOR environment
+    Returns CliRunner for testing Typer CLI commands in-process.
+
+    Note: Console colors are disabled globally via TTY_COMPATIBLE=0 set at
+    module level (top of this file). This must be done before CLI modules
+    are imported, as Console checks environment at __init__ time.
+
+    For E2E tests with subprocess isolation, use e2e_cli_runner instead.
     """
     from typer.testing import CliRunner
 
-    return CliRunner(env={"NO_COLOR": "1"})
+    return CliRunner()
 
 
 # === PHASE 2: Repository Fixtures (TODO - Next Sprint) ===
