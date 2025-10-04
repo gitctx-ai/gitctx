@@ -67,13 +67,20 @@ CLAUDE.md                        # Root - BDD/TDD workflow
 
 Currently implementing **INIT-0001: MVP Foundation** (Q4 2025)
 
-- 🟡 CLI Foundation (in progress - ~38% complete)
-  - ✅ Development Environment Setup (STORY-0001.1.0)
-  - 🔵 CLI Framework, Config, Commands (remaining stories)
-- 🔵 Real Indexing (not started)
-- 🔵 Vector Search (not started)
+**EPIC-0001.1: CLI Foundation** (~80% complete - 8/10 story points)
+- ✅ Development Environment Setup (STORY-0001.1.0) - 5 points
+  - Project structure, BDD/TDD framework, quality tools, CI/CD
+- ✅ CLI Framework Setup (STORY-0001.1.1) - 3 points
+  - All 4 commands implemented (index, search, config, clear)
+  - 76 tests passing, 96.76% coverage
+  - 13 BDD scenarios enabled
+  - Quick start guide for new users
 
-See [initiatives](docs/tickets/initiatives/) for detailed progress.
+**Next Up:**
+- 🔵 EPIC-0001.2: Real Indexing (git blob extraction, OpenAI embeddings)
+- 🔵 EPIC-0001.3: Vector Search (LanceDB integration)
+
+See [ROADMAP](docs/vision/ROADMAP.md) for detailed progress and [initiatives](docs/tickets/initiatives/) for tracking.
 
 ## Development
 

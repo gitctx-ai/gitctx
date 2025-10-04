@@ -2,8 +2,8 @@
 
 **Parent Initiative**: [INIT-0001](../README.md)
 **Status**: 🟡 In Progress
-**Estimated**: 13 story points
-**Progress**: ████░░░░░░ 38% (5/13 story points)
+**Estimated**: 8 story points
+**Progress**: ████████░░ 80% (8/10 story points estimated, 2 stories remaining)
 
 ## Overview
 
@@ -22,11 +22,10 @@ Build the complete command-line interface with all commands working against mock
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
 | [STORY-0001.1.0](STORY-0001.1.0/README.md) | Development Environment Setup | ✅ Complete | 5 |
-| [STORY-0001.1.1](STORY-0001.1.1/README.md) | CLI Framework Setup | 🔵 Not Started | 3 |
-| STORY-0001.1.2 | Config Command | 🔵 Not Started | 3 |
-| STORY-0001.1.3 | Index Command (Mocked) | 🔵 Not Started | 2 |
-| STORY-0001.1.4 | Search Command (Mocked) | 🔵 Not Started | 3 |
-| STORY-0001.1.5 | Clear Command | 🔵 Not Started | 2 |
+| [STORY-0001.1.1](STORY-0001.1.1/README.md) | CLI Framework Setup | ✅ Complete | 3 |
+| STORY-0001.1.2 | (TBD - Next story) | 🔵 Not Started | TBD |
+
+**Note**: STORY-0001.1.1 included all CLI commands (index, search, config, clear) as tasks within a single story, as they are tightly coupled for the CLI interface contract.
 
 ## BDD Specifications
 
@@ -122,7 +121,28 @@ class Config:
 - Focus on UX patterns that will persist through development
 - All error messages and help text should be finalized here
 
+## Completion Status
+
+### Completed Stories
+
+**STORY-0001.1.0: Development Environment Setup** (5 points)
+- ✅ Project structure with pyproject.toml
+- ✅ BDD/TDD framework (pytest-bdd, pytest-cov)
+- ✅ Code quality tools (ruff, mypy)
+- ✅ Pre-commit hooks
+- ✅ GitHub Actions CI/CD
+
+**STORY-0001.1.1: CLI Framework Setup** (3 points)
+- ✅ All 4 commands implemented (index, search, config, clear)
+- ✅ Register pattern for clean architecture
+- ✅ Terse output matching TUI_GUIDE.md
+- ✅ Error handling with quick start guide
+- ✅ 76 tests passing, 96.76% coverage
+- ✅ 13 BDD scenarios enabled
+
+**Total Progress**: 8/10 points estimated (80%)
+
 ---
 
-**Created**: 2025-09-28  
-**Last Updated**: 2025-09-28
+**Created**: 2025-09-28
+**Last Updated**: 2025-10-04

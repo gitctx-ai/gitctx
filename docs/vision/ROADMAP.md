@@ -39,13 +39,15 @@ Build the core functionality users need to search their codebase intelligently.
 
 **Epics**:
 
-- EPIC-0001.1: CLI Foundation - 🟡 In Progress (~38% - 5/13 story points complete)
+- EPIC-0001.1: CLI Foundation - 🟡 In Progress (~80% - 8/10 story points complete)
+  - ✅ STORY-0001.1.0: Development Environment Setup (5 points)
+  - ✅ STORY-0001.1.1: CLI Framework Setup (3 points)
 - EPIC-0001.2: Real Indexing - 🔵 Not Started
 - EPIC-0001.3: Vector Search - 🔵 Not Started
 
 **Key Deliverables:**
 
-- ⬜ Complete CLI with all commands
+- ✅ Complete CLI with all commands (mocked implementations)
 - ⬜ OpenAI embedding generation
 - ⬜ LanceDB vector search
 - ⬜ Basic context assembly
