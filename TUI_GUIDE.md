@@ -496,7 +496,11 @@ version: 0.1.0
 
 ### 1. src/auth/login.py:45-67 (Score: 0.92)
 
-**Source**: Current file
+**Source**: Current file (HEAD)
+**Commit**: f9e8d7c
+**Author**: Alice
+**Date**: 2025-10-02
+**Message**: Add OAuth support
 
 **Context**: User authentication function
 
@@ -557,7 +561,11 @@ class AuthenticationMiddleware:
 
 ### 3. docs/authentication.md:34-41 (Score: 0.85)
 
-**Source**: Current file
+**Source**: Current file (HEAD)
+**Commit**: e4f5g6h
+**Author**: Alice
+**Date**: 2025-10-02
+**Message**: Update auth docs
 
 **Context**: Authentication flow documentation
 
@@ -584,7 +592,11 @@ class AuthenticationMiddleware:
 
 ### 4. tests/test_auth.py:78-92 (Score: 0.76)
 
-**Source**: Current file
+**Source**: Current file (HEAD)
+**Commit**: f9e8d7c
+**Author**: Alice
+**Date**: 2025-10-02
+**Message**: Add OAuth support
 
 **Context**: Authentication test case
 

@@ -45,9 +45,14 @@ Feature: CLI Foundation
     And the output should contain "--verbose"
     And the exit code should be 0
 
-  # Scenario: Search command help
-  #   When I run "gitctx search --help"
-  #   Then the output should contain "Search the indexed repository"
+  Scenario: Search command help
+    When I run "gitctx search --help"
+    Then the output should contain "Search the indexed repository"
+    And the exit code should be 0
+
+  Scenario: Search with conflicting output modes
+    When I run "gitctx search test --mcp --verbose"
+    Then the exit code should not be 0
 
   # Scenario: Clear command help
   #   When I run "gitctx clear --help"
@@ -63,8 +68,6 @@ Feature: CLI Foundation
   #   And the output should contain "error: unknown command 'invalid'"
   #   And the output should suggest valid commands
 
-  # Scenario: Missing required arguments
-  #   When I run "gitctx search"
-  #   Then the exit code should not be 0
-  #   And the output should contain "error: missing argument"
-  #   And the output should contain "Usage: gitctx"
+  Scenario: Missing required arguments
+    When I run "gitctx search"
+    Then the exit code should not be 0

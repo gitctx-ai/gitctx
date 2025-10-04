@@ -77,3 +77,10 @@ def check_exit_code_zero(context: dict[str, Any]) -> None:
 def check_exit_code(code: int, context: dict[str, Any]) -> None:
     """Verify specific exit code."""
     assert context["exit_code"] == code
+
+
+@then("the exit code should not be 0")
+def check_exit_code_not_zero(context: dict[str, Any]) -> None:
+    """Verify command failed (non-zero exit code)."""
+    exit_code = context["exit_code"]
+    assert exit_code != 0, f"Expected non-zero exit code, got {exit_code}"
