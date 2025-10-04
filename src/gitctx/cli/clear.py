@@ -3,6 +3,8 @@
 import typer
 from rich.console import Console
 
+from gitctx.cli.symbols import SYMBOLS
+
 console = Console()
 
 
@@ -85,7 +87,9 @@ def clear_command(
 
         # Warn about API costs if clearing embeddings
         if clear_emb:
-            console.print("[yellow]⚠[/yellow]  Regenerating embeddings will incur API costs")
+            console.print(
+                f"[yellow]{SYMBOLS['warning']}[/yellow]  Regenerating embeddings will incur API costs"
+            )
             console.print()
 
         # Ask for confirmation
@@ -107,4 +111,4 @@ def clear_command(
     if clear_emb:
         total_size += 47.3
 
-    console.print(f"\n[green]✓[/green] Removed {total_size:.2f} MB")
+    console.print(f"\n[green]{SYMBOLS['success']}[/green] Removed {total_size:.2f} MB")

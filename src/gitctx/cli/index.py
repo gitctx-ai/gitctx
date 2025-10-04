@@ -5,6 +5,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from gitctx.cli.symbols import SYMBOLS
+
 console = Console()
 console_err = Console(stderr=True)
 
@@ -56,7 +58,7 @@ def index_command(
     """
     # Validate git repository exists
     if not Path(".git").exists():
-        console_err.print("[red]✗[/red] Error: not a git repository")
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] Error: not a git repository")
         raise typer.Exit(code=3)
 
     # Mock implementation - demonstrates expected output format from TUI_GUIDE.md
@@ -71,23 +73,25 @@ def index_command(
         if force:
             console.print("Cleared existing index (47.3 MB)")
 
-        console.print("→ Walking commit graph")
+        console.print(f"{SYMBOLS['arrow']} Walking commit graph")
         console.print("  Found 5678 commits")
         console.print()
-        console.print("→ Extracting blobs")
+        console.print(f"{SYMBOLS['arrow']} Extracting blobs")
         console.print("  Total blob references: 4567")
         console.print("  Unique blobs: 1234")
         console.print("  Deduplication: 73% savings")
         console.print()
-        console.print("→ Generating embeddings")
+        console.print(f"{SYMBOLS['arrow']} Generating embeddings")
         console.print("  Processing blobs: abc123, def456, ...")
         console.print()
-        console.print("→ Saving index")
+        console.print(f"{SYMBOLS['arrow']} Saving index")
         console.print("  Embeddings: ~/.gitctx/embeddings/blobs/ (45.2 MB)")
         console.print("  Metadata: ~/.gitctx/embeddings/metadata/ (2.1 MB)")
         console.print("  Database: ~/.gitctx/db/ (1.8 MB, 1234 vectors)")
         console.print()
-        console.print("[green]✓[/green] Indexed 5678 commits (1234 unique blobs) in 8.2s")
+        console.print(
+            f"[green]{SYMBOLS['success']}[/green] Indexed 5678 commits (1234 unique blobs) in 8.2s"
+        )
         console.print()
         console.print("Statistics:")
         console.print("  Commits:      5678")

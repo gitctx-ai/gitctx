@@ -3,6 +3,8 @@
 import typer
 from rich.console import Console
 
+from gitctx.cli.symbols import SYMBOLS
+
 console = Console()
 
 
@@ -59,7 +61,9 @@ def search_command(
     # Validate mutually exclusive output modes
     if verbose and mcp:
         console_err = Console(stderr=True)
-        console_err.print("[red]✗[/red] Error: --verbose and --mcp are mutually exclusive")
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: --verbose and --mcp are mutually exclusive"
+        )
         raise typer.Exit(code=2)
 
     # Mock implementation: query is validated by Typer but not used in mock results
@@ -212,7 +216,7 @@ def search_command(
     if verbose:
         for result in results_to_show:
             # Symbol: ● for HEAD, space for historical
-            head_symbol = "●" if result["is_head"] else " "
+            head_symbol = SYMBOLS["head"] if result["is_head"] else " "
 
             # Header line
             console.print(
@@ -231,7 +235,7 @@ def search_command(
     # DEFAULT MODE: Terse output (TUI_GUIDE.md lines 404-411)
     for result in results_to_show:
         # Symbol: ● for HEAD, nothing for historical
-        head_symbol = "●" if result["is_head"] else " "
+        head_symbol = SYMBOLS["head"] if result["is_head"] else " "
         # Format: file:line:score ● commit (HEAD, date, author) "message"
         console.print(
             f"{result['file']}:{result['line']}:{result['score']:.2f} {head_symbol} "

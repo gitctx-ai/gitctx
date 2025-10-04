@@ -16,8 +16,8 @@ import os
 # This ensures Rich Console objects are created without ANSI escape codes
 # Console checks these at __init__ time, so they must be set before import
 os.environ["TTY_COMPATIBLE"] = "0"  # Rich 2025 standard - disables ANSI codes
-os.environ["NO_COLOR"] = "1"        # Standard fallback for no color
-os.environ["TERM"] = "dumb"         # Simple terminal type
+os.environ["NO_COLOR"] = "1"  # Standard fallback for no color
+os.environ["TERM"] = "dumb"  # Simple terminal type
 
 import sys
 from pathlib import Path
