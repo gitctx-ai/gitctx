@@ -30,3 +30,9 @@ def main(
 ) -> None:
     """gitctx - Context optimization engine for coding workflows."""
     pass
+
+
+# Register commands
+from gitctx.cli import index  # noqa: E402
+
+index.register(app)
