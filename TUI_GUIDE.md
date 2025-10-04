@@ -82,6 +82,26 @@ Primary (Modern Terminals)      Fallback (Legacy Windows)
 - Simple boxes for tips (not elaborate panels)
 - Markdown structure for MCP mode
 
+### Number Formatting
+
+**Storage Sizes**: Always format with 2 decimal places maximum
+```python
+# Good
+f"{size:.2f} MB"  # "49.10 MB"
+
+# Bad
+f"{size} MB"      # "49.099999999999994 MB"
+```
+
+**File Counts**: Use commas for thousands
+```python
+# Good
+f"{count:,} files"  # "1,234 files"
+
+# Bad
+f"{count} files"    # "1234 files"
+```
+
 ---
 
 ## Platform Compatibility
@@ -855,11 +875,13 @@ Fix permissions:
 
 ```bash
 -f, --force        Skip confirmation
--d, --database     Clear database only
--e, --embeddings   Clear embeddings only
--a, --all          Clear everything (default)
+-d, --database     Clear database only (preserves embeddings, fast rebuild)
+-e, --embeddings   Clear embeddings (also clears database, requires API calls to rebuild)
+-a, --all          Clear everything (same as --embeddings)
     --dry-run      Show what would be cleared
 ```
+
+**Important**: Clearing embeddings requires regenerating them from OpenAI/Anthropic APIs (costs money). Clearing only the database preserves embeddings for fast, free rebuilding.
 
 #### Happy Path: Default
 

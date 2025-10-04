@@ -66,6 +66,14 @@ def check_output_contains(text: str, context: dict[str, Any]) -> None:
     assert text in output, f"Expected '{text}' in output, got: {output}"
 
 
+@then(parsers.parse('the output should not contain "{text}"'))
+def check_output_not_contains(text: str, context: dict[str, Any]) -> None:
+    """Verify text does NOT appear in output."""
+    output = context["output"]
+    assert isinstance(output, str)
+    assert text not in output, f"Did not expect '{text}' in output, got: {output}"
+
+
 @then("the exit code should be 0")
 def check_exit_code_zero(context: dict[str, Any]) -> None:
     """Verify command succeeded."""

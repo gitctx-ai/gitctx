@@ -50,13 +50,26 @@ Feature: CLI Foundation
     When I run "gitctx search test --mcp --verbose"
     Then the exit code should not be 0
 
-  # Scenario: Clear command help
-  #   When I run "gitctx clear --help"
-  #   Then the output should contain "Clear cache and embeddings"
-  #   And the output should contain "--force"
-  #   And the output should contain "--database"
-  #   And the output should contain "--embeddings"
-  #   And the output should contain "--all"
+  Scenario: Clear command help
+    When I run "gitctx clear --help"
+    Then the output should contain "Clear cached data"
+    And the output should contain "--force"
+    And the output should contain "--database"
+    And the output should contain "--embeddings"
+    And the output should contain "--all"
+    And the exit code should be 0
+
+  Scenario: Clear database only preserves embeddings
+    When I run "gitctx clear --database --force"
+    Then the exit code should be 0
+    And the output should contain "database"
+    And the output should not contain "embeddings"
+
+  Scenario: Clear embeddings clears database too
+    When I run "gitctx clear --embeddings --force"
+    Then the exit code should be 0
+    And the output should contain "database"
+    And the output should contain "embeddings"
 
   # Scenario: Invalid command
   #   When I run "gitctx invalid"
