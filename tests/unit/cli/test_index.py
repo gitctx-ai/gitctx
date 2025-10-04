@@ -1,8 +1,6 @@
 """Unit tests for index command."""
 
-
 from gitctx.cli.main import app
-
 
 
 def test_index_command_exists(cli_runner):

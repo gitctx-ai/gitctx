@@ -1,8 +1,6 @@
 """Unit tests for config command."""
 
-
 from gitctx.cli.main import app
-
 
 
 def test_config_command_exists(cli_runner):

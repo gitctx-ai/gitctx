@@ -1,8 +1,6 @@
 """Unit tests for search command."""
 
-
 from gitctx.cli.main import app
-
 
 
 def test_search_command_exists(cli_runner):

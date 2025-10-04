@@ -1,8 +1,6 @@
 """Unit tests for error handling and validation."""
 
-
 from gitctx.cli.main import app
-
 
 
 def test_empty_command_shows_quick_start(cli_runner):
