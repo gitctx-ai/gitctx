@@ -3,24 +3,29 @@
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
 
 
 def test_symbols_modern_terminals():
-    """Verify Unicode symbols are used for modern terminals."""
-    # Import fresh to get symbols based on current environment
-    # In our test environment, TTY_COMPATIBLE=0 forces legacy_windows=False
-    from gitctx.cli.symbols import SYMBOLS
+    """Verify symbols are correctly set based on terminal type."""
+    from gitctx.cli.symbols import SYMBOLS, _console
 
-    # Modern terminals use Unicode symbols
-    assert SYMBOLS["success"] == "✓"
-    assert SYMBOLS["error"] == "✗"
-    assert SYMBOLS["warning"] == "⚠"
-    assert SYMBOLS["tip"] == "💡"
-    assert SYMBOLS["arrow"] == "→"
-    assert SYMBOLS["head"] == "●"
+    # Symbols should match the console's legacy_windows status
+    if _console.legacy_windows:
+        # Legacy Windows cmd.exe - ASCII fallback
+        assert SYMBOLS["success"] == "[OK]"
+        assert SYMBOLS["error"] == "[X]"
+        assert SYMBOLS["warning"] == "[!]"
+        assert SYMBOLS["tip"] == "[i]"
+        assert SYMBOLS["arrow"] == "->"
+        assert SYMBOLS["head"] == "[HEAD]"
+    else:
+        # Modern terminals - Unicode symbols
+        assert SYMBOLS["success"] == "✓"
+        assert SYMBOLS["error"] == "✗"
+        assert SYMBOLS["warning"] == "⚠"
+        assert SYMBOLS["tip"] == "💡"
+        assert SYMBOLS["arrow"] == "→"
+        assert SYMBOLS["head"] == "●"
 
 
 def test_symbols_legacy_windows_simulation():
@@ -30,7 +35,7 @@ def test_symbols_legacy_windows_simulation():
     to achieve coverage of the Windows-specific branch.
     """
     # Create a test script that mocks legacy_windows and imports symbols
-    test_script = '''
+    test_script = """
 import sys
 from unittest.mock import Mock, patch
 
@@ -52,7 +57,7 @@ with patch("rich.console.Console") as MockConsole:
     assert SYMBOLS["head"] == "[HEAD]", f"Got {SYMBOLS['head']}"
 
     print("SUCCESS: All ASCII symbols verified")
-'''
+"""
 
     # Run the test script in a subprocess to get fresh module imports
     result = subprocess.run(
@@ -63,7 +68,9 @@ with patch("rich.console.Console") as MockConsole:
     )
 
     # Check that the test passed
-    assert result.returncode == 0, f"Script failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    assert result.returncode == 0, (
+        f"Script failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )
     assert "SUCCESS" in result.stdout
 
 
@@ -78,8 +85,8 @@ def test_symbols_console_detection():
 
     assert isinstance(symbols._console, Console)
 
-    # In our test environment (TTY_COMPATIBLE=0), legacy_windows should be False
-    assert symbols._console.legacy_windows is False
+    # legacy_windows should be a boolean (platform-dependent)
+    assert isinstance(symbols._console.legacy_windows, bool)
 
 
 def test_symbols_used_in_cli_commands():
@@ -91,6 +98,6 @@ def test_symbols_used_in_cli_commands():
     assert set(SYMBOLS.keys()) == required_keys
 
     # All values should be non-empty strings
-    for key, value in SYMBOLS.items():
+    for _key, value in SYMBOLS.items():
         assert isinstance(value, str)
         assert len(value) > 0
