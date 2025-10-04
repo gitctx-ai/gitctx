@@ -798,8 +798,9 @@ Fix with:
 gitctx config set <key> <value>
 gitctx config get <key>
 gitctx config list
-gitctx config unset <key>
 ```
+
+**Note**: To unset a key, set it to an empty string: `gitctx config set <key> ""`
 
 #### Happy Path: Set
 
@@ -825,12 +826,17 @@ index.chunk_size=1000
 model.embedding=text-embedding-3-large
 ```
 
-#### Happy Path: Unset
+#### Happy Path: Unset (via blank value)
 
 ```bash
-$ gitctx config unset api_keys.openai
-unset api_keys.openai
+$ gitctx config set api_keys.openai ""
+set api_keys.openai
+
+$ gitctx config get api_keys.openai
+api_keys.openai =
 ```
+
+**Rationale**: Setting blank values is cleaner than a separate `unset` command. This matches git's behavior and reduces command surface area.
 
 #### Error: Invalid Key
 

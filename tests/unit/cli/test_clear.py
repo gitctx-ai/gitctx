@@ -97,3 +97,12 @@ def test_clear_embeddings_shows_cost_warning():
     # Should warn about API costs
     assert "regenerating embeddings" in result.stdout.lower()
     assert "api cost" in result.stdout.lower()
+
+
+def test_clear_no_flags():
+    """Verify running clear without flags shows helpful message."""
+    result = runner.invoke(app, ["clear"])
+    assert result.exit_code == 0
+    # Should show helpful message about what flags to use
+    assert "no data specified" in result.stdout.lower()
+    assert "--database" in result.stdout.lower() or "--embeddings" in result.stdout.lower()

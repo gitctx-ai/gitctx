@@ -71,3 +71,15 @@ def test_index_help_text():
     assert "-q" in result.stdout
     assert "--force" in result.stdout
     assert "-f" in result.stdout
+
+
+def test_index_not_git_repository(tmp_path, monkeypatch):
+    """Verify index fails with proper error in non-git directory."""
+    # Change to non-git directory
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["index"])
+    assert result.exit_code == 3  # Exit code 3 = not a git repository
+    # Error message goes to stderr (via console_err)
+    output = (result.stdout + result.stderr).lower()
+    assert "not a git repository" in output
