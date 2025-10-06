@@ -1350,6 +1350,8 @@ Feature: {Feature name}
 1. **No Vague Terms**: Replace with specifics
    - ❌ "Handle authentication"
    - ✅ "Validate JWT tokens and return 401 for expired tokens"
+   - ❌ "Handle repository configuration"
+   - ✅ "Parse .git/config to extract remote URLs and display them in the UI"
 
 2. **Concrete Acceptance Criteria**: Must be testable
    - ❌ "System should be fast"
