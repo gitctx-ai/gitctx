@@ -20,6 +20,23 @@ from typer.testing import CliRunner
 # === PHASE 1: Core E2E Fixtures (Current) ===
 
 
+@pytest.fixture(autouse=True, scope="function")
+def auto_isolate_e2e_working_directory(tmp_path: Path, monkeypatch):
+    """
+    Automatically isolate E2E test working directory.
+
+    CRITICAL: All E2E tests run in tmp_path to prevent:
+    - Creating .gitctx directories in actual repo
+    - Polluting developer's working directory
+    - Test interference
+
+    This is autouse=True, so it applies to ALL tests in tests/e2e/.
+    No conditional logic - explicit and obvious behavior.
+    """
+    monkeypatch.chdir(tmp_path)
+    yield tmp_path
+
+
 @pytest.fixture
 def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -> dict[str, str]:
     """
@@ -46,9 +63,10 @@ def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -
                 capture_output=True
             )
     """
-    # Start with minimal safe environment
+    # Start with minimal environment for security isolation
+    # SECURITY: Prevents exposure of developer credentials (API keys, tokens, etc.)
+    # Only include necessary system variables for subprocess execution
     isolated_env = {
-        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": str(temp_home),
         "USER": "testuser",
         "TERM": "dumb",
@@ -56,6 +74,20 @@ def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -
         "LC_ALL": "C.UTF-8",
         "NO_COLOR": "1",  # Disable colors for consistent test output
     }
+
+    # Always preserve PATH for subprocesses to find commands
+    if "PATH" in os.environ:
+        isolated_env["PATH"] = os.environ["PATH"]
+
+    # On Windows, preserve required system variables
+    # USERPROFILE: Needed for Path.home() fallback when HOME doesn't work
+    # SystemRoot, windir, COMSPEC, PATHEXT: Required to avoid WinError 10106
+    # (Winsock initialization failure)
+    # See: https://github.com/python/cpython/issues/120836
+    if os.name == "nt":
+        for var in ["SystemRoot", "windir", "COMSPEC", "PATHEXT", "USERPROFILE"]:
+            if var in os.environ:
+                isolated_env[var] = os.environ[var]
 
     # Enable coverage for subprocesses (for E2E tests that spawn gitctx)
     # This ensures subprocess.run() calls still contribute to coverage
@@ -215,11 +247,120 @@ def e2e_env_factory(e2e_git_isolation_env: dict[str, str]):
     return _make_env
 
 
-# === PHASE 2: Repository Variants (TODO - Next Sprint) ===
-# TODO: e2e_empty_git_repo - Just git init, no files
-# TODO: e2e_git_repo_with_history - Multiple commits for history testing
-# TODO: e2e_git_repo_with_branches - Multiple branches for branch testing
-# TODO: e2e_large_git_repo - 1000+ files for performance testing
+# === PHASE 2: Repository Variants & Factories ===
+
+
+@pytest.fixture
+def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
+    """
+    Factory for creating git repositories with various structures.
+
+    This factory allows tests to create customized git repositories without
+    duplicating git setup code. Supports different numbers of files, commits,
+    and branches.
+
+    Returns:
+        callable: Factory function that creates git repos
+
+    Usage:
+        def test_with_custom_repo(e2e_git_repo_factory):
+            # Create repo with 5 Python files and 3 commits
+            repo = e2e_git_repo_factory(
+                files={"file1.py": "code1", "file2.py": "code2"},
+                num_commits=3,
+                branches=["feature1", "feature2"]
+            )
+            # Test with repo...
+
+    Parameters for factory function:
+    - files: dict[str, str] = {} - Files to create (filename -> content)
+    - num_commits: int = 1 - Number of commits to create
+    - branches: list[str] = [] - Additional branches to create
+    - add_gitignore: bool = True - Whether to add .gitignore
+
+    See also:
+    - e2e_git_repo: Pre-configured basic repo (use for simple tests)
+    - e2e_git_isolation_env: Environment for git operations
+    """
+
+    def _make_repo(
+        files: dict[str, str] | None = None,
+        num_commits: int = 1,
+        branches: list[str] | None = None,
+        add_gitignore: bool = True,
+    ) -> Path:
+        """Create a git repository with specified structure."""
+        repo_path = tmp_path / f"test_repo_{id(files)}"  # Unique name per call
+        repo_path.mkdir(exist_ok=True)
+
+        # Initialize git with isolation
+        result = subprocess.run(
+            ["git", "init"],
+            cwd=repo_path,
+            env=e2e_git_isolation_env,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            pytest.fail(f"git init failed: {result.stderr}")
+
+        # Configure git locally
+        for cmd in [
+            ["git", "config", "user.name", "Test User"],
+            ["git", "config", "user.email", "test@example.com"],
+            ["git", "config", "commit.gpgsign", "false"],
+        ]:
+            subprocess.run(cmd, cwd=repo_path, env=e2e_git_isolation_env, check=True)
+
+        # Add .gitignore
+        if add_gitignore:
+            (repo_path / ".gitignore").write_text("*.pyc\n__pycache__/\n.gitctx/\n")
+
+        # Add custom files or default file
+        if files:
+            for filename, content in files.items():
+                file_path = repo_path / filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(content)
+        else:
+            (repo_path / "main.py").write_text('print("Hello from gitctx test")')
+
+        # Create commits
+        for i in range(num_commits):
+            # Modify a file for subsequent commits
+            if i > 0:
+                (repo_path / "main.py").write_text(f'print("Commit {i + 1}")')
+
+            subprocess.run(
+                ["git", "add", "."], cwd=repo_path, env=e2e_git_isolation_env, check=True
+            )
+            subprocess.run(
+                ["git", "commit", "-m", f"Commit {i + 1}"],
+                cwd=repo_path,
+                env=e2e_git_isolation_env,
+                check=True,
+            )
+
+        # Create branches
+        if branches:
+            for branch in branches:
+                subprocess.run(
+                    ["git", "branch", branch],
+                    cwd=repo_path,
+                    env=e2e_git_isolation_env,
+                    check=True,
+                )
+
+        return repo_path
+
+    return _make_repo
+
+
+# Future repository fixtures (can be built using factory above):
+# TODO: e2e_empty_git_repo - Just git init, no files (use factory with files={})
+# TODO: e2e_git_repo_with_history - Multiple commits (use factory with num_commits=10)
+# TODO: e2e_git_repo_with_branches - Multiple branches (use factory with branches=[...])
+# TODO: e2e_large_git_repo - 1000+ files for performance (use factory with many files)
 
 # === PHASE 3: Advanced Fixtures (TODO - Future) ===
 # TODO: e2e_indexed_repo - Repository with completed indexing

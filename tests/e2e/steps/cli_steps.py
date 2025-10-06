@@ -23,9 +23,13 @@ def gitctx_installed() -> None:
     assert gitctx.__version__
 
 
+@given(parsers.parse('I run "{command}"'))
 @when(parsers.parse('I run "{command}"'))
 def run_command(
-    command: str, e2e_git_isolation_env: dict[str, str], context: dict[str, Any]
+    command: str,
+    e2e_git_isolation_env: dict[str, str],
+    e2e_env_factory,
+    context: dict[str, Any],
 ) -> None:
     """
     Execute a CLI command as subprocess with full isolation.
@@ -33,8 +37,19 @@ def run_command(
     CRITICAL: Uses subprocess.run() with isolated environment to ensure
     true isolation from developer SSH keys, GPG keys, and git config.
 
+    Enhancement: Checks context["custom_env"] for custom environment variables
+    set by previous @given steps (e.g., OPENAI_API_KEY, GITCTX_*).
+
     This is NOT the same as CliRunner.invoke() which runs in-process.
     """
+    # Check if custom env vars were set by previous @given steps
+    if "custom_env" in context:
+        env = e2e_env_factory(**context["custom_env"])
+        # Clear for next scenario
+        context.pop("custom_env")
+    else:
+        env = e2e_git_isolation_env
+
     # Parse the command and convert gitctx to python -m gitctx
     # This ensures the command works in all environments (local, CI, etc.)
     if command.startswith("gitctx"):
@@ -46,22 +61,24 @@ def run_command(
 
     # Run gitctx as subprocess with full isolation
     # Uses python -m gitctx to ensure it works in all environments
+    # Environment now includes all platform-specific vars (fixed WinError 10106)
     result = subprocess.run(
         cmd_parts,
-        env=e2e_git_isolation_env,
+        env=env,
         capture_output=True,
         text=True,
     )
 
     context["result"] = result
-    context["output"] = result.stdout
+    context["stdout"] = result.stdout
+    context["stderr"] = result.stderr
     context["exit_code"] = result.returncode
 
 
 @then(parsers.parse('the output should contain "{text}"'))
 def check_output_contains(text: str, context: dict[str, Any]) -> None:
     """Verify text appears in output."""
-    output = context["output"]
+    output = context["stdout"]
     assert isinstance(output, str)
     assert text in output, f"Expected '{text}' in output, got: {output}"
 
@@ -69,7 +86,7 @@ def check_output_contains(text: str, context: dict[str, Any]) -> None:
 @then(parsers.parse('the output should not contain "{text}"'))
 def check_output_not_contains(text: str, context: dict[str, Any]) -> None:
     """Verify text does NOT appear in output."""
-    output = context["output"]
+    output = context["stdout"]
     assert isinstance(output, str)
     assert text not in output, f"Did not expect '{text}' in output, got: {output}"
 
@@ -92,3 +109,199 @@ def check_exit_code_not_zero(context: dict[str, Any]) -> None:
     """Verify command failed (non-zero exit code)."""
     exit_code = context["exit_code"]
     assert exit_code != 0, f"Expected non-zero exit code, got {exit_code}"
+
+
+# TASK-0001.1.2.1: Step definitions for config file management
+
+
+@given(parsers.parse('user config contains "{content}"'))
+def setup_user_config(e2e_git_isolation_env: dict[str, str], content: str) -> None:
+    """Create user config file with specified YAML content in isolated HOME.
+
+    CRITICAL: e2e_git_isolation_env["HOME"] already has .gitctx/ directory!
+    DO NOT call mkdir() - it's redundant and already exists.
+    """
+    from pathlib import Path
+
+    home = Path(e2e_git_isolation_env["HOME"])
+    config_path = home / ".gitctx" / "config.yml"
+    # .gitctx/ already exists - just write the file
+    config_path.write_text(content.replace("\\n", "\n"))
+
+
+@given(parsers.parse("user config exists with permissions {perms}"))
+def setup_user_config_with_permissions(e2e_git_isolation_env: dict[str, str], perms: str) -> None:
+    """Create user config file with specified permissions.
+
+    CRITICAL: e2e_git_isolation_env["HOME"] already has .gitctx/ directory!
+    """
+    import sys
+    from pathlib import Path
+
+    if sys.platform == "win32":
+        import pytest
+
+        pytest.skip("Permission tests not applicable on Windows")
+
+    home = Path(e2e_git_isolation_env["HOME"])
+    config_path = home / ".gitctx" / "config.yml"
+    # Write a sample config
+    config_path.write_text("api_keys:\n  openai: sk-test123\n")
+    # Set specified permissions (convert octal string to int)
+    config_path.chmod(int(perms, 8))
+
+
+@given(parsers.parse('repo config contains "{content}"'))
+def setup_repo_config(content: str) -> None:
+    """Create repo config file with specified YAML content in temp directory.
+
+    CRITICAL: isolate_working_directory autouse fixture ensures we're in tmp_path!
+    """
+    from pathlib import Path
+
+    config_path = Path(".gitctx")
+    config_path.mkdir(exist_ok=True)
+    (config_path / "config.yml").write_text(content.replace("\\n", "\n"))
+
+
+@given(parsers.parse('environment variable "{var}" is "{value}"'))
+def setup_env_var(context: dict[str, Any], var: str, value: str) -> None:
+    """Set environment variable for next command execution.
+
+    CRITICAL: Stores in context["custom_env"] for run_command to use.
+    This is necessary because monkeypatch doesn't work in subprocess contexts.
+
+    The run_command step will check for context["custom_env"] and use
+    e2e_env_factory to create an environment with these vars.
+    """
+    if "custom_env" not in context:
+        context["custom_env"] = {}
+    context["custom_env"][var] = value
+
+
+@given(parsers.parse("repo config file exists with read-only permissions"))
+def setup_readonly_repo_config() -> None:
+    """Create read-only repo config file for testing permission errors.
+
+    CRITICAL: isolate_working_directory autouse fixture ensures we're in tmp_path!
+    """
+    import platform
+    import stat
+    from pathlib import Path
+
+    config_path = Path(".gitctx")
+    config_path.mkdir(exist_ok=True)
+    config_file = config_path / "config.yml"
+    config_file.write_text("search:\n  limit: 10\n")
+
+    if platform.system() == "Windows":
+        # Windows: Use stat.S_IREAD for read-only (removes write permissions)
+        config_file.chmod(stat.S_IREAD)
+    else:
+        # Unix: Use 0o444 for read-only
+        config_file.chmod(0o444)
+
+
+@given(parsers.parse('repo config contains invalid YAML "{content}"'))
+def setup_invalid_yaml_repo_config(content: str) -> None:
+    """Create repo config with invalid YAML for error testing.
+
+    CRITICAL: isolate_working_directory autouse fixture ensures we're in tmp_path!
+    """
+    from pathlib import Path
+
+    config_path = Path(".gitctx")
+    config_path.mkdir(exist_ok=True)
+    (config_path / "config.yml").write_text(content.replace("\\n", "\n"))
+
+
+@then(parsers.parse('the file "{path}" should exist'))
+def check_file_exists(e2e_git_isolation_env: dict[str, str], path: str) -> None:
+    """Verify file exists at specified path.
+
+    Handles both absolute paths and ~ expansion (to isolated HOME).
+    """
+    from pathlib import Path
+
+    if path.startswith("~"):
+        home = Path(e2e_git_isolation_env["HOME"])
+        expanded = home / path[2:]  # Skip "~/"
+    else:
+        expanded = Path(path)
+
+    assert expanded.exists(), f"File not found at {expanded}"
+
+
+@then(parsers.parse('the file "{path}" should contain "{content}"'))
+def check_file_contains(e2e_git_isolation_env: dict[str, str], path: str, content: str) -> None:
+    """Verify file contains specified content."""
+    from pathlib import Path
+
+    if path.startswith("~"):
+        home = Path(e2e_git_isolation_env["HOME"])
+        expanded = home / path[2:]
+    else:
+        expanded = Path(path)
+
+    assert expanded.exists(), f"File not found at {expanded}"
+    file_content = expanded.read_text()
+    assert content in file_content, f"Expected '{content}' in {path}, got: {file_content}"
+
+
+@then(parsers.parse('the file "{path}" should not contain "{content}"'))
+def check_file_not_contains(e2e_git_isolation_env: dict[str, str], path: str, content: str) -> None:
+    """Verify file does NOT contain specified content."""
+    from pathlib import Path
+
+    if path.startswith("~"):
+        home = Path(e2e_git_isolation_env["HOME"])
+        expanded = home / path[2:]
+    else:
+        expanded = Path(path)
+
+    if not expanded.exists():
+        return  # File doesn't exist, so it doesn't contain the content
+
+    file_content = expanded.read_text()
+    assert content not in file_content, f"Did not expect '{content}' in {path}, got: {file_content}"
+
+
+@then(parsers.parse('the user config file should exist at "{path}"'))
+def check_user_config_exists(e2e_git_isolation_env: dict[str, str], path: str) -> None:
+    """Verify user config file exists (alias for better readability in scenarios)."""
+    check_file_exists(e2e_git_isolation_env, path)
+
+
+@then(parsers.parse('"{filename}" should contain "{content}"'))
+def check_gitignore_content(filename: str, content: str) -> None:
+    """Verify .gitctx/.gitignore contains expected content."""
+    from pathlib import Path
+
+    file_path = Path(".gitctx") / filename.replace(".gitctx/", "")
+    assert file_path.exists(), f"File not found: {file_path}"
+    file_content = file_path.read_text()
+    assert content in file_content, f"Expected '{content}' in {file_path}"
+
+
+@then("the output should be empty")
+def check_output_empty(context: dict[str, Any]) -> None:
+    """Verify output is completely empty."""
+    output = context["stdout"]
+    assert isinstance(output, str)
+    assert output.strip() == "", f"Expected empty output, got: {output}"
+
+
+@then(parsers.parse('the error should contain "{text}"'))
+def check_stderr_contains(text: str, context: dict[str, Any]) -> None:
+    """Verify text appears in stderr."""
+    stderr = context["stderr"]
+    assert isinstance(stderr, str)
+    assert text in stderr, f"Expected '{text}' in stderr, got: {stderr}"
+
+
+@then(parsers.parse('the error should not contain "{text}"'))
+def check_stderr_not_contains(text: str, context: dict[str, Any]) -> None:
+    """Verify text does NOT appear in stderr."""
+    stderr = context["stderr"]
+    assert isinstance(stderr, str)
+    assert text not in stderr, f"Expected '{text}' NOT in stderr, but it was found: {stderr}"
