@@ -18,7 +18,7 @@ So that downstream components can chunk, embed, and store with complete git cont
 - [ ] Tracks all locations where each blob appears (commit, path, is_head)
 - [ ] Detects merge commits including octopus merges (is_merge flag)
 - [ ] Filters binary files (null byte detection)
-- [ ] Detects and skips Git LFS pointer files with warning
+- [ ] Detects and skips Git LFS pointer files with warning logged to WalkStats.errors (error type: "lfs_pointer")
 - [ ] Respects .gitignore rules (from HEAD)
 - [ ] Skips oversized blobs (>5MB default, configurable)
 - [ ] Supports multiple refs (branches, tags, HEAD)

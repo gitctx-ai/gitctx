@@ -89,7 +89,7 @@ git branch --show-current
 ```
 
 **Validation:**
-- Branch name must match pattern `STORY-NNNN.N.N` (e.g., STORY-0001.1.2)
+- Branch name must match pattern `STORY-NNNN.N.N` or `plan/STORY-NNNN.N.N` (e.g., STORY-0001.1.2 or plan/STORY-0001.1.2)
 - If NOT on a story branch:
   - Ask user: "Not on a story branch. Current branch: [BRANCH]. Would you like to:"
     1. Create a new story branch (provide story ID)
