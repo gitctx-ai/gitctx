@@ -1023,7 +1023,7 @@ Scenario: {title}
 {ENDIF}
 
 ### User's Exact Quotes
-{Capture any key phrases user used - preserve their language}
+{Capture any key phrases user used – preserve their language. If the user's language is unclear or conflicting, seek clarification before recording. Note any clarifications made.}
 
 ---
 
