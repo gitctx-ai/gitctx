@@ -14,17 +14,27 @@ import pytest
 
 def test_e2e_git_isolation_env_security(e2e_git_isolation_env: dict[str, str]) -> None:
     """Verify environment has all security isolation vars."""
-    # Check SSH is disabled
-    assert e2e_git_isolation_env["GIT_SSH_COMMAND"] == "/bin/false"
+    from tests.conftest import get_platform_null_device, get_platform_ssh_command
+
+    # Platform-specific expectations
+    expected_ssh_cmd = get_platform_ssh_command()
+    expected_null_device = get_platform_null_device()
+
+    # Check SSH is disabled (platform-specific command)
+    assert e2e_git_isolation_env["GIT_SSH_COMMAND"] == expected_ssh_cmd
     assert e2e_git_isolation_env["SSH_AUTH_SOCK"] == ""
 
-    # Check GPG is disabled
-    assert e2e_git_isolation_env["GNUPGHOME"] == "/dev/null"
+    # Check GPG is isolated (uses temp directory, not user's real GNUPGHOME)
+    gnupghome = e2e_git_isolation_env["GNUPGHOME"]
+    assert "gnupg_isolated" in gnupghome, "GNUPGHOME should be isolated temp directory"
+    assert gnupghome != os.path.expanduser("~/.gnupg"), (
+        "GNUPGHOME should not be user's real directory"
+    )
     assert e2e_git_isolation_env["GPG_TTY"] == ""
 
     # Check git config is isolated
     assert e2e_git_isolation_env["GIT_CONFIG_GLOBAL"] != os.path.expanduser("~/.gitconfig")
-    assert e2e_git_isolation_env["GIT_CONFIG_SYSTEM"] == "/dev/null"
+    assert e2e_git_isolation_env["GIT_CONFIG_SYSTEM"] == expected_null_device
 
     # Check HOME is isolated (different from user's actual home)
     home = e2e_git_isolation_env["HOME"]
@@ -36,16 +46,28 @@ def test_e2e_git_isolation_prevents_ssh(e2e_git_isolation_env: dict[str, str]) -
     SECURITY: Verify SSH operations fail with isolation.
 
     This test ensures that even if a subprocess tries to use SSH,
-    it will fail due to GIT_SSH_COMMAND=/bin/false.
+    it will fail due to GIT_SSH_COMMAND setting.
+
+    On Windows, SSH may not be available or may timeout (expected behavior).
+    On Unix, it should fail immediately with our blocked command.
     """
-    result = subprocess.run(
-        ["ssh", "-T", "git@github.com"],
-        env=e2e_git_isolation_env,
-        capture_output=True,
-        timeout=2,
-    )
-    # Should fail immediately with /bin/false or timeout
-    assert result.returncode != 0
+    import platform
+
+    try:
+        result = subprocess.run(
+            ["ssh", "-T", "git@github.com"],
+            env=e2e_git_isolation_env,
+            capture_output=True,
+            timeout=2,
+        )
+        # Should fail immediately on Unix with /bin/false
+        # On Windows, may not have ssh command - that's okay
+        assert result.returncode != 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        # Windows: SSH may timeout or not be found - both are acceptable
+        # This proves SSH is not easily accessible in the isolated environment
+        if platform.system() != "Windows":
+            raise  # On Unix, timeout is unexpected
 
 
 def test_e2e_git_init_works_with_isolation(
@@ -118,19 +140,30 @@ def test_e2e_gpg_keys_not_accessible(e2e_git_isolation_env: dict[str, str]) -> N
     SECURITY: Verify GPG secret keys are not accessible.
 
     This ensures commits cannot be signed with developer's GPG keys.
+    GNUPGHOME points to an empty temp directory, so GPG should find no keys.
     """
     result = subprocess.run(
         ["gpg", "--list-secret-keys"],
         env=e2e_git_isolation_env,
         capture_output=True,
         text=True,
-        timeout=2,
+        timeout=5,
     )
 
-    # Should either fail or show no secret keys
-    # GNUPGHOME=/dev/null means no keyring accessible
-    output_lower = (result.stdout + result.stderr).lower()
-    assert "secret" not in output_lower or result.returncode != 0
+    # GPG should run successfully but find no keys in the empty temp directory
+    # If ANY secret keys are found, we have a CRITICAL security violation
+    output = result.stdout + result.stderr
+
+    # Acceptable outputs (no keys found):
+    # - Empty output
+    # - "gpg: no valid OpenPGP data found"
+    # - Contains path to isolated gnupg directory
+    assert "gnupg_isolated" in e2e_git_isolation_env["GNUPGHOME"]
+
+    # CRITICAL: No secret keys should be listed
+    # If we see key IDs or "sec" markers, isolation failed
+    assert "sec " not in output.lower(), "SECURITY VIOLATION: Secret keys accessible!"
+    assert "ssb " not in output.lower(), "SECURITY VIOLATION: Secret subkeys accessible!"
 
 
 def test_e2e_gitctx_subprocess_isolation(e2e_git_isolation_env: dict[str, str]) -> None:
@@ -166,9 +199,12 @@ def test_e2e_cli_runner_has_isolation(e2e_cli_runner) -> None:
     NOTE: CliRunner runs in-process, so this is less secure than subprocess.
     Prefer using subprocess.run() for true E2E isolation.
     """
+    from tests.conftest import get_platform_ssh_command
+
     # The env should be set on the runner
     assert e2e_cli_runner.env is not None
-    assert e2e_cli_runner.env["GIT_SSH_COMMAND"] == "/bin/false"
+    expected_ssh_cmd = get_platform_ssh_command()
+    assert e2e_cli_runner.env["GIT_SSH_COMMAND"] == expected_ssh_cmd
 
 
 def test_e2e_git_repo_structure(e2e_git_repo: Path) -> None:

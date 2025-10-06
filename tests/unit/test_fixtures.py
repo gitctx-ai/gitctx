@@ -8,9 +8,20 @@ tests here to verify behavior.
 
 def test_git_isolation_base(git_isolation_base: dict[str, str]) -> None:
     """Verify git isolation base contains security vars."""
-    assert git_isolation_base["GIT_SSH_COMMAND"] == "/bin/false"
+    from tests.conftest import get_platform_null_device, get_platform_ssh_command
+
+    expected_ssh_cmd = get_platform_ssh_command()
+    expected_null_device = get_platform_null_device()
+
+    assert git_isolation_base["GIT_SSH_COMMAND"] == expected_ssh_cmd
     assert git_isolation_base["SSH_AUTH_SOCK"] == ""
-    assert git_isolation_base["GNUPGHOME"] == "/dev/null"
+
+    # GNUPGHOME should be an isolated temp directory, not user's real .gnupg
+    gnupghome = git_isolation_base["GNUPGHOME"]
+    assert "gnupg_isolated" in gnupghome, "GNUPGHOME should be isolated temp directory"
+
+    assert git_isolation_base["GIT_CONFIG_GLOBAL"] == expected_null_device
+    assert git_isolation_base["GIT_CONFIG_SYSTEM"] == expected_null_device
     assert git_isolation_base["GIT_TERMINAL_PROMPT"] == "0"
 
 
