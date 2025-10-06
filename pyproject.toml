@@ -29,6 +29,8 @@ dependencies = [
     "rich>=13.7.0",
     "pyyaml>=6.0.1",
     "shellingham>=1.5.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings[yaml]>=2.11.0",
 ]
 
 [project.optional-dependencies]
@@ -83,6 +85,12 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ARG001",  # Unused function argument (mocks often don't use args)
+    "ARG002",  # Unused method argument (fixtures are often unused in test body)
+]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
@@ -115,6 +123,7 @@ addopts = [
     "--cov-report=term-missing:skip-covered",
     "--cov-report=html",
     "--cov-report=xml",
+    "--color=yes",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -191,3 +200,136 @@ sequence = [
     { cmd = "pre-commit run --all-files" },
 ]
 help = "Install and test pre-commit hooks"
+
+# === GitHub PR Review Comment Management ===
+
+[tool.poe.tasks.pr-reply]
+shell = """
+gh api graphql -f query='
+mutation {
+  addPullRequestReviewThreadReply(input: {
+    pullRequestReviewThreadId: "'$THREAD_ID'"
+    body: "'$BODY'"
+  }) {
+    comment {
+      id
+    }
+  }
+}'
+"""
+help = "Reply to a PR review comment thread. Requires: THREAD_ID, BODY env vars"
+
+[tool.poe.tasks.pr-resolve]
+shell = """
+gh api graphql -f query='
+mutation {
+  resolveReviewThread(input: {
+    threadId: "'$THREAD_ID'"
+  }) {
+    thread {
+      id
+      isResolved
+    }
+  }
+}'
+"""
+help = "Resolve a PR review comment thread. Requires: THREAD_ID env var"
+
+[tool.poe.tasks.pr-find-thread]
+shell = """
+gh api graphql -f query='
+query {
+  repository(owner: "'${OWNER:-gitctx-ai}'", name: "'${REPO:-gitctx}'") {
+    pullRequest(number: '${PR_NUMBER}') {
+      reviewThreads(first: 50) {
+        nodes {
+          id
+          isResolved
+          comments(first: 1) {
+            nodes {
+              databaseId
+              body
+            }
+          }
+        }
+      }
+    }
+  }
+}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == '${COMMENT_ID}') | {threadId: .id, isResolved, commentBody: .comments.nodes[0].body}'
+"""
+help = "Find thread ID by comment ID. Requires: PR_NUMBER, COMMENT_ID env vars. Optional: OWNER, REPO"
+
+[tool.poe.tasks.pr-address-comment]
+shell = """
+# Complete workflow: find thread ID, reply, and resolve
+# Automatically gets correct GitHub username from 'gh api user'
+
+# Get authenticated user's GitHub username
+GH_USERNAME=$(gh api user --jq '.login')
+
+echo "Step 1: Finding thread ID for comment ${COMMENT_ID}..."
+THREAD_ID=$(gh api graphql -f query='
+query {
+  repository(owner: "'${OWNER:-gitctx-ai}'", name: "'${REPO:-gitctx}'") {
+    pullRequest(number: '${PR_NUMBER}') {
+      reviewThreads(first: 50) {
+        nodes {
+          id
+          comments(first: 1) {
+            nodes {
+              databaseId
+            }
+          }
+        }
+      }
+    }
+  }
+}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].databaseId == '${COMMENT_ID}') | .id' | tr -d '\\n')
+
+if [ -z "$THREAD_ID" ]; then
+  echo "Error: Could not find thread for comment ${COMMENT_ID}"
+  exit 1
+fi
+
+echo "Found thread: $THREAD_ID"
+
+# Step 2: Reply to the thread (automatically add "On behalf of @username" footer)
+echo "Step 2: Adding reply (on behalf of @$GH_USERNAME)..."
+
+# Construct the full reply body with attribution
+FULL_REPLY="$REPLY_BODY
+
+---
+*On behalf of @$GH_USERNAME*"
+
+gh api graphql -f query='
+mutation {
+  addPullRequestReviewThreadReply(input: {
+    pullRequestReviewThreadId: "'$THREAD_ID'"
+    body: "'$(echo "$FULL_REPLY" | sed 's/"/\\\\"/g' | sed 's/$/\\n/g' | tr -d '\\n')'"
+  }) {
+    comment {
+      id
+    }
+  }
+}' > /dev/null
+
+echo "Reply added successfully"
+
+# Step 3: Resolve the thread
+echo "Step 3: Resolving thread..."
+gh api graphql -f query='
+mutation {
+  resolveReviewThread(input: {
+    threadId: "'$THREAD_ID'"
+  }) {
+    thread {
+      id
+      isResolved
+    }
+  }
+}' > /dev/null
+
+echo "✅ Comment ${COMMENT_ID} addressed: replied and resolved"
+"""
+help = "Complete workflow to address a PR comment (auto-adds username). Requires: PR_NUMBER, COMMENT_ID, REPLY_BODY env vars. Optional: OWNER, REPO"
