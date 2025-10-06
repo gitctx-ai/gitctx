@@ -1,8 +1,8 @@
 # EPIC-0001.2: Real Indexing Implementation
 
 **Parent Initiative**: [INIT-0001](../README.md)
-**Status**: 🔵 Not Started  
-**Estimated**: 21 story points  
+**Status**: 🔵 Not Started
+**Estimated**: 25 story points
 **Progress**: ░░░░░░░░░░ 0%
 
 ## Overview
@@ -23,10 +23,10 @@ Replace the mock indexing from EPIC-0001.1 with actual functionality that scans 
 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
-| [STORY-0001.2.1](.././active/STORY-0001.2.1.md) | Commit Graph Walker with Blob Deduplication | 🔵 Not Started | 5 |
+| [STORY-0001.2.1](STORY-0001.2.1/README.md) | Commit Graph Walker with Blob Deduplication | 🔵 Not Started | 9 |
 | [STORY-0001.2.2](.././active/STORY-0001.2.2.md) | Blob Content Chunking | 🔵 Not Started | 5 |
 | [STORY-0001.2.3](.././active/STORY-0001.2.3.md) | OpenAI Embedding Generation | 🔵 Not Started | 5 |
-| [STORY-0001.2.4](.././active/STORY-0001.2.4.md) | Blob-Centric Safetensors Storage | 🔵 Not Started | 3 |
+| [STORY-0001.2.4](.././active/STORY-0001.2.4.md) | LanceDB Denormalized Storage | 🔵 Not Started | 3 |
 | [STORY-0001.2.5](.././active/STORY-0001.2.5.md) | Progress Tracking and Cost Estimation | 🔵 Not Started | 3 |
 
 ## BDD Specifications
