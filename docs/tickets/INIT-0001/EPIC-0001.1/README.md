@@ -1,9 +1,9 @@
 # EPIC-0001.1: CLI Foundation
 
 **Parent Initiative**: [INIT-0001](../README.md)
-**Status**: 🟡 In Progress
-**Estimated**: 8 story points
-**Progress**: ████████░░ 80% (8/10 story points estimated, 2 stories remaining)
+**Status**: ✅ Complete
+**Estimated**: 10 story points
+**Progress**: ██████████ 100% (10/10 story points - all stories complete)
 
 ## Overview
 
@@ -23,9 +23,9 @@ Build the complete command-line interface with all commands working against mock
 |----|-------|--------|--------|
 | [STORY-0001.1.0](STORY-0001.1.0/README.md) | Development Environment Setup | ✅ Complete | 5 |
 | [STORY-0001.1.1](STORY-0001.1.1/README.md) | CLI Framework Setup | ✅ Complete | 3 |
-| STORY-0001.1.2 | (TBD - Next story) | 🔵 Not Started | TBD |
+| [STORY-0001.1.2](STORY-0001.1.2/README.md) | Real Configuration Management | ✅ Complete | 5 |
 
-**Note**: STORY-0001.1.1 included all CLI commands (index, search, config, clear) as tasks within a single story, as they are tightly coupled for the CLI interface contract.
+**Note**: STORY-0001.1.1 implemented all CLI commands with mock/in-memory configuration. STORY-0001.1.2 replaces the mock config with real Pydantic Settings-based persistent configuration.
 
 ## BDD Specifications
 
@@ -78,20 +78,31 @@ def clear(
 
 ### Configuration Management
 
+**STORY-0001.1.1**: Mock implementation (in-memory dict)
 ```python
-# src/gitctx/cli/config.py
-class Config:
-    def __init__(self):
-        self.path = Path.home() / ".gitctx" / "config.yml"
-    
-    def set(self, key: str, value: str):
-        """Set a config value using dot notation."""
-    
-    def get(self, key: str) -> str:
-        """Get a config value, checking env vars first."""
-    
-    def list(self) -> list[str]:
-        """Get all config values, checking env vars first."""
+# src/gitctx/cli/config.py (mock)
+_config_store: dict[str, Any] = {}  # In-memory for testing
+```
+
+**STORY-0001.1.2**: Real implementation (Pydantic Settings)
+```python
+# src/gitctx/core/config.py
+from pydantic_settings import BaseSettings
+
+class GitCtxSettings(BaseSettings):
+    """Type-safe configuration with multi-source loading.
+
+    Precedence: OPENAI_API_KEY > GITCTX_* env vars > YAML > defaults
+    """
+    api_keys: ApiKeys
+    search: SearchSettings
+    index: IndexSettings
+    model: ModelSettings
+
+    model_config = SettingsConfigDict(
+        yaml_file="~/.gitctx/config.yml",
+        env_prefix="GITCTX_",
+    )
 ```
 
 ## Dependencies
@@ -99,6 +110,8 @@ class Config:
 - `typer[all]` - CLI framework with completion
 - `rich` - Terminal formatting and progress bars
 - `pyyaml` - Configuration file management
+- `pydantic>=2.11.0` - Type validation (STORY-0001.1.2)
+- `pydantic-settings[yaml]>=2.11.0` - Config management (STORY-0001.1.2)
 
 ## Success Criteria
 
@@ -142,9 +155,17 @@ class Config:
 - ✅ Config "unset" via blank values (cleaner than separate command)
 - ✅ Zero critical/major issues found in code review
 
-**Total Progress**: 8/10 points estimated (80%)
+**STORY-0001.1.2: Real Configuration Management** (2 points) - **Not Started**
+- 🔵 Pydantic Settings-based configuration
+- 🔵 Three-tier precedence: `OPENAI_API_KEY` > `GITCTX_*` > YAML
+- 🔵 Type validation and SecretStr masking
+- 🔵 Persistent storage at `~/.gitctx/config.yml`
+- 🔵 Source indicators in output
+- 🔵 Backward compatible with STORY-0001.1.1 CLI interface
+
+**Total Progress**: 8/10 points complete (80%) - STORY-0001.1.2 in progress with 5 polish tasks remaining
 
 ---
 
 **Created**: 2025-09-28
-**Last Updated**: 2025-10-04
+**Last Updated**: 2025-10-05

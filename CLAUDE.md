@@ -59,6 +59,101 @@ uv run ruff check src tests && uv run ruff format src tests && uv run mypy src &
 # 9. Continue to next task
 ```
 
+### Story Quality & Progress Review
+
+Use the `/review-story` slash command to validate story completeness and ensure ticket documentation matches implementation reality:
+
+**When to Use:**
+
+1. **Before Starting Work** - Validate story readiness
+
+   ```bash
+   git checkout -b STORY-0001.1.3
+   /review-story
+
+   # Validates:
+   # - Story completeness (acceptance criteria, BDD scenarios, technical design)
+   # - Hierarchy alignment (epic goals, prerequisites, no conflicts)
+   # - Roadmap alignment (initiative objectives, design principles)
+   # - Implementation readiness (concrete steps, file paths, examples)
+   # - Specification clarity (no vague terms, quantified requirements)
+   ```
+
+2. **Mid-Work** - Validate newly added tasks align with story
+
+   ```bash
+   # After adding TASK-5, TASK-6 based on PR feedback
+   /review-story
+
+   # Validates quality + checks:
+   # - New tasks align with original story scope
+   # - Task additions documented in story
+   # - No conflicts with completed work
+   ```
+
+3. **Before Creating PR** - Final quality check and ticket sync
+
+   ```bash
+   # All tasks complete
+   /review-story
+
+   # Validates quality + verifies:
+   # - All ticket statuses match git commits
+   # - Progress percentages accurate
+   # - Parent epic/initiative updated
+   # - Documentation matches reality
+   ```
+
+**What It Does:**
+
+- **Quality Validation** (always): Scores story readiness (0-100%)
+  - Detects vague/ambiguous specifications
+  - Identifies missing documentation
+  - Finds unquantified requirements
+  - Suggests specific fixes with exact file edits
+
+- **Ticket Sync** (if commits exist): Compares tickets vs git state
+  - Detects task status mismatches
+  - Finds undocumented task additions
+  - Identifies progress inaccuracies
+  - Proposes exact edits to sync tickets
+
+- **Approval & Execution**: Shows proposed edits, gets approval, applies changes
+  - User reviews exact OLD → NEW for each edit
+  - Approves with "yes" or declines with "no"
+  - Quality score improvement shown
+  - Ticket accuracy restored
+
+**Example Output:**
+
+```markdown
+# 📋 Story Review Report: STORY-0001.1.2
+Quality Score: 85% (Ready with Minor Issues)
+Ticket Sync: 2 discrepancies found
+
+## Quality Issues (3)
+1. Missing prerequisite documentation → Add to Dependencies
+2. Vague acceptance criterion → Replace with measurable spec
+3. Missing step definition plan → Add to TASK file
+
+## Ticket Drift (2)
+1. Undocumented task additions → Update story header
+2. Epic progress outdated → Update epic README
+
+## Proposed Edits (5 across 3 files)
+[Shows exact OLD/NEW for each file]
+
+Do you approve these file edits? (yes/no/modify)
+```
+
+**Best Practices:**
+
+- Run before starting work to ensure story is unambiguous
+- Run after adding tasks mid-work to validate coherence
+- Run before PR to sync all documentation
+- Approve edits to maintain ticket quality and accuracy
+- Quality score 95%+ = ready for autonomous agent execution
+
 ### Creating Pull Requests
 
 When all tasks in a story are complete:
@@ -70,6 +165,110 @@ When all tasks in a story are complete:
 - Push to branch named after story ID
 
 See [PR Workflow section](docs/tickets/CLAUDE.md#pr-workflow-and-github-links) for detailed PR creation guidelines.
+
+### Responding to PR Review Comments
+
+When addressing GitHub review comments (from humans or bots like GitHub Copilot):
+
+**Workflow:**
+1. Fix the code issue
+2. Run quality gates
+3. Commit with format: `fix(STORY-ID): Address review comment #N - description`
+4. Push the fix
+5. Reply to the comment explaining the fix
+6. Resolve the comment thread
+
+**Using Poe Tasks (Recommended):**
+
+We provide poe tasks that automate the complex GitHub GraphQL API interactions:
+
+```bash
+# Complete workflow: find thread, reply, and resolve in one command
+PR_NUMBER=4 COMMENT_ID=2404649657 REPLY_BODY="**Fixed** - Description of fix.
+
+**Commit:** abc123" uv run poe pr-address-comment
+
+# Find thread ID by comment ID (if you need it separately)
+PR_NUMBER=4 COMMENT_ID=2404649657 uv run poe pr-find-thread
+
+# Reply to an existing thread (manual workflow)
+THREAD_ID="PRRT_xxx" BODY="Reply text" uv run poe pr-reply
+
+# Resolve a thread (manual workflow)
+THREAD_ID="PRRT_xxx" uv run poe pr-resolve
+```
+
+**Important Notes:**
+- `pr-address-comment` automatically adds "On behalf of @username" footer using your `gh` authentication
+- Always include commit hash in your reply body
+- Test the fix locally before replying
+- Some comments may need explanation rather than code changes (e.g., "code is correct as-is because...")
+- The poe tasks handle proper escaping and GraphQL mutations for you
+
+**Manual GraphQL Workflow (Advanced):**
+
+If you need to use the GraphQL API directly instead of poe tasks:
+
+<details>
+<summary>Click to expand manual GraphQL examples</summary>
+
+**Finding Review Thread IDs:**
+
+```bash
+gh api graphql -f query='
+query {
+  repository(owner: "OWNER", name: "REPO") {
+    pullRequest(number: PR_NUMBER) {
+      reviewThreads(first: 30) {
+        nodes {
+          id
+          isResolved
+          comments(first: 1) {
+            nodes {
+              databaseId
+              body
+            }
+          }
+        }
+      }
+    }
+  }
+}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].body | contains("SEARCH_TEXT")) | {threadId: .id, isResolved}'
+```
+
+**Replying to Review Comments:**
+
+```bash
+gh api graphql -f query='
+mutation {
+  addPullRequestReviewThreadReply(input: {
+    pullRequestReviewThreadId: "THREAD_ID"
+    body: "**Fixed** - Description of fix.\n\n**Commit:** abc123\n\n---\n*On behalf of @USERNAME*"
+  }) {
+    comment {
+      id
+    }
+  }
+}'
+```
+
+**Resolving Review Threads:**
+
+```bash
+gh api graphql -f query='
+mutation {
+  resolveReviewThread(input: {
+    threadId: "THREAD_ID"
+  }) {
+    thread {
+      id
+      isResolved
+    }
+  }
+}'
+```
+
+</details>
 
 ## Branch Naming Conventions
 

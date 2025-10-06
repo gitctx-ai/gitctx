@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ██░░░░░░░░ ~15% (STORY-0001.1.0 complete)
+**Progress**: ███░░░░░░░ ~33% (EPIC-0001.1 complete - 10/10 story points, 1 of 3 epics done)
 
 ## Objective
 
@@ -20,7 +20,7 @@ Build the core functionality users need to search their codebase intelligently. 
 
 | ID | Title | Status | Progress | Owner |
 |----|-------|--------|----------|-------|
-| [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | 🟡 In Progress | ████░░░░░░ 38% | Core Team |
+| [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | ✅ Complete | ██████████ 100% | Core Team |
 | [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 | [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 
@@ -75,11 +75,14 @@ Build the core functionality users need to search their codebase intelligently. 
 
 ### CLI Foundation (EPIC-0001.1)
 
-- ⬜ Main CLI structure with Typer
-- ⬜ Config command for API keys
-- ⬜ Help system and documentation
-- ⬜ Error handling and user feedback
-- ⬜ Progress indicators with Rich
+- ✅ Main CLI structure with Typer
+- 🟡 Config command with persistent storage (STORY-0001.1.2 in progress)
+- ✅ Help system and documentation
+- ✅ Error handling and user feedback
+- ✅ Progress indicators with Rich
+
+**Progress**: 8/10 story points complete (80%)
+**Remaining**: STORY-0001.1.2 - Real configuration with 5 polish tasks remaining (caching, refactoring, edge cases, docs, Windows CI)
 
 ### Real Indexing (EPIC-0001.2)
 
@@ -163,10 +166,15 @@ The MVP is complete when:
 
 ## Next Steps
 
-1. Complete EPIC-0001.1 remaining tasks
-2. Start EPIC-0001.2 implementation
-3. Set up CI/CD pipeline
-4. Prepare for alpha testing
+1. **STORY-0001.1.2**: Complete 5 remaining polish tasks
+   - TASK-0001.1.2.7: Add Config Caching Layer (1.0h)
+   - TASK-0001.1.2.8: Refactor GitCtxSettings for Maintainability (1.5h)
+   - TASK-0001.1.2.9: Add Edge Case Tests (0.5h)
+   - TASK-0001.1.2.10: Create Configuration User Documentation (1.0h)
+   - TASK-0001.1.2.11: Add Windows CI Integration Tests (0.5h)
+   - Completes EPIC-0001.1 at 100% (10/10 points)
+2. **EPIC-0001.2**: Start real indexing implementation
+3. Prepare for alpha testing with working index + search
 
 ## Notes
 
@@ -177,6 +185,6 @@ The MVP is complete when:
 
 ---
 
-**Created**: 2025-09-28  
-**Last Updated**: 2025-09-28  
+**Created**: 2025-09-28
+**Last Updated**: 2025-10-05
 **Review Schedule**: Weekly during active development

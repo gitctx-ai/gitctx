@@ -39,21 +39,28 @@ Build the core functionality users need to search their codebase intelligently.
 
 **Epics**:
 
-- EPIC-0001.1: CLI Foundation - 🟡 In Progress (~80% - 8/10 story points complete)
+- EPIC-0001.1: CLI Foundation - ✅ Complete (100% - 10/10 story points)
   - ✅ STORY-0001.1.0: Development Environment Setup (5 points)
   - ✅ STORY-0001.1.1: CLI Framework Setup (3 points) - **Code Review: 9.5/10 (Production-Ready)**
-    - 78 tests passing, 98.82% coverage
+    - 82 tests passing, 98.28% coverage
     - Zero critical/major issues found
     - Ready for next stories to build on this foundation
+  - ✅ STORY-0001.1.2: Real Configuration Management (5 points) - **Complete**
+    - Pydantic Settings for type-safe config
+    - User/repo config separation with security hardening
+    - Progressive disclosure TUI compliance
+    - 19 BDD scenarios passing, 94.55% coverage
+    - Windows CI integration complete
 - EPIC-0001.2: Real Indexing - 🔵 Not Started
 - EPIC-0001.3: Vector Search - 🔵 Not Started
 
 **Key Deliverables:**
 
 - ✅ Complete CLI with all commands (mocked implementations) - **Production-Ready**
-- ⬜ OpenAI embedding generation
-- ⬜ LanceDB vector search
-- ⬜ Basic context assembly
+- ✅ Persistent configuration with Pydantic Settings (STORY-0001.1.2) - **Complete**
+- ⬜ OpenAI embedding generation (EPIC-0001.2)
+- ⬜ LanceDB vector search (EPIC-0001.3)
+- ⬜ Basic context assembly (EPIC-0001.3)
 
 **Success Criteria:**
 

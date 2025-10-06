@@ -1,7 +1,8 @@
 # Claude settings
 .claude/settings.local.json
 
-# NOTE: .gitctx/ will be handled later in development
+# gitctx - NEVER run gitctx from the repo root (use temp test environments)
+.gitctx/
 
 # direnv
 .envrc.local
@@ -32,6 +33,7 @@ ENV/
 .coverage
 .coverage.*
 coverage.xml
+coverage.json
 htmlcov/
 .tox/
 .nox/
