@@ -193,7 +193,7 @@ class WalkProgress:
     commits_seen: int
     total_commits: int
     unique_blobs_found: int
-    current_commit_date: datetime
+    current_commit_date: int
     current_commit_sha: str
     current_commit_message: str
 
