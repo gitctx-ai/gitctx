@@ -51,7 +51,7 @@ Build the core functionality users need to search their codebase intelligently.
     - Progressive disclosure TUI compliance
     - 19 BDD scenarios passing, 94.55% coverage
     - Windows CI integration complete
-- EPIC-0001.2: Real Indexing - 🔵 Not Started
+- EPIC-0001.2: Real Indexing - 🟡 In Progress (36% - STORY-0001.2.1 complete)
 - EPIC-0001.3: Vector Search - 🔵 Not Started
 
 **Key Deliverables:**

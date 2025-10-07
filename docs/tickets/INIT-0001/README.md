@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ███░░░░░░░ ~33% (EPIC-0001.1 complete - 10/10 story points, 1 of 3 epics done)
+**Progress**: ████░░░░░░ ~38% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 in progress - 9/25 points, 19/60 total points)
 
 ## Objective
 
@@ -21,7 +21,7 @@ Build the core functionality users need to search their codebase intelligently. 
 | ID | Title | Status | Progress | Owner |
 |----|-------|--------|----------|-------|
 | [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | ✅ Complete | ██████████ 100% | Core Team |
-| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | 🟡 In Progress | ░░░░░░░░░░ 4% | Core Team |
+| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | 🟡 In Progress | ███░░░░░░░ 36% | Core Team |
 | [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 
 ## Success Metrics
@@ -76,21 +76,22 @@ Build the core functionality users need to search their codebase intelligently. 
 ### CLI Foundation (EPIC-0001.1)
 
 - ✅ Main CLI structure with Typer
-- 🟡 Config command with persistent storage (STORY-0001.1.2 in progress)
+- ✅ Config command with persistent storage (STORY-0001.1.2 complete)
 - ✅ Help system and documentation
 - ✅ Error handling and user feedback
 - ✅ Progress indicators with Rich
 
-**Progress**: 8/10 story points complete (80%)
-**Remaining**: STORY-0001.1.2 - Real configuration with 5 polish tasks remaining (caching, refactoring, edge cases, docs, Windows CI)
+**Progress**: 10/10 story points complete (100%) ✅
 
 ### Real Indexing (EPIC-0001.2)
 
-- ⬜ Git-aware file scanner
-- ⬜ Smart text chunking with overlap
-- ⬜ OpenAI embedding generation
-- ⬜ Safetensors storage (5x compression)
-- ⬜ Incremental indexing support
+- ✅ Commit graph walker with blob deduplication (STORY-0001.2.1 complete)
+- ⬜ Smart text chunking with overlap (STORY-0001.2.2 - planned)
+- ⬜ OpenAI embedding generation (STORY-0001.2.3 - planned)
+- ⬜ LanceDB storage (STORY-0001.2.4 - planned)
+- ⬜ Progress tracking and cost estimation (STORY-0001.2.5 - planned)
+
+**Progress**: 9/25 story points complete (36%)
 
 ### Vector Search (EPIC-0001.3)
 
@@ -166,14 +167,13 @@ The MVP is complete when:
 
 ## Next Steps
 
-1. **STORY-0001.1.2**: Complete 5 remaining polish tasks
-   - TASK-0001.1.2.7: Add Config Caching Layer (1.0h)
-   - TASK-0001.1.2.8: Refactor GitCtxSettings for Maintainability (1.5h)
-   - TASK-0001.1.2.9: Add Edge Case Tests (0.5h)
-   - TASK-0001.1.2.10: Create Configuration User Documentation (1.0h)
-   - TASK-0001.1.2.11: Add Windows CI Integration Tests (0.5h)
-   - Completes EPIC-0001.1 at 100% (10/10 points)
-2. **EPIC-0001.2**: Start real indexing implementation
+1. **EPIC-0001.2**: Complete real indexing implementation
+   - ✅ STORY-0001.2.1: Commit Graph Walker (9 points) - Complete
+   - 🔵 STORY-0001.2.2: Blob Chunking (5 points) - Need to write
+   - 🔵 STORY-0001.2.3: OpenAI Embeddings (5 points) - Need to write
+   - 🔵 STORY-0001.2.4: LanceDB Storage (3 points) - Need to write
+   - 🔵 STORY-0001.2.5: Progress/Cost (3 points) - Need to write
+2. **EPIC-0001.3**: Start vector search implementation
 3. Prepare for alpha testing with working index + search
 
 ## Notes

@@ -155,15 +155,17 @@ class GitCtxSettings(BaseSettings):
 - ✅ Config "unset" via blank values (cleaner than separate command)
 - ✅ Zero critical/major issues found in code review
 
-**STORY-0001.1.2: Real Configuration Management** (2 points) - **Not Started**
-- 🔵 Pydantic Settings-based configuration
-- 🔵 Three-tier precedence: `OPENAI_API_KEY` > `GITCTX_*` > YAML
-- 🔵 Type validation and SecretStr masking
-- 🔵 Persistent storage at `~/.gitctx/config.yml`
-- 🔵 Source indicators in output
-- 🔵 Backward compatible with STORY-0001.1.1 CLI interface
+**STORY-0001.1.2: Real Configuration Management** (5 points) - **Complete**
+- ✅ Pydantic Settings-based configuration
+- ✅ Three-tier precedence: `OPENAI_API_KEY` > `GITCTX_*` > YAML
+- ✅ Type validation and SecretStr masking
+- ✅ Persistent storage at `~/.gitctx/config.yml`
+- ✅ Source indicators in output
+- ✅ Backward compatible with STORY-0001.1.1 CLI interface
+- ✅ 19 BDD scenarios passing, 94.55% coverage
+- ✅ Windows CI integration complete
 
-**Total Progress**: 8/10 points complete (80%) - STORY-0001.1.2 in progress with 5 polish tasks remaining
+**Total Progress**: 10/10 points complete (100%) - All stories complete
 
 ---
 
