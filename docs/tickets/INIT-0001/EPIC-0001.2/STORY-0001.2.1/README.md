@@ -2,7 +2,7 @@
 
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🔵 Not Started
-**Story Points**: 10
+**Story Points**: 9
 **Progress**: ░░░░░░░░░░ 0%
 
 ## User Story
