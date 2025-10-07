@@ -23,6 +23,7 @@ So that large files can be indexed within token limits while preserving context 
 - [ ] Supports all major languages via LangChain RecursiveCharacterTextSplitter
 - [ ] Protocol-based design enables future Rust optimization
 - [ ] Metadata includes: blob_sha, chunk_index, language, start_line, end_line, token_count
+- [ ] Invalid UTF-8 blobs are skipped with warning logged to WalkStats.errors (error type: 'invalid_encoding')
 
 ## BDD Scenarios
 
@@ -101,13 +102,14 @@ Feature: Blob Content Chunking
 
 ## Child Tasks
 
-| ID | Title | Status | Hours |
-|----|-------|--------|-------|
-| [TASK-0001.2.2.1](TASK-0001.2.2.1.md) | Define ChunkerProtocol and CodeChunk dataclass | 🔵 | 2 |
-| [TASK-0001.2.2.2](TASK-0001.2.2.2.md) | Implement LanguageAwareChunker with LangChain | 🔵 | 6 |
-| [TASK-0001.2.2.3](TASK-0001.2.2.3.md) | Integrate with CommitWalker pipeline | 🔵 | 3 |
-| [TASK-0001.2.2.4](TASK-0001.2.2.4.md) | BDD scenarios and integration tests | 🔵 | 4 |
-| [TASK-0001.2.2.5](TASK-0001.2.2.5.md) | Unit tests and edge case coverage | 🔵 | 5 |
+**BDD/TDD Workflow**: BDD scenarios first, implement incrementally with each task, all scenarios pass at end
+
+| ID | Title | Status | Hours | BDD Progress |
+|----|-------|--------|-------|--------------|
+| [TASK-0001.2.2.1](TASK-0001.2.2.1.md) | Write BDD scenarios for chunking behavior | 🔵 | 3 | 0/9 scenarios (all failing) |
+| [TASK-0001.2.2.2](TASK-0001.2.2.2.md) | Define protocols, models, and language detection (with tests) | 🔵 | 3 | 1/9 scenarios passing |
+| [TASK-0001.2.2.3](TASK-0001.2.2.3.md) | Implement LanguageAwareChunker with unit tests (TDD) and BDD scenarios | 🔵 | 10 | 7/9 scenarios passing |
+| [TASK-0001.2.2.4](TASK-0001.2.2.4.md) | Integration with CommitWalker, configuration, and final BDD scenario | 🔵 | 4 | 9/9 scenarios passing ✅ |
 
 **Total**: 20 hours = 5 story points
 
@@ -165,6 +167,68 @@ class ChunkerProtocol(Protocol):
         ...
 ```
 
+### Language Detection
+
+Simple extension-based detection provides 90%+ accuracy with zero dependencies:
+
+```python
+# src/gitctx/core/language_detection.py
+
+from pathlib import Path
+
+# Map file extensions to LangChain language identifiers
+EXTENSION_TO_LANGUAGE = {
+    ".py": "python",
+    ".js": "js",
+    ".jsx": "js",
+    ".ts": "ts",
+    ".tsx": "ts",
+    ".go": "go",
+    ".rs": "rust",
+    ".java": "java",
+    ".c": "c",
+    ".h": "cpp",      # Default .h to C++
+    ".cpp": "cpp",
+    ".hpp": "hpp",
+    ".rb": "ruby",
+    ".php": "php",
+    ".swift": "swift",
+    ".kt": "kotlin",
+    ".scala": "scala",
+    ".sql": "sql",
+    ".sh": "bash",
+    ".html": "html",
+    ".css": "css",
+    ".md": "markdown",
+    # Add more as needed (~30 total for 95% coverage)
+}
+
+def detect_language_from_extension(file_path: str) -> str:
+    """Detect programming language from file extension.
+
+    MVP approach: Simple extension mapping covers 90%+ of real-world files.
+    Falls back to 'markdown' for unknown types (generic text splitting works fine).
+
+    Future: Can upgrade to content-based detection if metrics show need.
+
+    Args:
+        file_path: Path to file
+
+    Returns:
+        Language identifier for LangChain RecursiveCharacterTextSplitter
+    """
+    ext = Path(file_path).suffix.lower()
+    return EXTENSION_TO_LANGUAGE.get(ext, "markdown")
+```
+
+**Design Rationale:**
+
+- No external dependencies (Pygments, Linguist, etc.)
+- 90%+ accuracy on common code files
+- Explicit fallback behavior (markdown = generic splitting)
+- Easy to test and maintain
+- Can upgrade to content-based detection later if needed
+
 ### LangChain Integration
 
 Use `RecursiveCharacterTextSplitter` with language-specific splitting:
@@ -196,8 +260,7 @@ class LanguageAwareChunker(ChunkerProtocol):
         self.encoder = tiktoken.get_encoding("cl100k_base")
         self.chunk_overlap_ratio = chunk_overlap_ratio
 
-        # Cache splitters per (language, max_tokens) to avoid recreation
-        self.splitters: dict[str, RecursiveCharacterTextSplitter] = {}
+        # No splitter caching in MVP (CLI tool = new process each time)
 
         # Map language names to LangChain language codes
         self.language_map = {
@@ -227,56 +290,44 @@ class LanguageAwareChunker(ChunkerProtocol):
             "markdown": "markdown",
         }
 
-    def _get_splitter(
+    def _create_splitter(
         self,
         language: str,
         max_tokens: int
     ) -> RecursiveCharacterTextSplitter:
-        """Get or create a splitter for the given language.
+        """Create a splitter for the given language.
 
         Args:
-            language: Programming language
+            language: Programming language (from detect_language_from_extension)
             max_tokens: Maximum tokens per chunk
 
         Returns:
             Configured text splitter
         """
-        # Normalize language name
-        lang_key = language.lower()
-        langchain_lang = self.language_map.get(lang_key)
+        # Approximate characters per token (3-3.5 for code)
+        # Using 3.5 to be conservative and avoid exceeding token limits
+        chunk_size = int(max_tokens * 3.5)
+        chunk_overlap = int(chunk_size * self.chunk_overlap_ratio)
 
-        # Cache key includes max_tokens since chunk size affects splitter
-        cache_key = f"{lang_key}:{max_tokens}"
+        # Use language-specific splitter (LangChain handles fallback)
+        langchain_lang = self.language_map.get(language.lower())
 
-        if cache_key not in self.splitters:
-            # Approximate characters per token (3-3.5 for code)
-            # Using 3.5 to be conservative and avoid exceeding token limits
-            chunk_size = int(max_tokens * 3.5)
-            chunk_overlap = int(chunk_size * self.chunk_overlap_ratio)
-
-            if langchain_lang:
-                # Use language-specific splitter
-                try:
-                    self.splitters[cache_key] = \
-                        RecursiveCharacterTextSplitter.from_language(
-                            language=langchain_lang,
-                            chunk_size=chunk_size,
-                            chunk_overlap=chunk_overlap,
-                        )
-                except ValueError:
-                    # Language not supported, fall back to generic
-                    self.splitters[cache_key] = RecursiveCharacterTextSplitter(
-                        chunk_size=chunk_size,
-                        chunk_overlap=chunk_overlap,
-                    )
-            else:
-                # Generic splitter for unknown languages
-                self.splitters[cache_key] = RecursiveCharacterTextSplitter(
+        if langchain_lang:
+            try:
+                return RecursiveCharacterTextSplitter.from_language(
+                    language=langchain_lang,
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
                 )
+            except ValueError:
+                # Language not supported by LangChain, use generic
+                pass
 
-        return self.splitters[cache_key]
+        # Fallback to generic splitter
+        return RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
 
     def chunk_file(
         self,
@@ -297,8 +348,8 @@ class LanguageAwareChunker(ChunkerProtocol):
         if not content:
             return []
 
-        # Get appropriate splitter
-        splitter = self._get_splitter(language, max_tokens)
+        # Create appropriate splitter
+        splitter = self._create_splitter(language, max_tokens)
 
         # Split the content
         texts = splitter.split_text(content)
@@ -326,8 +377,9 @@ class LanguageAwareChunker(ChunkerProtocol):
             chunks.append(chunk)
 
             # Update line counter (approximate due to overlap)
-            # This is a simplification - exact line tracking would need
-            # more sophisticated overlap handling
+            # Note: Line numbers are approximate when overlap > 0 due to chunk boundary ambiguity.
+            # Accuracy: ±overlap_lines for chunks after first chunk. First chunk always exact.
+            # This is acceptable for search result attribution (shows approximate location).
             current_line += int(lines_in_chunk * (1 - self.chunk_overlap_ratio))
 
         return chunks
@@ -372,8 +424,12 @@ The chunker sits between the walker and embedder:
 
 # Example orchestration (STORY-0001.2.4 will implement):
 for blob_record in walker.walk():
-    # Detect language from file paths in blob.locations
-    language = detect_language(blob_record.locations[0].file_path)
+    # Detect language from file extension (simple mapping, 90%+ accuracy)
+    # See src/gitctx/core/language_detection.py for EXTENSION_TO_LANGUAGE mapping
+    # Examples: .py → python, .js → js, .go → go
+    # Unknown extensions fall back to 'markdown' (generic text splitting)
+    file_path = blob_record.locations[0].file_path
+    language = detect_language_from_extension(file_path)
 
     # Chunk the blob
     chunks = chunker.chunk_file(
@@ -414,8 +470,8 @@ class IndexSettings(BaseModel):
 
 ### External Libraries
 
-- `langchain-text-splitters>=0.3.0` - Language-aware chunking
-- `tiktoken>=0.8.0` - Token counting for OpenAI models
+- `langchain-text-splitters>=0.3.0,<1.0` - Language-aware chunking (0.x API stability)
+- `tiktoken>=0.8.0,<1.0` - Token counting for OpenAI (0.x API stability)
 
 ### Internal Dependencies
 
