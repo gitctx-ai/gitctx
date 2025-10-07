@@ -305,8 +305,22 @@ class LanguageAwareChunker(ChunkerProtocol):
         Returns:
             Configured text splitter
         """
-        # Approximate characters per token (3-3.5 for code)
-        # Using 3.5 to be conservative and avoid exceeding token limits
+        # Approximate characters per token for code (conservative estimate)
+        #
+        # Empirical data (OpenAI Community - character-to-token ratios):
+        #   - Python: ~4.2 characters/token
+        #   - JavaScript (minified): ~2.5 characters/token
+        #   - Smalltalk: ~3.3-3.8 characters/token
+        #   - General range: 2.5-4.2 characters/token
+        #
+        # Conservative estimate: 3.5 characters/token
+        # - Middle of empirical range (avoids under-estimating token counts)
+        # - Prevents exceeding max_tokens limit (chunking would fail if too aggressive)
+        # - Trade-off: May create slightly smaller chunks than optimal (~15% smaller)
+        # - Actual token counting via tiktoken provides precision after chunking
+        #
+        # Source: https://community.openai.com/t/rules-of-thumb-for-number-of-source-code-characters-to-tokens/622947
+        # Note: LangChain RecursiveCharacterTextSplitter uses character counts; tiktoken validates after
         chunk_size = int(max_tokens * 3.5)
         chunk_overlap = int(chunk_size * self.chunk_overlap_ratio)
 
