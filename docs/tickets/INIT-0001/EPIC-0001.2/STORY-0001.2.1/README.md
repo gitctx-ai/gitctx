@@ -120,7 +120,7 @@ Feature: Commit Graph Walker
 ### Edge Case Scenarios (Unit Tests)
 
 ```python
-# tests/unit/core/test_commit_walker_edge_cases.py
+# tests/unit/core/test_commit_walker.py
 
 def test_partial_clone_detection(tmp_path):
     """Partial clone (.git/objects/info/alternates exists) errors early."""
@@ -293,13 +293,10 @@ class CommitWalker:
 - `src/gitctx/core/commit_walker.py` - Main walker class
 - `src/gitctx/core/models.py` - BlobLocation, BlobRecord, WalkProgress, WalkStats, WalkError
 - `src/gitctx/core/blob_filter.py` - Filtering logic (gitignore, binary, LFS, size)
-- `tests/unit/core/test_commit_walker.py` - Unit tests for walker
-- `tests/unit/core/test_deduplication.py` - Blob/commit dedup tests
-- `tests/unit/core/test_location_tracking.py` - Location metadata tests
+- `tests/unit/core/test_commit_walker.py` - All unit tests for walker (core functionality, deduplication, location tracking, edge cases)
 - `tests/unit/core/test_filtering.py` - Filter tests
 - `tests/unit/core/test_progress.py` - Progress callback tests
 - `tests/unit/core/test_error_handling.py` - Error handling tests
-- `tests/unit/core/test_commit_walker_edge_cases.py` - Edge case unit tests
 - `tests/e2e/features/commit_walker.feature` - Gherkin scenarios
 - `tests/e2e/step_defs/test_commit_walker.py` - Step definitions
 
