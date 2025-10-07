@@ -366,7 +366,7 @@ Story is complete when:
 - ✅ Performance: 10K commits in <30 seconds
 - ✅ Memory: Peak <150MB for 10K commits
 - ✅ Integration: Works with real git repositories
-- ✅ Quality gates: ruff, mypy, pytest all pass
+- ✅ Quality gates: ruff (no warnings, strict config), mypy (strict mode, no errors), pytest (all tests pass, coverage >90%)
 - ✅ Documentation: API docstrings complete
 
 ## Performance Targets
