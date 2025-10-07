@@ -143,11 +143,11 @@ def test_e2e_gpg_keys_not_accessible(e2e_git_isolation_env: dict[str, str]) -> N
     GNUPGHOME points to an empty temp directory, so GPG should find no keys.
     """
     result = subprocess.run(
-        ["gpg", "--list-secret-keys"],
+        ["gpg", "--list-secret-keys", "--batch", "--no-tty"],
         env=e2e_git_isolation_env,
         capture_output=True,
         text=True,
-        timeout=5,
+        timeout=10,
     )
 
     # GPG should run successfully but find no keys in the empty temp directory
