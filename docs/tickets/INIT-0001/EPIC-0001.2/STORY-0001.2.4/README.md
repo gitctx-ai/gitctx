@@ -145,8 +145,24 @@ class CodeChunkRecord(LanceModel):
     - Optimal for read-heavy workload (searches >> updates)
     """
 
+    # Schema Design: Embedding Model Flexibility
+    #
+    # Current: text-embedding-3-large (3072 dims, $0.13/1M tokens)
+    # Future support: text-embedding-3-small (1536 dims, $0.02/1M tokens) for cost optimization
+    #
+    # Migration strategy:
+    # 1. Schema versioning: Store embedding_model and dimensions in table metadata
+    # 2. Dimension detection: Read from metadata on table open, validate on insert
+    # 3. Model changes: Require full re-index (detected via metadata.embedding_model field)
+    # 4. Multi-model support (post-MVP): Separate tables per model:
+    #    - .gitctx/lancedb/text-embedding-3-large/ (3072 dims)
+    #    - .gitctx/lancedb/text-embedding-3-small/ (1536 dims)
+    #    - .gitctx/lancedb/text-embedding-ada-002/ (1536 dims, legacy)
+    #    Query router selects table based on configured model
+    #    Allows gradual migration: re-index subsets with different models for cost/quality tradeoffs
+
     # Vector and content
-    vector: Vector(3072)  # text-embedding-3-large dimensions
+    vector: Vector(3072)  # Default: text-embedding-3-large (configurable via embedding_model metadata)
     chunk_content: str
     token_count: int
 
@@ -431,6 +447,45 @@ class LanceDBStore:
             if f.is_file()
         )
         return total / (1024 * 1024)
+```
+
+### Embedding Model Configuration (Future-Proofing)
+
+Store embedding model metadata with table for schema evolution:
+
+```python
+# Table metadata (stored in LanceDB)
+metadata = {
+    "embedding_model": "text-embedding-3-large",
+    "embedding_dimensions": 3072,
+    "cost_per_million_tokens": 0.13,
+    "created_at": "2025-10-07T...",
+    "schema_version": 1
+}
+
+# On table open: validate incoming vectors match metadata.embedding_dimensions
+# On model change: detect via metadata.embedding_model, require re-index
+```
+
+**Post-MVP multi-model support:**
+
+Table names match embedding model for extreme clarity:
+- `.gitctx/lancedb/text-embedding-3-large/` (3072 dims, current default)
+- `.gitctx/lancedb/text-embedding-3-small/` (1536 dims, cost optimization)
+- `.gitctx/lancedb/text-embedding-ada-002/` (1536 dims, legacy support)
+
+Query router selects table based on user's configured `embedding_model` setting.
+Allows gradual migration: re-index subsets of codebase with different models for cost/quality tradeoffs.
+
+**Configuration integration:**
+
+Add to `IndexSettings` in `RepoConfig` (STORY-0001.2.2):
+
+```python
+embedding_model: str = Field(
+    default="text-embedding-3-large",
+    description="OpenAI embedding model (determines table name and vector dimensions: 3-large=3072, 3-small=1536)"
+)
 ```
 
 ### Integration with Pipeline
