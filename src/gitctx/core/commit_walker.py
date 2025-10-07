@@ -64,14 +64,14 @@ class CommitWalker:
         self.repo_path = Path(repo_path)
         self.config = config
 
+        # Validate repository type BEFORE opening (Windows pygit2 fails on invalid shallow files)
+        self._validate_repository()
+
         # Open repository
         try:
             self.repo = pygit2.Repository(str(self.repo_path))
         except Exception as e:
             raise GitRepositoryError(f"Failed to open repository: {e}") from e
-
-        # Validate repository type
-        self._validate_repository()
 
         # Get refs from config
         self.refs = config.repo.index.refs
@@ -86,8 +86,15 @@ class CommitWalker:
             PartialCloneError: If .git/objects/info/alternates exists
             ShallowCloneError: If .git/shallow exists
         """
+        # Determine git directory (could be bare repo or regular repo with .git subdir)
+        if (self.repo_path / "objects").exists():
+            # Bare repository
+            git_dir = self.repo_path
+        else:
+            # Regular repository with .git subdirectory
+            git_dir = self.repo_path / ".git"
+
         # Check for partial clone
-        git_dir = Path(self.repo.path)
         alternates_file = git_dir / "objects" / "info" / "alternates"
         if alternates_file.exists():
             raise PartialCloneError(
