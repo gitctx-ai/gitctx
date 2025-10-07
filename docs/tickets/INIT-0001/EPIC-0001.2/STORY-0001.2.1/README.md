@@ -3,7 +3,7 @@
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 9
-**Progress**: █████░░░░░ 57% (4/7 tasks complete)
+**Progress**: ███████░░░ 71% (5/7 tasks complete)
 
 ## User Story
 
@@ -155,7 +155,7 @@ def test_octopus_merge_detection(tmp_path):
 | [TASK-0001.2.1.1](TASK-0001.2.1.1.md) | Core Git Traversal | ✅ Complete | 10 |
 | [TASK-0001.2.1.2](TASK-0001.2.1.2.md) | Blob Deduplication Logic | ✅ Complete | 6 |
 | [TASK-0001.2.1.3](TASK-0001.2.1.3.md) | Location Metadata Collection | ✅ Complete | 6 |
-| [TASK-0001.2.1.4](TASK-0001.2.1.4.md) | Blob Filtering | 🔵 | 7 |
+| [TASK-0001.2.1.4](TASK-0001.2.1.4.md) | Blob Filtering | ✅ Complete | 7 |
 | [TASK-0001.2.1.5](TASK-0001.2.1.5.md) | Progress & Error Handling | 🔵 | 4 |
 | [TASK-0001.2.1.6](TASK-0001.2.1.6.md) | BDD Scenarios & Integration Tests | 🔵 | 10 |
 

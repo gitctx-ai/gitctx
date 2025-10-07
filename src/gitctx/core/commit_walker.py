@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pygit2
 
+from .blob_filter import BlobFilter
 from .config import GitCtxSettings
 from .models import BlobLocation, BlobRecord, CommitMetadata
 
@@ -92,6 +93,13 @@ class CommitWalker:
         # For bare repos, this will be empty (no HEAD working tree)
         self.head_blobs: set[str] = self._build_head_tree()
 
+        # Initialize blob filter
+        gitignore_content = self._read_gitignore_from_head()
+        self.blob_filter = BlobFilter(
+            max_blob_size_mb=config.repo.index.max_blob_size_mb,
+            gitignore_patterns=gitignore_content,
+        )
+
     def _validate_repository(self) -> None:
         """Validate repository is not partial or shallow clone.
 
@@ -141,6 +149,32 @@ class CommitWalker:
                 subtree = self.repo.get(entry.id)
                 if subtree:
                     self._collect_tree_blobs(subtree, blob_set)  # type: ignore[arg-type, no-any-unimported]
+
+    def _read_gitignore_from_head(self) -> str:
+        """Read .gitignore from HEAD tree.
+
+        Returns:
+            Gitignore content as string, or empty string if no .gitignore
+        """
+        # Bare repos have no HEAD
+        if self.repo.is_bare:
+            return ""
+
+        try:
+            head_commit = self.repo.head.peel(pygit2.Commit)
+        except (pygit2.GitError, AttributeError):
+            return ""
+
+        # Try to find .gitignore in HEAD tree
+        try:
+            gitignore_entry = head_commit.tree[".gitignore"]
+            gitignore_blob = self.repo.get(gitignore_entry.id)
+            if not gitignore_blob:
+                return ""
+            return gitignore_blob.data.decode("utf-8", errors="ignore")  # type: ignore[attr-defined, no-any-return, union-attr]
+        except (KeyError, AttributeError):
+            # No .gitignore in HEAD
+            return ""
 
     def _build_head_tree(self) -> set[str]:
         """Build set of all blob SHAs in HEAD tree for O(1) is_head lookup.
@@ -231,6 +265,21 @@ class CommitWalker:
 
                 # Skip already-indexed blobs (resume from partial index)
                 if blob_sha in self.seen_blobs:
+                    continue
+
+                # Get blob content for filtering
+                blob_obj = self.repo.get(blob_sha)
+                if not blob_obj:
+                    continue
+                blob_content = blob_obj.data  # type: ignore[attr-defined]
+
+                # Apply filters
+                should_filter, reason = self.blob_filter.should_filter(
+                    entry_path,
+                    blob_content,
+                )
+                if should_filter:
+                    # TODO: Track filtered blobs in WalkStats (TASK-0001.2.1.5)
                     continue
 
                 # Create BlobLocation for this occurrence

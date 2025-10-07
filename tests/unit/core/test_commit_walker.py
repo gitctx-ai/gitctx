@@ -817,3 +817,407 @@ class TestSymlinkHandling:
         regular_names = {e.name for e in regular_entries}
         assert "real_file.py" in regular_names
         assert "target.txt" in regular_names
+
+
+# ============================================================================
+# Blob Filtering
+# ============================================================================
+
+
+class TestBlobFiltering:
+    """Test blob filtering integration with CommitWalker."""
+
+    def test_binary_files_filtered(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Binary files are filtered during walk."""
+        # ARRANGE - create repo with binary and text files
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create text file
+        (repo_path / "text.py").write_text("def hello(): pass")
+
+        # Create binary file (PNG signature with null byte)
+        (repo_path / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add text and binary"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - only text file indexed
+        assert "text.py" in file_paths
+        assert "image.png" not in file_paths
+
+    def test_lfs_pointers_filtered(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Git LFS pointer files are filtered during walk."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create LFS pointer file
+        lfs_content = """version https://git-lfs.github.com/spec/v1
+oid sha256:abc123
+size 1048576
+"""
+        (repo_path / "large.bin").write_text(lfs_content)
+        (repo_path / "regular.txt").write_text("Regular file")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add LFS pointer"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - LFS pointer filtered, regular file indexed
+        assert "regular.txt" in file_paths
+        assert "large.bin" not in file_paths
+
+    def test_oversized_blobs_filtered(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Blobs exceeding size limit are filtered."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create 6MB file (exceeds 5MB default limit)
+        large_content = "x" * (6 * 1024 * 1024)
+        (repo_path / "large.txt").write_text(large_content)
+        (repo_path / "small.txt").write_text("Small file")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add large and small"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - large file filtered, small file indexed
+        assert "small.txt" in file_paths
+        assert "large.txt" not in file_paths
+
+    def test_gitignore_patterns_respected(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Files matching .gitignore are filtered."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create .gitignore
+        (repo_path / ".gitignore").write_text("*.pyc\nnode_modules/\n")
+
+        # Create files
+        (repo_path / "main.py").write_text("def main(): pass")
+        (repo_path / "cache.pyc").write_text("# cached")
+        node_modules_dir = repo_path / "node_modules"
+        node_modules_dir.mkdir()
+        (node_modules_dir / "lib.js").write_text("// lib")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add files"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - gitignored files filtered
+        assert "main.py" in file_paths
+        assert ".gitignore" in file_paths  # .gitignore itself is indexed
+        assert "cache.pyc" not in file_paths
+        assert not any("node_modules" in path for path in file_paths)
+
+    def test_security_directories_always_excluded(
+        self, git_repo_factory, git_isolation_base, isolated_env
+    ):
+        """Files in .git/ and .gitctx/ are always excluded."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Git doesn't track .git/ contents, so we can't test that directly
+        # Test .gitctx/ exclusion
+        gitctx_dir = repo_path / ".gitctx"
+        gitctx_dir.mkdir()
+        (gitctx_dir / "config.yml").write_text("test: config")
+        (repo_path / "main.py").write_text("def main(): pass")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add files"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - .gitctx/ excluded
+        assert "main.py" in file_paths
+        assert not any(".gitctx" in path for path in file_paths)
+
+    def test_empty_file_not_filtered_as_binary(
+        self, git_repo_factory, git_isolation_base, isolated_env
+    ):
+        """Empty files are not filtered as binary."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        (repo_path / "empty.txt").write_text("")
+        (repo_path / "nonempty.txt").write_text("content")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add files"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - both files indexed
+        assert "empty.txt" in file_paths
+        assert "nonempty.txt" in file_paths
+
+    def test_null_byte_at_8192_boundary(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Null byte after first 8192 bytes doesn't trigger binary filter."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create file with 8192 'a' characters, then a null byte
+        content_with_late_null = "a" * 8192 + "\x00"
+        (repo_path / "late_null.txt").write_text(content_with_late_null)
+        (repo_path / "regular.txt").write_text("regular content")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add files"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - late_null.txt is NOT filtered (null beyond 8192 bytes)
+        assert "late_null.txt" in file_paths
+        assert "regular.txt" in file_paths
+
+    def test_lfs_header_case_sensitive(self, git_repo_factory, git_isolation_base, isolated_env):
+        """LFS header detection is case-sensitive."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Wrong case - should NOT be filtered as LFS
+        wrong_case_content = "VERSION HTTPS://GIT-LFS.GITHUB.COM/SPEC/V1\noid sha256:abc\nsize 100"
+        (repo_path / "not_lfs.txt").write_text(wrong_case_content)
+        (repo_path / "regular.txt").write_text("regular")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add files"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - not_lfs.txt is indexed (wrong case, not detected as LFS)
+        assert "not_lfs.txt" in file_paths
+        assert "regular.txt" in file_paths
+
+    @pytest.mark.parametrize(
+        "size_mb,should_be_filtered",
+        [
+            (4, False),  # 4MB < 5MB limit - not filtered
+            (5, False),  # 5MB == 5MB limit - not filtered
+            (6, True),  # 6MB > 5MB limit - filtered
+        ],
+    )
+    def test_size_limit_boundaries(
+        self, git_repo_factory, git_isolation_base, isolated_env, size_mb, should_be_filtered
+    ):
+        """Test size limit filtering at various boundaries."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create file of specified size
+        content = "x" * (size_mb * 1024 * 1024)
+        (repo_path / f"file_{size_mb}mb.txt").write_text(content)
+        (repo_path / "marker.txt").write_text("marker")  # Always present
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", f"Add {size_mb}MB file"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT
+        assert "marker.txt" in file_paths  # Always indexed
+        filename = f"file_{size_mb}mb.txt"
+        if should_be_filtered:
+            assert filename not in file_paths
+        else:
+            assert filename in file_paths
+
+    def test_multiple_gitignore_patterns(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Multiple gitignore patterns work together correctly."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Complex .gitignore
+        gitignore = """
+*.pyc
+*.pyo
+__pycache__/
+node_modules/
+.env
+*.log
+build/
+dist/
+"""
+        (repo_path / ".gitignore").write_text(gitignore)
+
+        # Create various files
+        (repo_path / "main.py").write_text("# main")
+        (repo_path / "cache.pyc").write_text("# cached")
+        (repo_path / "test.log").write_text("# log")
+        (repo_path / ".env").write_text("SECRET=value")
+        (repo_path / "README.md").write_text("# README")
+
+        pycache_dir = repo_path / "__pycache__"
+        pycache_dir.mkdir()
+        (pycache_dir / "module.pyc").write_text("# cached module")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add various files"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # ASSERT - only non-ignored files indexed
+        assert "main.py" in file_paths
+        assert "README.md" in file_paths
+        assert ".gitignore" in file_paths
+
+        # All ignored files excluded
+        assert "cache.pyc" not in file_paths
+        assert "test.log" not in file_paths
+        assert ".env" not in file_paths
+        assert not any("__pycache__" in path for path in file_paths)

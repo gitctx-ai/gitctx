@@ -372,6 +372,7 @@ name = "gitctx"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "pathspec" },
     { name = "pydantic" },
     { name = "pydantic-settings", extra = ["yaml"] },
     { name = "pygit2" },
@@ -401,6 +402,7 @@ requires-dist = [
     { name = "commitizen", marker = "extra == 'dev'", specifier = ">=3.13.0" },
     { name = "detect-secrets", marker = "extra == 'dev'", specifier = ">=1.4.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
+    { name = "pathspec", specifier = ">=0.11.0" },
     { name = "poethepoet", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.6.0" },
     { name = "pydantic", specifier = ">=2.11.0" },
