@@ -117,7 +117,7 @@ Feature: Blob Content Chunking
 
 ### Protocol-Based Design
 
-Follow the prototype in `/Users/bram/Code/codectl-ai/gitctx` which uses protocol-based design for future Rust optimization:
+Follow protocol-based design pattern (from prototype) for future Rust optimization. Key patterns: dataclasses with primitive types only, Protocol classes for swappable implementations, factory functions for dependency injection:
 
 ```python
 # src/gitctx/core/protocols.py (extend existing)
@@ -260,7 +260,8 @@ class LanguageAwareChunker(ChunkerProtocol):
         self.encoder = tiktoken.get_encoding("cl100k_base")
         self.chunk_overlap_ratio = chunk_overlap_ratio
 
-        # No splitter caching in MVP (CLI tool = new process each time)
+        # No splitter caching needed: CLI spawns new process per invocation,
+        # so in-memory cache would not persist across runs
 
         # Map language names to LangChain language codes
         self.language_map = {
@@ -487,20 +488,24 @@ class IndexSettings(BaseModel):
 From existing codebase analysis:
 
 **Test Fixtures** (reuse these):
+
 - `temp_git_repo` (tests/conftest.py) - Create test git repos
 - `mock_clean_env` (tests/conftest.py) - Clean environment for tests
 
 **Test Patterns** (follow these):
+
 - AAA pattern: tests/unit/core/test_commit_walker.py (clear Arrange-Act-Assert)
 - Parametrization: tests/unit/config/test_settings.py (test multiple languages)
 - Factory pattern: tests/unit/conftest.py (reusable fixture factories)
 
 **Source Patterns** (follow these):
+
 - Protocol-based design: Enables future Rust optimization (see prototype)
 - Factory functions: `create_chunker()` for easy swapping
 - Dataclasses with primitive types: FFI-friendly (no Path objects)
 
 **Anti-Patterns to Avoid** (from CLAUDE.md):
+
 - ❌ No new abstractions when LangChain provides them
 - ❌ No premature optimization (use LangChain until metrics show need)
 - ❌ No reimplementing token counting (use tiktoken)
