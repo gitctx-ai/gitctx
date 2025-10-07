@@ -421,3 +421,129 @@ def symlink_repo(tmp_path, git_isolation_base):
     )
 
     return repo_path
+
+
+@pytest.fixture
+def submodule_repo(tmp_path, git_isolation_base):
+    """
+    Create repository with a git submodule.
+
+    Git submodules appear as 'commit' type entries in the tree (not 'blob' or 'tree').
+    This tests that CommitWalker handles non-blob/non-tree entries correctly.
+
+    Note: We manually create the submodule structure using pygit2 to avoid
+    git submodule command restrictions in test environments.
+
+    Returns:
+        Path: Parent repository path containing a submodule
+
+    Usage:
+        def test_submodules(submodule_repo):
+            # Test submodule handling...
+    """
+    import subprocess
+
+    import pygit2
+
+    # Create submodule (child) repository first
+    submodule_path = tmp_path / "child_module"
+    submodule_path.mkdir()
+
+    subprocess.run(
+        ["git", "init"],
+        cwd=submodule_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+    # Configure submodule repo
+    for cmd in [
+        ["git", "config", "user.name", "Test User"],
+        ["git", "config", "user.email", "test@example.com"],
+        ["git", "config", "commit.gpgsign", "false"],
+    ]:
+        subprocess.run(cmd, cwd=submodule_path, env=git_isolation_base, check=True)
+
+    # Create file in submodule and get its commit SHA
+    (submodule_path / "submodule_file.txt").write_text("Submodule content")
+    subprocess.run(
+        ["git", "add", "."],
+        cwd=submodule_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Initial submodule commit"],
+        cwd=submodule_path,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Get the submodule commit SHA
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=submodule_path,
+        env=git_isolation_base,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    submodule_commit_sha = result.stdout.strip()
+
+    # Create parent repository using pygit2 to manually add submodule entry
+    parent_path = tmp_path / "parent_repo"
+    parent_path.mkdir()
+
+    # Initialize parent repo with pygit2
+    parent_repo = pygit2.init_repository(str(parent_path))
+
+    # Set up git config
+    parent_repo.config["user.name"] = "Test User"
+    parent_repo.config["user.email"] = "test@example.com"
+
+    # Create regular file
+    (parent_path / "parent_file.txt").write_text("Parent content")
+
+    # Create .gitmodules file
+    gitmodules_content = f"""[submodule "child"]
+\tpath = child
+\turl = {submodule_path}
+"""
+    (parent_path / ".gitmodules").write_text(gitmodules_content)
+
+    # Build tree manually using TreeBuilder to include gitlink
+    tree_builder = parent_repo.TreeBuilder()
+
+    # Add regular file as blob
+    parent_file_oid = parent_repo.create_blob("Parent content")
+    tree_builder.insert("parent_file.txt", parent_file_oid, pygit2.GIT_FILEMODE_BLOB)
+
+    # Add .gitmodules as blob
+    gitmodules_oid = parent_repo.create_blob(gitmodules_content)
+    tree_builder.insert(".gitmodules", gitmodules_oid, pygit2.GIT_FILEMODE_BLOB)
+
+    # Add submodule as gitlink (commit type) - mode 0o160000
+    # Note: We use the commit SHA from the submodule directly
+    tree_builder.insert("child", pygit2.Oid(hex=submodule_commit_sha), 0o160000)
+
+    # Write tree
+    tree_id = tree_builder.write()
+
+    # Create commit
+    author = pygit2.Signature("Test User", "test@example.com")
+    committer = author
+
+    parent_repo.create_commit(
+        "refs/heads/main",  # reference
+        author,
+        committer,
+        "Add parent file and submodule",
+        tree_id,
+        [],  # parents
+    )
+
+    # Set HEAD to main
+    parent_repo.set_head("refs/heads/main")
+
+    return parent_path

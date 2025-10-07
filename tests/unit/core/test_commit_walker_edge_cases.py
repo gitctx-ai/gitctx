@@ -221,3 +221,46 @@ class TestNestedDirectoryTraversal:
         file_paths = {loc.file_path for b in blob_records for loc in b.locations}
         assert any(".gitkeep" in path for path in file_paths)
         assert "README.md" in file_paths
+
+
+class TestSubmoduleHandling:
+    """Test git submodule handling (covers non-blob/non-tree entry types)."""
+
+    def test_submodules_skipped(self, submodule_repo, isolated_env):
+        """Git submodules are skipped, only regular files indexed."""
+        # Arrange
+        config = GitCtxSettings()
+        walker = CommitWalker(str(submodule_repo), config)
+
+        # Act
+        blob_records = list(walker.walk_blobs())
+
+        # Assert - only parent file indexed, submodule skipped
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+
+        # Parent file should be indexed
+        assert "parent_file.txt" in file_paths
+
+        # Submodule files should NOT be indexed (submodule is 'commit' type, not 'blob')
+        assert not any("submodule_file" in path for path in file_paths)
+        assert not any("child" in path for path in file_paths)
+
+        # .gitmodules should be indexed (it's a regular file)
+        assert ".gitmodules" in file_paths
+
+    def test_submodule_entry_type(self, submodule_repo, isolated_env):
+        """Submodules appear as 'commit' type entries in git tree."""
+        # Arrange
+        config = GitCtxSettings()
+        walker = CommitWalker(str(submodule_repo), config)
+
+        # Act - inspect tree directly
+        commit = walker.repo.head.peel()  # type: ignore[attr-defined]
+        tree = commit.tree
+
+        # Assert - find submodule entry
+        submodule_entries = [e for e in tree if e.type_str == "commit"]
+        assert len(submodule_entries) == 1
+
+        # Verify it's the 'child' submodule
+        assert submodule_entries[0].name == "child"
