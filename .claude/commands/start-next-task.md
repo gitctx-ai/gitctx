@@ -20,8 +20,9 @@ You are tasked with executing the next pending task in a story-driven workflow w
 9. **Human QA Checkpoint** ⚠️ **REQUIRED APPROVAL** - Wait for user "yes" before ticket updates
 10. **Update Tickets** - Task status, hours, story progress, epic (if needed)
 11. **Commit Changes** - Create atomic commit with proper format (tickets + implementation)
-12. **Push to Remote** - Optional, user confirms
-13. **Final Report** - Summary and next steps
+11.5. **First Commit PR** - If first task, push and create draft PR with blob URLs
+12. **CI Watch & Fix Loop** - Monitor all workflows (especially Windows), fix failures, iterate until 100% green
+13. **Final Report** - Summary with PR URL, CI status, and next steps
 
 ---
 
@@ -34,6 +35,7 @@ git branch --show-current
 ```
 
 **Validation:**
+
 - Branch name must match pattern `STORY-NNNN.N.N` (e.g., STORY-0001.1.2)
 - If NOT on a story branch:
   - Error message: "Not on a story branch. Current branch: [BRANCH]"
@@ -43,11 +45,13 @@ git branch --show-current
 **Extract IDs from branch name:**
 
 From branch `STORY-0001.1.2`:
+
 - Story ID: `STORY-0001.1.2`
 - Epic ID: `EPIC-0001.1` (first two numbers)
 - Initiative ID: `INIT-0001` (first number)
 
 **Construct paths:**
+
 - Story dir: `docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/`
 - Story README: `docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/README.md`
 - Task pattern: `docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/TASK-*.md`
@@ -61,6 +65,7 @@ From branch `STORY-0001.1.2`:
 Read all context files to understand the work:
 
 **Required files:**
+
 1. Story README: `${STORY_DIR}/README.md`
 2. All task files: `${STORY_DIR}/TASK-*.md` (use Glob to find)
 3. Parent epic: `${EPIC_DIR}/README.md`
@@ -84,12 +89,14 @@ Use Read tool for each file. Track which files exist vs don't exist.
 Find the first pending task:
 
 **Logic:**
+
 1. Parse all TASK-*.md files
 2. Extract task ID and status from each
 3. Sort tasks by ID (numerical order)
 4. Find first task with status "🔵 Not Started"
 
 **Status indicators to recognize:**
+
 - `🔵 Not Started` or `**Status**: 🔵 Not Started`
 - `🟡 In Progress` or `**Status**: 🟡 In Progress`
 - `✅ Complete` or `**Status**: ✅ Complete`
@@ -97,6 +104,7 @@ Find the first pending task:
 **Edge cases:**
 
 **Case A: Task already in progress**
+
 ```markdown
 ⚠️  Task {TASK_ID} is already 🟡 In Progress
 
@@ -113,6 +121,7 @@ Choose: (continue/restart/cancel)
 Wait for user input. If "restart", edit task file to change status to 🔵, then proceed. If "cancel", exit.
 
 **Case B: All tasks complete**
+
 ```markdown
 ✓ All tasks complete!
 
@@ -126,6 +135,7 @@ Next steps:
 Exit successfully.
 
 **Case C: No next task (gaps in sequence)**
+
 ```markdown
 ⚠️  No pending tasks, but story not complete
 
@@ -145,12 +155,14 @@ Exit.
 Check that prerequisites are met for the next task:
 
 **Checks:**
+
 1. **Previous tasks complete**: All tasks with lower IDs must be "✅ Complete"
 2. **Dependencies met**: Check Dependencies section in task/story
 3. **Required files exist**: If task says "refactor X", check that X exists
 4. **BDD scenarios exist**: If task is implementation, check that BDD scenarios exist
 
 **If prerequisites fail:**
+
 ```markdown
 ✗ Prerequisites not met for {TASK_ID}
 
@@ -171,6 +183,7 @@ Exit with error.
 Launch a Task agent (general-purpose) to create detailed implementation plan:
 
 **Agent Prompt:**
+
 ```markdown
 Create a detailed implementation plan for TASK-{TASK_ID}: {Title}
 
@@ -318,10 +331,13 @@ Provide concrete, actionable steps. Each step MUST include:
 
 **Example Good Step:**
 ```
+
 **Step 3: Add BDD scenario for config init**
+
 - File: `tests/e2e/features/cli.feature`
 - Action: Edit (append new scenario after existing config scenarios)
 - Content:
+
   ```gherkin
   Scenario: config init creates repo structure (default terse output)
     When I run "gitctx config init"
@@ -329,17 +345,22 @@ Provide concrete, actionable steps. Each step MUST include:
     And the output should be exactly "Initialized .gitctx/"
     And the file ".gitctx/config.yml" should exist
   ```
+
 - Verification: `uv run pytest tests/e2e/ -k "config init" --collect-only`
   (should show 1 test collected)
+
 ```
 
 **Example Bad Step (too vague):**
 ```
+
 **Step 3: Add BDD scenarios**
+
 - File: cli.feature
 - Action: Edit
 - Content: Add scenarios for config init
 - Verification: Run tests
+
 ```
 
 ### 4. Quality Gates Checklist
@@ -389,6 +410,7 @@ NEW:
 **Story README** (`{STORY_README_PATH}`):
 
 Calculate new progress:
+
 - Current: {current_tasks_complete}/{total_tasks} = {current_percent}%
 - After: {current_tasks_complete + 1}/{total_tasks} = {new_percent}%
 
@@ -401,6 +423,7 @@ NEW:
 ```
 
 Update task table:
+
 ```markdown
 OLD:
 | [TASK-{ID}]({filename}) | {Title} | 🔵 Not Started | {hours} |
@@ -432,6 +455,7 @@ feat(TASK-{TASK_ID}): {concise description of what was done}
 ```
 
 Example:
+
 ```
 feat(TASK-0001.1.2.3): Integrate CLI commands with persistent config
 
@@ -447,18 +471,21 @@ RepoConfig with proper precedence and type validation.
 - **Total**: {W} hours
 
 Compare to task estimate: {task_estimated_hours} hours
+
 - If within ±0.5 hours: ✓ Estimate validated
 - If exceeds by >0.5 hours: ⚠️  May need scope adjustment or estimate update
 
 ### 8. Risk Assessment
 
 **Potential Risks:**
+
 1. {Risk 1}: {Description}
    - Mitigation: {How to handle}
 2. {Risk 2}: {Description}
    - Mitigation: {How to handle}
 
 **Critical Success Factors:**
+
 - {Factor 1}
 - {Factor 2}
 
@@ -512,6 +539,7 @@ Compare to task estimate: {task_estimated_hours} hours
 13. **Justify New Patterns**: Any new fixture/helper requires written justification explaining why existing ones don't work
 14. **Platform Helpers**: Use existing `is_windows()`, `get_platform_*()` helpers, never reimplement
 15. **Fixture Hierarchy**: Respect the 3-level fixture organization (root/unit/e2e conftest.py)
+
 ```
 
 **Agent Configuration:**
@@ -573,7 +601,9 @@ Format and present the agent's plan for approval:
 ## Commit Message
 
 ```
+
 {proposed commit message}
+
 ```
 
 ═══════════════════════════════════════════════════════════
@@ -626,6 +656,7 @@ Options:
 Launch another Task agent to execute the approved plan:
 
 **Agent Prompt:**
+
 ```markdown
 Execute the approved implementation plan for TASK-{TASK_ID}.
 
@@ -679,12 +710,14 @@ For each step in the plan:
 Use TodoWrite to track implementation steps:
 
 ```
+
 [
   {"content": "Step 1: {description}", "status": "completed", "activeForm": "Completing step 1"},
   {"content": "Step 2: {description}", "status": "in_progress", "activeForm": "Working on step 2"},
   {"content": "Step 3: {description}", "status": "pending", "activeForm": "Working on step 3"},
   ...
 ]
+
 ```
 
 Update as you go - mark steps complete one at a time.
@@ -740,8 +773,10 @@ Keep output concise but informative.
 
 {show command if running one}
 ```
+
 $ {command}
 {output}
+
 ```
 
 ✓ Step 1 complete
@@ -758,8 +793,10 @@ Running all quality gates...
 
 ### 1. Ruff Check
 ```
+
 $ uv run ruff check src tests
 {output}
+
 ```
 {✓ Passed or ✗ Failed}
 
@@ -799,6 +836,7 @@ Options:
 5. **Quality gates**: All must pass before ticket updates
 
 Execute the plan now.
+
 ```
 
 **Agent Configuration:**
@@ -838,10 +876,12 @@ uv run pytest --cov=src/gitctx --cov-report=term-missing
 ```
 
 **For each gate, check exit code:**
+
 - Exit code 0: ✓ Passed
 - Exit code ≠ 0: ✗ Failed
 
 **If any gate fails:**
+
 ```markdown
 ✗ Quality gate failed: {gate_name}
 
@@ -864,6 +904,7 @@ Wait for user input.
 - If "skip": Warn strongly but proceed (mark in report that gates were skipped)
 
 **If all gates pass:**
+
 ```markdown
 ✅ All Quality Gates Passed
 
@@ -930,7 +971,9 @@ Present summary for human review:
 ## Git Status
 
 ```
+
 {run: git status --short}
+
 ```
 
 ═══════════════════════════════════════════════════════════
@@ -938,7 +981,9 @@ Present summary for human review:
 ## Diff Summary
 
 ```
+
 {run: git diff --stat}
+
 ```
 
 ═══════════════════════════════════════════════════════════
@@ -947,6 +992,7 @@ Present summary for human review:
 
 **Commit message:**
 ```
+
 feat(TASK-{TASK_ID}): {description}
 
 {optional body}
@@ -954,6 +1000,7 @@ feat(TASK-{TASK_ID}): {description}
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>
+
 ```
 
 ═══════════════════════════════════════════════════════════
@@ -977,6 +1024,7 @@ Options:
 **CRITICAL:** Wait for user response. Do NOT commit until user types "yes".
 
 **If "no":**
+
 ```markdown
 Discarding changes...
 
@@ -984,6 +1032,7 @@ Are you sure? This will reset all changes. (yes/no)
 ```
 
 If user confirms "yes":
+
 ```bash
 git reset --hard
 git clean -fd
@@ -993,6 +1042,7 @@ Then exit with "Changes discarded. Task not committed."
 
 **If "fix":**
 Ask user to describe what needs fixing. Either:
+
 - Make the fixes yourself (if clear instructions)
 - Exit and let user fix manually: "Please fix the issues, then re-run /start-next-task"
 
@@ -1025,6 +1075,7 @@ NEW:
 **Edit 2: Check off implementation steps**
 
 For each step in the task's Implementation Checklist:
+
 ```markdown
 OLD:
 - [ ] Step description
@@ -1040,6 +1091,7 @@ Verify edits succeeded.
 **Edit 1: Update progress bar and count**
 
 Calculate new progress:
+
 - Current tasks complete: {N}
 - Total tasks: {M}
 - New count: {N+1}
@@ -1067,6 +1119,7 @@ NEW:
 ### 10.3 Update Epic README (if story now complete)
 
 Check if this was the last task:
+
 - If {N+1} == {M} (all tasks complete), update epic
 
 **Edit: Update story status in epic**
@@ -1084,6 +1137,7 @@ Also update epic progress bar if needed (based on story completion).
 ### 10.4 Verify All Edits
 
 After all edits:
+
 ```markdown
 ✓ Updated ticket files
 
@@ -1110,6 +1164,7 @@ git add -A
 ```
 
 Show what's staged (should include implementation + ticket updates):
+
 ```bash
 git diff --cached --stat
 ```
@@ -1142,6 +1197,7 @@ git rev-parse HEAD
 ```
 
 **Output:**
+
 ```markdown
 ✓ Committed: feat(TASK-{TASK_ID}): {description}
 
@@ -1156,36 +1212,125 @@ View commit: git show {sha}
 
 ---
 
-## Step 12: Push to Remote (Optional)
+## Step 11.5: First Commit - Create Draft PR
 
-Ask user if they want to push:
+**Only if this is the first task commit in the story.**
+
+Check if this is the first commit on the story branch:
+
+```bash
+# Count commits ahead of main
+git rev-list --count main..HEAD
+```
+
+**If count == 1 (first task commit):**
 
 ```markdown
 ═══════════════════════════════════════════════════════════
 
-## Push to Remote?
+## First Task Complete - Creating Draft PR
 
+This is the first task in {STORY_ID}. Creating draft PR now...
+
+**Story**: {STORY_ID}: {Story Title}
 **Branch**: {branch}
-**Remote**: origin/{branch}
-**Commits ahead of main**: {count}
-**Latest commit**: {sha} - {message}
-
-Push now? (yes/no)
-
-- **yes**: Push to origin/{branch} and optionally monitor CI
-- **no**: Commit stays local (push manually later with: git push)
+**Commit**: {sha}
 ```
 
-Wait for user input.
-
-**If "yes":**
+### 11.5.1 Get Repository Info
 
 ```bash
-# Push with upstream tracking
+# Extract org and repo from git remote
+gh repo view --json owner,name
+```
+
+Store:
+
+- `REPO_OWNER` (e.g., "gitctx-ai")
+- `REPO_NAME` (e.g., "gitctx")
+- `BRANCH` (current branch name)
+
+### 11.5.2 Push Branch
+
+```bash
 git push -u origin {branch}
 ```
 
-Show result:
+### 11.5.3 Prepare PR Body with GitHub Blob URLs
+
+Read story README and convert relative links to GitHub blob URLs:
+
+```bash
+# Get story README content
+cat {STORY_README_PATH}
+
+# Convert relative links to blob URLs
+# Pattern: Replace (./EPIC-...) or (TASK-...) with full GitHub blob URLs
+# Format: https://github.com/{REPO_OWNER}/{REPO_NAME}/blob/{BRANCH}/docs/tickets/...
+```
+
+**URL Conversion Rules:**
+
+- `(./EPIC-NNNN.N/README.md)` → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/EPIC-NNNN.N/README.md)`
+- `(TASK-NNNN.N.N.N.md)` → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/EPIC-NNNN.N/STORY-NNNN.N.N/TASK-NNNN.N.N.N.md)`
+- `(../README.md)` for parent epic → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/EPIC-NNNN.N/README.md)`
+- `(../../README.md)` for initiative → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/README.md)`
+
+Save converted body to temporary file.
+
+### 11.5.4 Create Draft PR
+
+```bash
+# Create draft PR with converted body
+gh pr create --draft \
+  --title "{STORY_ID}: {Story Title}" \
+  --body "$(cat /tmp/pr-body-with-blob-urls.md)"
+```
+
+**Expected output:**
+
+```
+https://github.com/{owner}/{repo}/pull/{NUMBER}
+```
+
+Extract PR number and store as `PR_NUMBER`.
+
+### 11.5.5 Confirm Creation
+
+```markdown
+✓ Draft PR created!
+
+PR: https://github.com/{owner}/{repo}/pull/{PR_NUMBER}
+Title: {STORY_ID}: {Story Title}
+Status: Draft
+Branch: {branch} → main
+
+The PR will be updated automatically as you complete more tasks.
+CI monitoring will start automatically after each push.
+```
+
+**If count > 1 (not first commit):**
+
+Skip this step, proceed directly to Step 12.
+
+---
+
+## Step 12: CI Watch & Fix Loop (Mandatory)
+
+**Runs after every commit push (both first and subsequent commits).**
+
+This step ensures all CI workflows pass before proceeding. If workflows fail, we automatically iterate until they're 100% green.
+
+### 12.1 Push to Remote (if not already pushed)
+
+If commit was already pushed in Step 11.5, skip to 12.2.
+
+Otherwise:
+
+```bash
+git push -u origin {branch}
+```
+
 ```markdown
 ✓ Pushed to origin/{branch}
 
@@ -1194,28 +1339,260 @@ Branch: {branch}
 Commit: {sha}
 ```
 
-**If CI is configured (has GitHub Actions):**
-```markdown
-Monitor CI? (yes/no)
+### 12.2 Detect CI Workflows
 
-- **yes**: Watch CI run (blocks until complete)
-- **no**: Continue (check CI later with: gh run list)
-```
+Check if GitHub Actions workflows exist and are triggered:
 
-If user says "yes":
 ```bash
-# Get latest run
-gh run list --limit 1
-
-# Watch it
-gh run watch {run_id}
+# List recent workflow runs for this branch
+gh run list --branch {branch} --limit 5 --json status,conclusion,name,databaseId,workflowName,createdAt
 ```
 
-**If "no":**
-```markdown
-✓ Commit stays local
+**If no workflows found:**
 
-Push later with: git push
+```markdown
+ℹ️  No CI workflows detected for this branch.
+
+Proceeding without CI monitoring.
+```
+
+Skip to Step 13.
+
+**If workflows found:**
+
+Proceed to 12.3.
+
+### 12.3 Wait for Workflows to Start
+
+Workflows may take a few seconds to trigger. Wait up to 30 seconds:
+
+```markdown
+═══════════════════════════════════════════════════════════
+
+## CI Workflows Detected
+
+Waiting for workflows to start...
+```
+
+Poll every 5 seconds until at least one workflow shows "in_progress" or "completed":
+
+```bash
+gh run list --branch {branch} --limit 5 --json status,conclusion,name,databaseId
+```
+
+### 12.4 Monitor All Workflows
+
+Watch all triggered workflows in real-time:
+
+```markdown
+**Triggered Workflows:**
+- {workflow_1}: {status}
+- {workflow_2}: {status}
+- {workflow_3}: {status}
+
+Monitoring CI... (This may take several minutes)
+```
+
+For each workflow, check status periodically:
+
+```bash
+# Get detailed status of specific run
+gh run view {run_id} --json status,conclusion,jobs
+```
+
+**Focus on Windows workflows:** Pay special attention to jobs with `windows-latest` in the runner name.
+
+### 12.5 Handle Workflow Results
+
+Once all workflows complete, check conclusions:
+
+**Case A: All workflows succeeded ✅**
+
+```markdown
+═══════════════════════════════════════════════════════════
+
+## ✅ All CI Workflows Passed!
+
+**Results:**
+✓ {workflow_1}: success
+✓ {workflow_2}: success
+✓ {workflow_3}: success
+
+All quality gates green. Proceeding to final report...
+```
+
+**If PR exists:** Update PR body with latest story README (with blob URLs).
+
+Skip to Step 13.
+
+**Case B: One or more workflows failed ❌**
+
+```markdown
+═══════════════════════════════════════════════════════════
+
+## ❌ CI Workflows Failed
+
+**Results:**
+✓ {workflow_1}: success
+✗ {workflow_2}: failure (linux tests)
+✗ {workflow_3}: failure (windows tests)
+
+Analyzing failures...
+```
+
+Proceed to 12.6.
+
+### 12.6 Analyze Failures & Offer Fix
+
+For each failed workflow, fetch detailed logs:
+
+```bash
+# Get failed job details
+gh run view {run_id} --log-failed
+```
+
+Display failure summary:
+
+```markdown
+## Failure Analysis
+
+### {workflow_name} - {job_name}
+
+**Runner**: {os} (Python {version})
+**Failed Step**: {step_name}
+
+**Error Summary:**
+```
+
+{relevant error lines from log}
+
+```
+
+**Common Causes:**
+{List likely causes based on error pattern}
+```
+
+**Offer to fix:**
+
+```markdown
+═══════════════════════════════════════════════════════════
+
+## Fix CI Failures
+
+Options:
+- **fix**: Attempt automatic fix (recommended)
+- **manual**: Exit to terminal, I'll fix manually
+- **retry**: Re-run workflows without changes (if flaky test suspected)
+- **skip**: Continue anyway (NOT recommended - PR will have failing checks)
+
+Choose: (fix/manual/retry/skip)
+```
+
+Wait for user input.
+
+**If "fix":**
+
+Attempt to fix automatically:
+
+1. Analyze error patterns
+2. Make code changes
+3. Run quality gates locally: `uv run ruff check src tests && uv run ruff format src tests && uv run mypy src && uv run pytest`
+4. If local tests pass, proceed to 12.7
+5. If local tests fail, offer manual fix
+
+**If "manual":**
+
+```markdown
+Please fix the failures manually, then re-run `/start-next-task` to continue.
+
+The task status remains 🟡 In Progress.
+
+Failed workflows:
+- {workflow_1}: {url}
+- {workflow_2}: {url}
+```
+
+Exit cleanly.
+
+**If "retry":**
+
+```bash
+# Re-run failed workflows
+gh run rerun {run_id} --failed
+```
+
+Return to 12.4 (monitor workflows again).
+
+**If "skip":**
+
+```markdown
+⚠️  WARNING: Skipping CI failures
+
+This will leave failing checks on your PR. The PR cannot be merged until CI passes.
+
+Are you sure? (yes/no)
+```
+
+If yes: Skip to Step 13 with warning in final report.
+If no: Return to fix options.
+
+### 12.7 Commit Fix & Iterate
+
+**Only if automatic fix was applied:**
+
+Stage and commit the fix:
+
+```bash
+git add -A
+git commit -m "$(cat <<'EOF'
+fix({TASK_ID}): Fix CI failures - {brief description}
+
+{explanation of what was fixed}
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+EOF
+)"
+```
+
+Push the fix:
+
+```bash
+git push
+```
+
+```markdown
+✓ Fix committed and pushed
+
+Commit: {new_sha}
+Message: fix({TASK_ID}): Fix CI failures - {description}
+
+Monitoring CI again...
+```
+
+**Return to Step 12.2** - Repeat the CI watch & fix loop until all workflows pass.
+
+### 12.8 Update PR Body (if PR exists)
+
+After all CI passes, update the PR body with latest story README:
+
+```bash
+# Get PR number
+gh pr view --json number
+
+# Get story README and convert links to blob URLs
+cat {STORY_README_PATH} | sed 's|(\./|https://github.com/{org}/{repo}/blob/{branch}/docs/tickets/|g' > /tmp/pr-body-updated.md
+
+# Update PR body
+gh pr edit {PR_NUMBER} --body "$(cat /tmp/pr-body-updated.md)"
+```
+
+```markdown
+✓ PR body updated
+
+PR #{PR_NUMBER}: {STORY_ID}: {title}
+URL: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
 ```
 
 ---
@@ -1227,11 +1604,12 @@ Print comprehensive summary:
 ```markdown
 # ✨ Task Complete: {TASK_ID}
 
-**Status**: {Committed and pushed / Committed (not pushed)}
+**Status**: Committed, Pushed, {CI Status}
 **Time**: {actual_hours} hours (estimated: {estimated_hours})
 **Commit**: {sha}
-{if pushed}
 **Remote**: origin/{branch}
+{if PR exists}
+**Pull Request**: #{PR_NUMBER} (Draft) - https://github.com/{org}/{repo}/pull/{PR_NUMBER}
 {endif}
 
 ═══════════════════════════════════════════════════════════
@@ -1253,6 +1631,76 @@ Print comprehensive summary:
 
 ═══════════════════════════════════════════════════════════
 
+## CI Status
+
+{if CI workflows exist}
+**All Workflows**: {✅ Passed / ⚠️ Passed with fixes / ❌ Failed (skipped)}
+
+**Workflow Results:**
+✓ {workflow_1}: success
+✓ {workflow_2}: success
+✓ {workflow_3}: success
+
+{if fixes were applied}
+**CI Fixes Applied**: {count} fix commit(s)
+- {fix_commit_1}: {description}
+- {fix_commit_2}: {description}
+{endif}
+
+{if CI was skipped}
+⚠️  **WARNING**: CI failures were skipped. PR has failing checks.
+
+Failed workflows:
+✗ {workflow_1}: {url}
+✗ {workflow_2}: {url}
+
+**Action Required**: Fix these failures before PR can be merged.
+{endif}
+
+{else}
+**CI**: No workflows configured
+{endif}
+
+═══════════════════════════════════════════════════════════
+
+## Pull Request Status
+
+{if PR exists}
+**PR**: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
+**Title**: {STORY_ID}: {Story Title}
+**Status**: Draft
+**Branch**: {branch} → main
+**Body**: ✓ Updated with latest story content and blob URLs
+**CI Checks**: {✅ All passing / ⚠️ Some failing / 🔄 In progress}
+
+{if more pending tasks}
+**The PR will be updated automatically** as you complete more tasks in this story.
+Each task completion will:
+- Push new commits to the branch
+- Monitor and fix CI failures
+- Update PR body with latest progress
+{else}
+**Story Complete!** Ready to mark PR as ready for review.
+
+**Next Steps:**
+1. Review PR: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
+2. Mark as ready for review: `gh pr ready {PR_NUMBER}`
+3. Request reviewers: `gh pr edit {PR_NUMBER} --add-reviewer @username`
+{endif}
+
+{else if first task}
+**PR**: Draft PR created automatically on first task
+{else}
+**PR**: Create manually with:
+```
+
+gh pr create --draft --title "{STORY_ID}: {Story Title}"
+
+```
+{endif}
+
+═══════════════════════════════════════════════════════════
+
 ## Next Steps
 
 {if more pending tasks in story}
@@ -1262,47 +1710,40 @@ Print comprehensive summary:
 
 Run: `/start-next-task`
 
+**Progress**: {completed}/{total} tasks complete ({percent}%)
+
 {else if story complete}
 ### Story Complete! 🎉
 
 All {M} tasks in {STORY_ID} are complete.
 
+{if PR exists}
+**Pull Request Ready:**
+1. Review changes: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
+2. Verify all CI checks pass
+3. Mark as ready for review:
+   ```
+
+   gh pr ready {PR_NUMBER}
+
+   ```
+4. Request review:
+   ```
+
+   gh pr edit {PR_NUMBER} --add-reviewer @username
+
+   ```
+{else}
 **Create Pull Request:**
-
-1. {if not pushed}Push branch:
-   ```
-   git push -u origin {branch}
-   ```
-
-2. {endif}Create PR:
-   ```
-   gh pr create --title "{STORY_ID}: {story title}" \\
-     --body "$(cat docs/tickets/{INIT}/{EPIC}/{STORY}/README.md)"
-   ```
-
-3. Fix GitHub links in PR body:
-   - Replace relative paths with blob URLs
-   - Format: `https://github.com/{org}/{repo}/blob/{branch}/{path}`
-
-4. Monitor CI:
-   ```
-   gh run watch
-   ```
-
-5. Request review when CI passes
+Draft PR should have been created automatically. If not, create manually.
+{endif}
 
 **Or run final validation:**
 ```
+
 /review-story
+
 ```
-{endif}
-
-{if pushed and CI exists}
-### Monitor CI
-
-**Status**: `gh run list --limit 1`
-**Watch**: `gh run watch {run_id}`
-**Checks**: `gh pr checks` {if PR exists}
 {endif}
 
 ═══════════════════════════════════════════════════════════
@@ -1329,17 +1770,23 @@ You must be on a STORY-* branch to use this command.
 
 1. Switch to existing story branch:
    ```
+
    git checkout STORY-XXXX
+
    ```
 
 2. Create new story branch:
    ```
+
    git checkout -b STORY-XXXX
+
    ```
 
 3. List available story branches:
    ```
+
    git branch | grep STORY-
+
    ```
 ```
 
