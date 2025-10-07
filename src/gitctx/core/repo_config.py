@@ -18,8 +18,29 @@ class SearchSettings(BaseModel):
 class IndexSettings(BaseModel):
     """Indexing configuration."""
 
+    # Chunking settings (STORY-0001.2.2)
     chunk_size: int = Field(default=1000, gt=0)
     chunk_overlap: int = Field(default=200, ge=0)
+
+    # Walker settings (STORY-0001.2.1)
+    max_blob_size_mb: int = Field(
+        default=5,
+        gt=0,
+        le=100,
+        description="Maximum blob size to index (MB)",
+    )
+    refs: list[str] = Field(
+        default_factory=lambda: ["HEAD"],
+        description="Git refs to index",
+    )
+    respect_gitignore: bool = Field(
+        default=True,
+        description="Skip gitignored files",
+    )
+    skip_binary: bool = Field(
+        default=True,
+        description="Skip binary files",
+    )
 
 
 class ModelSettings(BaseModel):

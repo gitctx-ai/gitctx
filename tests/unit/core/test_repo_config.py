@@ -323,3 +323,135 @@ class TestFileCorruption:
         # Should raise ValidationError (Pydantic catches wrong type)
         with pytest.raises(ValidationError):
             RepoConfig()
+
+
+class TestWalkerSettings:
+    """Test walker-specific IndexSettings fields."""
+
+    def test_walker_settings_defaults(self, tmp_path, monkeypatch):
+        """Walker settings should use correct default values."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+
+        # Act - no config file
+        config = RepoConfig()
+
+        # Assert - defaults match walker requirements
+        assert config.index.max_blob_size_mb == 5
+        assert config.index.refs == ["HEAD"]
+        assert config.index.respect_gitignore is True
+        assert config.index.skip_binary is True
+
+    def test_walker_settings_load_from_yaml(self, tmp_path, monkeypatch):
+        """Walker settings should load from YAML file."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+        config_dir = tmp_path / ".gitctx"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yml"
+        config_file.write_text("""
+index:
+  max_blob_size_mb: 10
+  refs:
+    - HEAD
+    - refs/tags/*
+  respect_gitignore: false
+  skip_binary: false
+""")
+
+        # Act
+        config = RepoConfig()
+
+        # Assert
+        assert config.index.max_blob_size_mb == 10
+        assert config.index.refs == ["HEAD", "refs/tags/*"]
+        assert config.index.respect_gitignore is False
+        assert config.index.skip_binary is False
+
+    def test_walker_settings_env_var_override(self, tmp_path, monkeypatch):
+        """GITCTX_INDEX__* env vars should override YAML."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("GITCTX_INDEX__MAX_BLOB_SIZE_MB", "15")
+        monkeypatch.setenv("GITCTX_INDEX__REFS", '["refs/heads/main"]')
+        monkeypatch.setenv("GITCTX_INDEX__RESPECT_GITIGNORE", "false")
+        monkeypatch.setenv("GITCTX_INDEX__SKIP_BINARY", "false")
+
+        # Create config file with different values
+        config_dir = tmp_path / ".gitctx"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yml"
+        config_file.write_text("""
+index:
+  max_blob_size_mb: 5
+  refs: ["HEAD"]
+  respect_gitignore: true
+  skip_binary: true
+""")
+
+        # Act
+        config = RepoConfig()
+
+        # Assert - env vars win
+        assert config.index.max_blob_size_mb == 15
+        assert config.index.refs == ["refs/heads/main"]
+        assert config.index.respect_gitignore is False
+        assert config.index.skip_binary is False
+
+    def test_walker_settings_validation(self, tmp_path, monkeypatch):
+        """Walker settings should validate constraints."""
+        import pytest
+        from pydantic import ValidationError
+
+        from gitctx.core.repo_config import RepoConfig
+
+        # Test max_blob_size_mb must be > 0
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"max_blob_size_mb": 0})
+
+        # Test max_blob_size_mb must be <= 100
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"max_blob_size_mb": 150})
+
+        # Test refs must be a list
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"refs": "HEAD"})
+
+        # Test respect_gitignore must be bool-coercible (reject dict)
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"respect_gitignore": {"invalid": "object"}})
+
+        # Test skip_binary must be bool-coercible (reject list)
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"skip_binary": ["invalid", "list"]})
+
+    def test_walker_settings_persist_to_yaml(self, tmp_path, monkeypatch):
+        """Walker settings should be saved to YAML file."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+        config = RepoConfig()
+        config.index.max_blob_size_mb = 8
+        config.index.refs = ["HEAD", "refs/remotes/origin/main"]
+        config.index.respect_gitignore = False
+        config.index.skip_binary = False
+
+        # Act
+        config.save()
+
+        # Assert - file exists with correct content
+        config_file = tmp_path / ".gitctx" / "config.yml"
+        assert config_file.exists()
+        content = config_file.read_text()
+        assert "max_blob_size_mb: 8" in content
+        assert "- HEAD" in content
+        assert "- refs/remotes/origin/main" in content
+        assert "respect_gitignore: false" in content
+        assert "skip_binary: false" in content

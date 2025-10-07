@@ -21,7 +21,7 @@ Build the core functionality users need to search their codebase intelligently. 
 | ID | Title | Status | Progress | Owner |
 |----|-------|--------|----------|-------|
 | [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | ✅ Complete | ██████████ 100% | Core Team |
-| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
+| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | 🟡 In Progress | ░░░░░░░░░░ 4% | Core Team |
 | [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 
 ## Success Metrics
