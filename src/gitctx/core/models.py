@@ -74,3 +74,69 @@ class BlobRecord:
     content: bytes
     size: int
     locations: list[BlobLocation]
+
+
+@dataclass
+class WalkProgress:
+    """Progress information during commit walking.
+
+    This dataclass provides real-time progress updates during the commit
+    walk operation, allowing callers to track walker state and provide
+    user feedback.
+
+    Attributes:
+        commits_seen: Number of commits processed so far
+        total_commits: Total number of commits to process (if known)
+        unique_blobs_found: Count of unique blobs discovered
+        current_commit: Metadata of commit currently being processed
+    """
+
+    commits_seen: int
+    total_commits: int | None
+    unique_blobs_found: int
+    current_commit: CommitMetadata | None
+
+
+@dataclass
+class WalkError:
+    """Error information from commit walking.
+
+    This dataclass captures non-fatal errors encountered during the walk,
+    allowing the walker to continue processing while recording issues.
+
+    Attributes:
+        error_type: Classification of error (e.g., 'blob_read', 'tree_parse')
+        blob_sha: SHA of blob that caused error (if applicable)
+        commit_sha: SHA of commit being processed when error occurred
+        message: Human-readable error description
+    """
+
+    error_type: str
+    blob_sha: str | None
+    commit_sha: str
+    message: str
+
+
+@dataclass
+class WalkStats:
+    """Statistics collected during commit walking.
+
+    This dataclass accumulates statistics throughout the walk operation,
+    providing a summary of what was processed and any errors encountered.
+
+    Attributes:
+        commits_seen: Total commits processed
+        blobs_indexed: Total blobs successfully indexed
+        blobs_skipped: Total blobs skipped (filtered or errored)
+        errors: List of all non-fatal errors encountered
+    """
+
+    commits_seen: int = 0
+    blobs_indexed: int = 0
+    blobs_skipped: int = 0
+    errors: list[WalkError] | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize errors list if None."""
+        if self.errors is None:
+            self.errors = []

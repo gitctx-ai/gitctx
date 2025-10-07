@@ -1221,3 +1221,213 @@ dist/
         assert "test.log" not in file_paths
         assert ".env" not in file_paths
         assert not any("__pycache__" in path for path in file_paths)
+
+
+# ============================================================================
+# Progress Reporting & Error Handling
+# ============================================================================
+
+
+class TestProgressReporting:
+    """Test progress reporting during commit walking."""
+
+    def test_progress_callback_invoked_every_10_commits(
+        self, git_repo_factory, git_isolation_base, isolated_env
+    ):
+        """Progress callback invoked every 10 commits during walk."""
+        # ARRANGE - create repo with 25 commits
+        repo_path = git_repo_factory(num_commits=25)
+        config = GitCtxSettings()
+
+        progress_calls = []
+
+        def capture_progress(progress):
+            progress_calls.append(progress)
+
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        list(walker.walk_blobs(progress_callback=capture_progress))
+
+        # ASSERT - progress called at commits 10, 20 (not 30 as we only have 25)
+        assert len(progress_calls) >= 2
+        assert progress_calls[0].commits_seen == 10
+        assert progress_calls[1].commits_seen == 20
+
+    def test_progress_contains_commit_metadata(self, git_repo_factory, isolated_env):
+        """Progress callback receives current commit metadata."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=15)
+        config = GitCtxSettings()
+
+        progress_calls = []
+
+        def capture_progress(progress):
+            progress_calls.append(progress)
+
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        list(walker.walk_blobs(progress_callback=capture_progress))
+
+        # ASSERT - progress has commit metadata
+        assert len(progress_calls) > 0
+        first_progress = progress_calls[0]
+        assert first_progress.current_commit is not None
+        assert len(first_progress.current_commit.commit_sha) == 40
+        assert first_progress.current_commit.author_name == "Test User"
+
+    def test_progress_tracks_unique_blobs(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Progress callback tracks unique_blobs_found count."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=15)
+        config = GitCtxSettings()
+
+        progress_calls = []
+
+        def capture_progress(progress):
+            progress_calls.append(progress)
+
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        list(walker.walk_blobs(progress_callback=capture_progress))
+
+        # ASSERT - unique_blobs_found increases
+        assert len(progress_calls) > 0
+        for progress in progress_calls:
+            assert progress.unique_blobs_found >= 0
+
+    def test_no_callback_means_no_errors(self, git_repo_factory, isolated_env):
+        """Walking without progress callback completes successfully."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=15)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT - no callback provided
+        blob_records = list(walker.walk_blobs())
+
+        # ASSERT - completes successfully
+        assert len(blob_records) > 0
+
+
+class TestErrorHandling:
+    """Test error handling and statistics during commit walking."""
+
+    def test_get_stats_returns_walk_stats(self, git_repo_factory, isolated_env):
+        """Walker provides stats after walk completes."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=5)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        list(walker.walk_blobs())
+        stats = walker.get_stats()
+
+        # ASSERT
+        assert stats.commits_seen == 5
+        assert stats.blobs_indexed > 0
+        assert stats.blobs_skipped >= 0
+        assert stats.errors is not None
+
+    def test_stats_track_commits_seen(self, git_repo_factory, isolated_env):
+        """Stats accurately track number of commits processed."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=20)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        list(walker.walk_blobs())
+        stats = walker.get_stats()
+
+        # ASSERT
+        assert stats.commits_seen == 20
+
+    def test_stats_track_blobs_indexed(self, git_repo_factory, isolated_env):
+        """Stats track number of blobs successfully indexed."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=5)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        stats = walker.get_stats()
+
+        # ASSERT
+        assert stats.blobs_indexed == len(blob_records)
+        assert stats.blobs_indexed > 0
+
+    def test_blob_read_error_logged_and_continues(
+        self, git_repo_factory, git_isolation_base, isolated_env, monkeypatch
+    ):
+        """Blob read errors are logged and walk continues."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=5)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Simulate blob read failure by patching repo.get method
+        original_get = walker.repo.get
+
+        def mock_get(sha):
+            # Fail on second blob
+            if hasattr(mock_get, "call_count"):
+                mock_get.call_count += 1
+            else:
+                mock_get.call_count = 1
+
+            if mock_get.call_count == 2:
+                raise Exception("Simulated blob read error")
+            return original_get(sha)
+
+        monkeypatch.setattr(walker.repo, "get", mock_get)
+
+        # ACT
+        blob_records = list(walker.walk_blobs())
+        stats = walker.get_stats()
+
+        # ASSERT - walk continues despite error
+        assert len(blob_records) > 0
+        assert stats.errors is not None
+        assert len(stats.errors) > 0
+        assert stats.errors[0].error_type == "blob_read"
+
+    def test_stats_errors_include_context(
+        self, git_repo_factory, git_isolation_base, isolated_env, monkeypatch
+    ):
+        """Error records include blob SHA, commit SHA, and message."""
+        # ARRANGE
+        repo_path = git_repo_factory(num_commits=5)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        original_get = walker.repo.get
+
+        def mock_get(sha):
+            if hasattr(mock_get, "call_count"):
+                mock_get.call_count += 1
+            else:
+                mock_get.call_count = 1
+
+            if mock_get.call_count == 2:
+                raise Exception("Test error")
+            return original_get(sha)
+
+        monkeypatch.setattr(walker.repo, "get", mock_get)
+
+        # ACT
+        list(walker.walk_blobs())
+        stats = walker.get_stats()
+
+        # ASSERT
+        assert len(stats.errors) > 0
+        error = stats.errors[0]
+        assert error.error_type == "blob_read"
+        assert error.blob_sha is not None
+        assert error.commit_sha is not None
+        assert len(error.commit_sha) == 40
+        assert "Test error" in error.message

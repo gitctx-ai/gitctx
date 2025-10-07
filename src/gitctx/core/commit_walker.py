@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pygit2
 
 from .blob_filter import BlobFilter
 from .config import GitCtxSettings
-from .models import BlobLocation, BlobRecord, CommitMetadata
+from .models import BlobLocation, BlobRecord, CommitMetadata, WalkError, WalkProgress, WalkStats
 
 
 class GitRepositoryError(Exception):
@@ -99,6 +99,9 @@ class CommitWalker:
             max_blob_size_mb=config.repo.index.max_blob_size_mb,
             gitignore_patterns=gitignore_content,
         )
+
+        # Initialize walk statistics
+        self.stats = WalkStats()
 
     def _validate_repository(self) -> None:
         """Validate repository is not partial or shallow clone.
@@ -267,11 +270,32 @@ class CommitWalker:
                 if blob_sha in self.seen_blobs:
                     continue
 
-                # Get blob content for filtering
-                blob_obj = self.repo.get(blob_sha)
-                if not blob_obj:
+                # Get blob content for filtering (with error handling)
+                try:
+                    blob_obj = self.repo.get(blob_sha)
+                    if not blob_obj:
+                        # Log error and continue
+                        error = WalkError(
+                            error_type="blob_read",
+                            blob_sha=blob_sha,
+                            commit_sha=commit_metadata.commit_sha,
+                            message=f"Blob {blob_sha} not found in repository",
+                        )
+                        self.stats.errors.append(error)  # type: ignore[union-attr]
+                        self.stats.blobs_skipped += 1
+                        continue
+                    blob_content = blob_obj.data  # type: ignore[attr-defined]
+                except Exception as e:
+                    # Log error and continue walking
+                    error = WalkError(
+                        error_type="blob_read",
+                        blob_sha=blob_sha,
+                        commit_sha=commit_metadata.commit_sha,
+                        message=str(e),
+                    )
+                    self.stats.errors.append(error)  # type: ignore[union-attr]
+                    self.stats.blobs_skipped += 1
                     continue
-                blob_content = blob_obj.data  # type: ignore[attr-defined]
 
                 # Apply filters
                 should_filter, reason = self.blob_filter.should_filter(
@@ -279,7 +303,8 @@ class CommitWalker:
                     blob_content,
                 )
                 if should_filter:
-                    # TODO: Track filtered blobs in WalkStats (TASK-0001.2.1.5)
+                    # Track filtered blobs in WalkStats
+                    self.stats.blobs_skipped += 1
                     continue
 
                 # Create BlobLocation for this occurrence
@@ -309,8 +334,14 @@ class CommitWalker:
                         f"{entry_path}/",
                     )
 
-    def walk_blobs(self) -> Iterator[BlobRecord]:
+    def walk_blobs(
+        self,
+        progress_callback: Callable[[WalkProgress], None] | None = None,
+    ) -> Iterator[BlobRecord]:
         """Walk commits and yield unique blobs with location metadata.
+
+        Args:
+            progress_callback: Optional callback for progress updates (every 10 commits)
 
         Yields:
             BlobRecord containing:
@@ -327,6 +358,19 @@ class CommitWalker:
 
         # First pass: Accumulate all locations for all blobs
         for commit_metadata in self._walk_commits():
+            # Increment commits seen
+            self.stats.commits_seen += 1
+
+            # Invoke progress callback every 10 commits
+            if progress_callback and self.stats.commits_seen % 10 == 0:
+                progress = WalkProgress(
+                    commits_seen=self.stats.commits_seen,
+                    total_commits=None,  # Unknown total
+                    unique_blobs_found=len(self.blob_locations),
+                    current_commit=commit_metadata,
+                )
+                progress_callback(progress)
+
             commit = self.repo.get(commit_metadata.commit_sha)
             assert commit is not None, f"Commit {commit_metadata.commit_sha} not found"
 
@@ -342,9 +386,21 @@ class CommitWalker:
             assert blob_obj is not None, f"Blob {blob_sha} not found"
             # pygit2 Blob object has data and size attributes
             blob = blob_obj  # type: ignore[assignment]
+
+            # Track indexed blobs
+            self.stats.blobs_indexed += 1
+
             yield BlobRecord(
                 sha=blob_sha,
                 content=blob.data,  # type: ignore[attr-defined]
                 size=blob.size,  # type: ignore[attr-defined]
                 locations=locations,
             )
+
+    def get_stats(self) -> WalkStats:
+        """Return walk statistics.
+
+        Returns:
+            WalkStats containing commits_seen, blobs_indexed, blobs_skipped, errors
+        """
+        return self.stats
