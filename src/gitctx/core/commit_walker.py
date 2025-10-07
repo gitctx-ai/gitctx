@@ -98,6 +98,7 @@ class CommitWalker:
         self.blob_filter = BlobFilter(
             max_blob_size_mb=config.repo.index.max_blob_size_mb,
             gitignore_patterns=gitignore_content,
+            skip_binary=config.repo.index.skip_binary,
         )
 
         # Initialize walk statistics
@@ -210,33 +211,44 @@ class CommitWalker:
         Yields:
             CommitMetadata for each unique commit (deduplicated across refs)
         """
-        # Set up walker for reverse chronological order (newest first)
-        # GIT_SORT_TOPOLOGICAL gives us newest->oldest by default (children before parents)
-        # This is what we want for reverse chronological order
-        walker = self.repo.walk(
-            self.repo.head.target,
-            int(pygit2.GIT_SORT_TOPOLOGICAL),  # type: ignore[arg-type]
-        )
-
-        for commit in walker:
-            commit_sha = str(commit.id)
-
-            # Skip if already seen (deduplication across refs)
-            if commit_sha in self.seen_commits:
+        # Walk commits from all configured refs
+        for ref in self.refs:
+            # Resolve ref to commit
+            try:
+                if ref == "HEAD":
+                    commit_oid = self.repo.head.target
+                else:
+                    # Try to resolve as branch/tag ref
+                    commit_oid = self.repo.resolve_refish(ref)[0].id
+            except (KeyError, AttributeError):
+                # Skip invalid refs
                 continue
-            self.seen_commits.add(commit_sha)
 
-            # Extract metadata
-            metadata = CommitMetadata(
-                commit_sha=commit_sha,
-                author_name=commit.author.name,
-                author_email=commit.author.email,
-                commit_date=commit.commit_time,
-                commit_message=commit.message,
-                is_merge=len(commit.parent_ids) > 1,
+            # Set up walker for this ref
+            walker = self.repo.walk(
+                commit_oid,
+                int(pygit2.GIT_SORT_TOPOLOGICAL),  # type: ignore[arg-type]
             )
 
-            yield metadata
+            for commit in walker:
+                commit_sha = str(commit.id)
+
+                # Skip if already seen (deduplication across refs)
+                if commit_sha in self.seen_commits:
+                    continue
+                self.seen_commits.add(commit_sha)
+
+                # Extract metadata
+                metadata = CommitMetadata(
+                    commit_sha=commit_sha,
+                    author_name=commit.author.name,
+                    author_email=commit.author.email,
+                    commit_date=commit.commit_time,
+                    commit_message=commit.message,
+                    is_merge=len(commit.parent_ids) > 1,
+                )
+
+                yield metadata
 
     def _accumulate_blob_locations(  # type: ignore[no-any-unimported]
         self,

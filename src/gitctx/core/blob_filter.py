@@ -24,15 +24,18 @@ class BlobFilter:
         self,
         max_blob_size_mb: int = 5,
         gitignore_patterns: str = "",
+        skip_binary: bool = True,
     ):
         """Initialize blob filter.
 
         Args:
             max_blob_size_mb: Maximum blob size in megabytes
             gitignore_patterns: Gitignore patterns as string (one per line)
+            skip_binary: Whether to skip binary files
         """
         self.max_blob_size_mb = max_blob_size_mb
         self.max_blob_bytes = max_blob_size_mb * 1024 * 1024
+        self.skip_binary = skip_binary
 
         # Build pathspec from gitignore patterns
         self.pathspec: pathspec.PathSpec | None
@@ -142,8 +145,8 @@ class BlobFilter:
         if self.is_gitignored(file_path):
             return (True, "gitignored")
 
-        # Check binary
-        if self.is_binary(content):
+        # Check binary (if enabled)
+        if self.skip_binary and self.is_binary(content):
             return (True, "binary")
 
         # Check LFS

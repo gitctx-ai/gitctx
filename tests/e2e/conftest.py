@@ -169,9 +169,9 @@ def e2e_git_repo(e2e_git_isolation_env: dict[str, str], tmp_path: Path) -> Path:
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
 
-    # Initialize git with isolation
+    # Initialize git with isolation and set default branch to 'main'
     result = subprocess.run(
-        ["git", "init"],
+        ["git", "init", "-b", "main"],
         cwd=repo_path,
         env=e2e_git_isolation_env,
         capture_output=True,
@@ -293,9 +293,9 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
         repo_path = tmp_path / f"test_repo_{id(files)}"  # Unique name per call
         repo_path.mkdir(exist_ok=True)
 
-        # Initialize git with isolation
+        # Initialize git with isolation and set default branch to 'main'
         result = subprocess.run(
-            ["git", "init"],
+            ["git", "init", "-b", "main"],
             cwd=repo_path,
             env=e2e_git_isolation_env,
             capture_output=True,
