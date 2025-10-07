@@ -2,7 +2,7 @@
 
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🔵 Not Started
-**Story Points**: 9
+**Story Points**: 10
 **Progress**: ░░░░░░░░░░ 0%
 
 ## User Story
@@ -151,6 +151,7 @@ def test_octopus_merge_detection(tmp_path):
 
 | ID | Title | Status | Hours |
 |----|-------|--------|-------|
+| [TASK-0001.2.1.0](TASK-0001.2.1.0.md) | Extend Config Schema for Walker Settings | 🔵 | 3 |
 | [TASK-0001.2.1.1](TASK-0001.2.1.1.md) | Core Git Traversal | 🔵 | 10 |
 | [TASK-0001.2.1.2](TASK-0001.2.1.2.md) | Blob Deduplication Logic | 🔵 | 6 |
 | [TASK-0001.2.1.3](TASK-0001.2.1.3.md) | Location Metadata Collection | 🔵 | 6 |
@@ -158,7 +159,7 @@ def test_octopus_merge_detection(tmp_path):
 | [TASK-0001.2.1.5](TASK-0001.2.1.5.md) | Progress & Error Handling | 🔵 | 4 |
 | [TASK-0001.2.1.6](TASK-0001.2.1.6.md) | BDD Scenarios & Integration Tests | 🔵 | 10 |
 
-**Total**: 43 hours
+**Total**: 46 hours
 
 ## Technical Design
 
@@ -237,11 +238,26 @@ class CommitWalker:
     def __init__(
         self,
         repo_path: str,
-        refs: List[str] = None,  # Default: ["HEAD"]
-        already_indexed: Set[str] = None,  # For resume
-        max_blob_size_mb: int = 5,  # Configurable size limit
+        config: GitCtxSettings,
+        already_indexed: Set[str] = None,  # For resume from LanceDB
     ):
-        """Initialize commit walker with repo validation."""
+        """
+        Initialize commit walker with repo validation.
+
+        Args:
+            repo_path: Path to git repository
+            config: GitCtxSettings instance (provides max_blob_size_mb, default_refs, etc.)
+            already_indexed: Set of blob SHAs to skip (for resume functionality)
+        """
+        self.repo = pygit2.Repository(repo_path)
+        self.config = config
+        self.already_indexed = already_indexed or set()
+
+        # Read settings from config
+        self.max_blob_size_mb = config.repo.index.max_blob_size_mb
+        self.refs = config.repo.index.default_refs
+        self.respect_gitignore = config.repo.index.respect_gitignore
+        self.skip_binary = config.repo.index.skip_binary
         ...
 
     def walk(
@@ -273,6 +289,7 @@ class CommitWalker:
 ### Files to Create/Modify
 
 **New Files:**
+
 - `src/gitctx/core/commit_walker.py` - Main walker class
 - `src/gitctx/core/models.py` - BlobLocation, BlobRecord, WalkProgress, WalkStats, WalkError
 - `src/gitctx/core/blob_filter.py` - Filtering logic (gitignore, binary, LFS, size)
@@ -289,20 +306,32 @@ class CommitWalker:
 ## Dependencies
 
 ### External Libraries
+
 - `pygit2>=1.13.0` - Git operations via libgit2
 - `pathspec>=0.11.0` - .gitignore pattern matching
 
 ### Internal Dependencies
-- None (first real implementation story in EPIC-0001.2)
+
+- **STORY-0001.1.2** (Configuration System) - Required for walker configuration
+  - Walker reads `config.repo.index.max_blob_size_mb` (default 5)
+  - Walker reads `config.repo.index.default_refs` (default ["HEAD"])
+  - Walker reads `config.repo.index.respect_gitignore` (default True)
+  - Walker reads `config.repo.index.skip_binary` (default True)
+  - TASK-0001.2.1.0 extends config schema with these settings (not in original STORY-0001.1.2)
 
 ### Prerequisites
-- EPIC-0001.1 complete (CLI foundation) ✅
+
+- **STORY-0001.1.2** (Configuration System) complete ✅
+  - Provides GitCtxSettings API and RepoConfig structure
+  - TASK-0001.2.1.0 will extend config schema with walker settings
+  - Walker imports and uses GitCtxSettings for configuration
 
 ## Architecture Decision: Denormalized LanceDB
 
 **Key Decision**: Use denormalized LanceDB schema for optimal read performance.
 
 **Rationale**:
+
 - Core use case (95% of queries): "What's the context for this code chunk?"
 - Denormalized: Single read with complete context ✅
 - Normalized: Multiple table joins ❌
@@ -310,6 +339,7 @@ class CommitWalker:
 - Aligns with LanceDB's "two-dimensional storage" philosophy
 
 **Impact on This Story**:
+
 - BlobLocation includes commit metadata (author, date, message, is_merge)
 - Downstream chunking/embedding stories don't need to track locations
 - STORY-0001.2.4 (LanceDB Storage) handles denormalization join
@@ -328,6 +358,7 @@ The following are intentionally excluded from this story:
 ## Success Criteria
 
 Story is complete when:
+
 - ✅ All 6 tasks implemented and tested
 - ✅ All 10 BDD scenarios pass
 - ✅ All 6 edge case unit tests pass
