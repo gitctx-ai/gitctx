@@ -260,9 +260,20 @@ def bare_repo(tmp_path, git_isolation_base):
         capture_output=True,
     )
 
-    # Push commits to bare repo
+    # Get current branch name (supports both "main" and "master" default branches)
+    branch_result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=source_repo,
+        env=git_isolation_base,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    branch_name = branch_result.stdout.strip()
+
+    # Push commits to bare repo using actual branch name
     subprocess.run(
-        ["git", "push", str(bare_repo_path), "master"],
+        ["git", "push", str(bare_repo_path), branch_name],
         cwd=source_repo,
         env=git_isolation_base,
         check=True,
