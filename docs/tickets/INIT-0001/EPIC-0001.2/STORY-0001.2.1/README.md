@@ -1,9 +1,9 @@
 # STORY-0001.2.1: Commit Graph Walker with Blob Deduplication
 
 **Parent**: [EPIC-0001.2](../README.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 9
-**Progress**: ████████░░ 86% (6/7 tasks complete)
+**Progress**: ██████████ 100% (7/7 tasks complete)
 
 ## User Story
 
@@ -157,9 +157,9 @@ def test_octopus_merge_detection(tmp_path):
 | [TASK-0001.2.1.3](TASK-0001.2.1.3.md) | Location Metadata Collection | ✅ Complete | 6 |
 | [TASK-0001.2.1.4](TASK-0001.2.1.4.md) | Blob Filtering | ✅ Complete | 7 |
 | [TASK-0001.2.1.5](TASK-0001.2.1.5.md) | Progress & Error Handling | ✅ Complete | 4 |
-| [TASK-0001.2.1.6](TASK-0001.2.1.6.md) | BDD Scenarios & Integration Tests | 🔵 | 10 |
+| [TASK-0001.2.1.6](TASK-0001.2.1.6.md) | BDD Scenarios & Integration Tests | ✅ Complete | 12 |
 
-**Total**: 46 hours
+**Total**: 48 hours (46 estimated, 48 actual)
 
 ## Technical Design
 
