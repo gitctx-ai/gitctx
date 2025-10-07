@@ -312,23 +312,34 @@ FULL_REPLY="$REPLY_BODY
 ---
 *On behalf of @$GH_USERNAME*"
 
-gh api graphql -f query='
-mutation {
+# Use jq to properly JSON-encode the body (handles newlines, quotes, etc.)
+BODY_JSON=$(echo "$FULL_REPLY" | jq -Rs .)
+
+# Use the properly encoded body in GraphQL mutation
+RESULT=$(gh api graphql -f query='
+mutation($threadId: ID!, $body: String!) {
   addPullRequestReviewThreadReply(input: {
-    pullRequestReviewThreadId: "'$THREAD_ID'"
-    body: "'$(echo "$FULL_REPLY" | sed 's/"/\\\\"/g' | sed 's/$/\\n/g' | tr -d '\\n')'"
+    pullRequestReviewThreadId: $threadId
+    body: $body
   }) {
     comment {
       id
+      url
     }
   }
-}' > /dev/null
+}' -f threadId="$THREAD_ID" -f body="$FULL_REPLY" 2>&1)
 
-echo "Reply added successfully"
+if echo "$RESULT" | grep -q '"id"'; then
+  echo "Reply added successfully"
+else
+  echo "ERROR adding reply:"
+  echo "$RESULT"
+  exit 1
+fi
 
 # Step 3: Resolve the thread
 echo "Step 3: Resolving thread..."
-gh api graphql -f query='
+RESOLVE_RESULT=$(gh api graphql -f query='
 mutation {
   resolveReviewThread(input: {
     threadId: "'$THREAD_ID'"
@@ -338,8 +349,14 @@ mutation {
       isResolved
     }
   }
-}' > /dev/null
+}' 2>&1)
 
-echo "✅ Comment ${COMMENT_ID} addressed: replied and resolved"
+if echo "$RESOLVE_RESULT" | grep -q '"isResolved":true'; then
+  echo "✅ Comment ${COMMENT_ID} addressed: replied and resolved"
+else
+  echo "ERROR resolving thread:"
+  echo "$RESOLVE_RESULT"
+  exit 1
+fi
 """
 help = "Complete workflow to address a PR comment (auto-adds username). Requires: PR_NUMBER, COMMENT_ID, REPLY_BODY env vars. Optional: OWNER, REPO"
