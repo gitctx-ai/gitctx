@@ -29,7 +29,10 @@ os.environ["NO_COLOR"] = "1"  # Standard fallback for no color
 os.environ["TERM"] = "dumb"  # Simple terminal type
 
 # Import step definitions to register them with pytest-bdd
-pytest_plugins = ["tests.e2e.steps.cli_steps"]
+pytest_plugins = [
+    "tests.e2e.steps.cli_steps",
+    "tests.e2e.steps.test_chunking",
+]
 
 
 # === UTILITY FUNCTIONS ===
