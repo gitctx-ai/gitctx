@@ -41,6 +41,68 @@ Every feature follows **BDD/TDD development**:
 4. **Manual approval gates** - Stop after each task for user review before committing
 5. **Track progress continuously** - Update task and story files with each commit
 
+### Task Breakdown Pattern (BDD/TDD)
+
+**All stories follow proper BDD/TDD workflow with incremental test implementation:**
+
+**Correct Pattern (typical 4-task structure):**
+
+| Task | Focus | BDD Progress | Pattern |
+|------|-------|--------------|---------|
+| TASK-1 | Write ALL BDD scenarios | 0/N failing 🔴 | Define behavior upfront |
+| TASK-2 | Protocols/models + tests + relevant BDD steps | 1-2/N passing 🟡 | Foundation with tests |
+| TASK-3 | Core impl (TDD) + core BDD steps | 5-8/N passing 🟢 | Build incrementally |
+| TASK-4 | Integration + final BDD step | N/N passing ✅ | Complete the picture |
+
+**Key Principles:**
+
+1. **BDD First (Task 1)**: Write ALL scenarios, all failing, defines "what" the system should do
+2. **TDD Within Tasks**: Unit tests written BEFORE implementation in each task (red→green→refactor)
+3. **BDD Incremental**: Each task implements its relevant BDD steps alongside implementation
+4. **No "Tests at End"**: Tests are never a separate final task - they're integrated throughout
+
+**Anti-Patterns to Avoid:**
+
+- ❌ Separate "Write BDD tests" task at end (BDD should be incremental)
+- ❌ Separate "Write unit tests" task (embed unit tests in implementation tasks)
+- ❌ Tasks without test specifications
+- ❌ BDD scenarios not tracked incrementally across tasks
+- ❌ Missing "BDD Progress" column in task table
+
+**Example Task Checklist (TASK-3 - Implementation with TDD + BDD):**
+
+```markdown
+### Unit Tests First (TDD - RED)
+- [ ] Write failing test for feature X
+- [ ] Write failing test for edge case Y
+- [ ] Run tests - all fail ✓
+
+### Implementation (GREEN)
+- [ ] Implement feature X to pass tests
+- [ ] Run tests - all pass ✓
+- [ ] Refactor if needed
+
+### BDD Implementation
+- [ ] Implement BDD steps for Scenarios 2, 3, 4
+- [ ] Run BDD tests - Scenarios 2-4 now pass ✓
+
+### Verification
+- [ ] All unit tests pass
+- [ ] BDD scenarios 2-4 pass
+- [ ] Code coverage >90%
+```
+
+**Story Table Format:**
+
+```markdown
+| ID | Title | Status | Hours | BDD Progress |
+|----|-------|--------|-------|--------------|
+| TASK-1 | Write BDD scenarios | 🔵 | 3 | 0/9 (all failing) |
+| TASK-2 | Protocols + tests | 🔵 | 3 | 1/9 passing |
+| TASK-3 | Core impl (TDD) + BDD | 🔵 | 10 | 7/9 passing |
+| TASK-4 | Integration + final BDD | 🔵 | 4 | 9/9 passing ✅ |
+```
+
 ### Workflow Steps
 
 For each task in a story:
@@ -48,7 +110,7 @@ For each task in a story:
 ```bash
 # 1. Branch name tells you where to work: git checkout -b STORY-0001.1.1
 # 2. Find your story: cd $(find docs/tickets -name "STORY-0001.1.1" -type d)
-# 3. Complete the task implementation following BDD/TDD
+# 3. Complete the task implementation following BDD/TDD (tests first!)
 # 4. Run all quality gates
 uv run ruff check src tests && uv run ruff format src tests && uv run mypy src && uv run pytest
 

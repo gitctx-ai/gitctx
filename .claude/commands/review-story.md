@@ -230,6 +230,33 @@ Perform comprehensive story review combining quality validation and git reality 
 - ✅ Implementation matches task specifications
 {ENDIF}
 
+{IF pre-work}
+#### 5. BDD/TDD Task Structure (7 checks - PRE-WORK MODE ONLY)
+- ✅ Task 1 writes ALL BDD scenarios (with stubbed step definitions that fail)
+- ✅ Subsequent tasks include both implementation AND relevant BDD step implementation
+- ✅ No separate "implement BDD tests at end" task (BDD incremental)
+- ✅ No separate "write unit tests" task (unit tests embedded in implementation tasks)
+- ✅ Each implementation task specifies which BDD scenarios it will make pass
+- ✅ BDD progress tracked incrementally across tasks (e.g., "1/9 passing" → "7/9" → "9/9")
+- ✅ Unit tests written BEFORE implementation in each task (TDD red→green→refactor)
+
+**Anti-Patterns to Detect:**
+- Task titles: "Write/Implement BDD scenarios/tests" (except Task 1)
+- Task titles: "Write/Implement unit tests" (should be embedded in impl)
+- Task titles: "Integration tests" as standalone final task
+- Last task is "Implement tests" or "BDD implementation"
+- Task table missing "BDD Progress" column
+- Tasks don't specify test-first (TDD) approach
+- Tasks don't specify which scenarios they implement
+
+**When Anti-Patterns Found, Propose:**
+- Merge BDD implementation into relevant feature tasks
+- Add "BDD Progress" column to task table (0/N → X/N → N/N)
+- Specify which scenarios each task implements in checklist
+- Add TDD workflow (tests first → implement → refactor) to checklists
+- Restructure to: Task 1 = all scenarios, Tasks 2-N = implement incrementally
+{ENDIF}
+
 **Anti-Overengineering Detection Patterns:**
 
 For checks 9-10, flag issues when tasks propose complexity without clear justification:
@@ -270,7 +297,11 @@ When flagging overengineering, propose specific edits like:
 - Reduce task scope (e.g., "refactor entire module" → "fix specific complexity violation")
 - Move to future story with "if metrics show need" condition
 
+{IF pre-work}
+#### 6. Specification Ambiguity Detection (8 checks)
+{ELSE}
 #### 5. Specification Ambiguity Detection (8 checks)
+{ENDIF}
 - 🔍 Vague terms: "simple", "basic", "handle", "support", "improve"
 - 🔍 Missing details: "TBD", "etc.", "and so on", "as needed"
 - 🔍 Implicit assumptions: "obviously", "clearly", "simply"
@@ -281,7 +312,7 @@ When flagging overengineering, propose specific edits like:
 - 🔍 Newly added tasks with vague descriptions
 
 {IF in-progress}
-#### 6. Coherence Validation (6 checks - IN-PROGRESS MODE ONLY)
+#### 7. Coherence Validation (6 checks - IN-PROGRESS MODE ONLY)
 - 🔍 Git commits match story scope (no scope creep)
 - 🔍 Completed tasks align with acceptance criteria
 - 🔍 New tasks don't conflict with completed work
@@ -364,6 +395,9 @@ Return a structured analysis with:
 - Hierarchy Consistency: XX% ({6 | 8} checks)
 - Roadmap Alignment: XX% ({5 | 6} checks)
 - Implementation Readiness: XX% ({10 | 11} checks)
+{IF pre-work}
+- BDD/TDD Task Structure: XX% (7 checks)
+{ENDIF}
 - Specification Ambiguity: XX% (8 checks - higher is better)
 {IF in-progress}
 - Coherence Validation: XX% (6 checks)
@@ -982,7 +1016,7 @@ You can:
 2. **Single Approval Gate**: Present complete edit plan, get one approval, then execute all
 3. **Update Order Matters**: Tasks → Story → Epic → Initiative (bottom-up)
 4. **Quality Scoring**:
-   - Pre-work: 5 categories, 39 total checks
+   - Pre-work: 6 categories, 46 total checks (includes BDD/TDD Task Structure)
    - In-progress: 6 categories, 49 total checks
    - Each category scored independently, average = overall score
 5. **Edit Precision**: Use exact OLD/NEW strings from agent analysis

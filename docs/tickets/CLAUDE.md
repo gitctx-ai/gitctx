@@ -260,6 +260,112 @@ def test_[functionality]():
     # REFACTOR: Clean up
 ```
 
+### Task Structure Examples
+
+**TASK-1: BDD Scenario Writing (Always First)**
+
+```markdown
+# TASK-0001.2.2.1: Write BDD scenarios for chunking behavior
+
+**Estimated**: 3 hours | **BDD Progress**: 0/9 (all failing)
+
+## Implementation Checklist
+
+- [ ] Create feature file `tests/e2e/features/chunking.feature`
+  - [ ] Copy 9 scenarios from story README
+  - [ ] Ensure concrete Given/When/Then steps
+- [ ] Create step definition stubs in `tests/e2e/steps/test_chunking.py`
+  - [ ] Scenario 1: "Chunk large file with overlap"
+  - [ ] Scenario 2: "Small blob single chunk"
+  - [ ] ... (all 9 scenarios)
+- [ ] All step definitions raise NotImplementedError
+- [ ] Run scenarios - all should fail (expected)
+
+**Result**: Defines WHAT system should do before HOW it does it
+```
+
+**TASK-2: Foundation with Tests (Protocols/Models)**
+
+```markdown
+# TASK-0001.2.2.2: Define protocols, models, and language detection (with tests)
+
+**Estimated**: 3 hours | **BDD Progress**: 1/9 passing
+
+## Implementation Checklist
+
+### Define Interfaces
+- [ ] Create CodeChunk dataclass
+- [ ] Create ChunkerProtocol
+- [ ] Create language_detection.py
+
+### Unit Tests (TDD)
+- [ ] Write tests for language detection (5+ tests)
+- [ ] Write tests for CodeChunk model (2+ tests)
+- [ ] All tests pass
+
+### BDD Implementation (Relevant Scenarios)
+- [ ] Implement steps for Scenario 6 (partial - language detection)
+- [ ] Implement steps for Scenario 8 (full - empty content)
+
+**Result**: Foundation ready, 1 scenario passing, unit tests green
+```
+
+**TASK-3: Core Implementation (TDD + BDD)**
+
+```markdown
+# TASK-0001.2.2.3: Implement LanguageAwareChunker (TDD) and BDD scenarios
+
+**Estimated**: 10 hours | **BDD Progress**: 7/9 passing
+
+## Implementation Checklist
+
+### Unit Tests First (TDD - RED)
+- [ ] Write 15+ unit tests for chunker
+- [ ] Write 10+ edge case tests
+- [ ] Write token ratio validation tests
+- [ ] Run tests - all fail ✓
+
+### Implementation (GREEN)
+- [ ] Create LanguageAwareChunker class
+- [ ] Implement _create_splitter method
+- [ ] Implement chunk_file method
+- [ ] Implement count_tokens method
+- [ ] Run tests - all pass ✓
+
+### BDD Implementation (Core Scenarios)
+- [ ] Implement steps for Scenarios 1-5
+- [ ] Implement steps for Scenario 6 (complete)
+- [ ] Implement steps for Scenario 9
+- [ ] Run BDD - Scenarios 1-6, 8-9 pass ✓
+
+**Result**: Core chunking works, most BDD passing, >90% coverage
+```
+
+**TASK-4: Integration + Final BDD**
+
+```markdown
+# TASK-0001.2.2.4: Integration with CommitWalker and final BDD scenario
+
+**Estimated**: 4 hours | **BDD Progress**: 9/9 passing ✅
+
+## Implementation Checklist
+
+### Integration Tests
+- [ ] Test walker → chunker pipeline
+- [ ] Test blob_sha injection
+- [ ] Test UTF-8 error handling
+
+### Configuration
+- [ ] Add IndexSettings to GitCtxSettings
+- [ ] Write config tests
+
+### BDD Implementation (Final Scenario)
+- [ ] Implement Scenario 7 (metadata completeness)
+- [ ] Run ALL BDD - 9/9 pass ✅
+
+**Result**: ALL acceptance criteria verified, story complete!
+```
+
 ## Workflow
 
 ### Creating Tickets

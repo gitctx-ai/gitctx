@@ -16,6 +16,92 @@ Every user-facing feature MUST have:
 2. Step definitions in `tests/e2e/steps/`
 3. Tests passing before any feature is considered complete
 
+## BDD Workflow in Story Tasks
+
+**All stories follow incremental BDD implementation across tasks:**
+
+### Correct Task Structure
+
+**Task 1: Write ALL BDD Scenarios**
+- Write complete Gherkin scenarios for entire feature
+- Create stubbed step definitions that fail (NotImplementedError)
+- BDD Progress: **0/N scenarios passing** (all 🔴 RED)
+- Purpose: Define complete user-facing behavior upfront
+
+**Tasks 2-N: Implement Features with BDD Steps**
+- Implement feature code using TDD (unit tests first)
+- Implement relevant BDD step definitions alongside feature
+- BDD Progress: **Incremental** (1/N → 5/N → N/N passing)
+- Each task specifies which scenarios it will make pass
+
+### Example: Indexing Feature (9 scenarios)
+
+| Task | Implementation | BDD Steps Implemented | Progress |
+|------|----------------|----------------------|----------|
+| TASK-1 | Write all 9 scenarios | Stub all steps (fail) | 0/9 🔴 |
+| TASK-2 | Protocols + models | "Given indexed repo" step | 1/9 🟡 |
+| TASK-3 | Core indexer (TDD) | "When I run index", "Then files indexed" | 7/9 🟢 |
+| TASK-4 | Integration + CLI | "Then progress shown", final scenario | 9/9 ✅ |
+
+### Key Principles
+
+1. **Never separate "implement BDD" as final task**
+   - ❌ WRONG: Task 4 = "Implement all BDD step definitions"
+   - ✅ CORRECT: Task 2-4 each implement their relevant steps
+
+2. **Track BDD progress incrementally**
+   - Each task shows scenario pass count: 0/9 → 1/9 → 7/9 → 9/9
+   - Use "BDD Progress" column in story task table
+   - Shows real progress, not just "done/not done"
+
+3. **Stub ALL steps in Task 1**
+   ```python
+   @when('I run "gitctx index"')
+   def run_index_command(cli_runner):
+       raise NotImplementedError("Implement in TASK-3")
+   ```
+
+4. **Implement steps alongside features**
+   - Task builds core indexer → implements "When I run index" step
+   - Task adds progress bars → implements "Then I see progress" step
+   - Tests and implementation evolve together
+
+### Anti-Patterns to Avoid
+
+❌ **Separate test tasks at end**
+```markdown
+TASK-3: Implement indexer
+TASK-4: Write BDD scenarios
+TASK-5: Implement BDD steps
+```
+
+❌ **No progress tracking**
+```markdown
+| Task | BDD Status |
+|------|------------|
+| 1    | Not started |
+| 2    | Not started |
+| 3    | Complete    |
+```
+
+❌ **Vague step assignment**
+```markdown
+TASK-2: Implement some BDD steps
+TASK-3: Implement more BDD steps
+```
+
+✅ **Correct incremental structure**
+```markdown
+| Task | BDD Progress | Steps This Task |
+|------|--------------|-----------------|
+| 1    | 0/9 failing  | Stub all 9 scenarios |
+| 2    | 1/9 passing  | "Given indexed repo" |
+| 3    | 7/9 passing  | "When I index", "Then files indexed" |
+| 4    | 9/9 passing  | "Then progress shown" |
+```
+
+**See [Root CLAUDE.md](../../CLAUDE.md#task-breakdown-pattern-bddtdd) for complete task breakdown patterns.**
+
 ## Directory Structure
 
 ```bash
