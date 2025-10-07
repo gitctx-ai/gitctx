@@ -122,6 +122,26 @@ class CommitWalker:
                 "Run 'git fetch --unshallow' to fetch complete history."
             )
 
+    def _collect_tree_blobs(  # type: ignore[no-any-unimported]
+        self,
+        tree: pygit2.Tree,  # type: ignore[name-defined]
+        blob_set: set[str],
+    ) -> None:
+        """Recursively collect all blob SHAs from a tree.
+
+        Args:
+            tree: pygit2 Tree object to traverse
+            blob_set: Set to accumulate blob SHAs into
+        """
+        for entry in tree:
+            if entry.type_str == "blob":
+                blob_set.add(str(entry.id))
+            elif entry.type_str == "tree":
+                # Recurse into subdirectory
+                subtree = self.repo.get(entry.id)
+                if subtree:
+                    self._collect_tree_blobs(subtree, blob_set)  # type: ignore[arg-type, no-any-unimported]
+
     def _build_head_tree(self) -> set[str]:
         """Build set of all blob SHAs in HEAD tree for O(1) is_head lookup.
 
@@ -143,19 +163,8 @@ class CommitWalker:
             # No HEAD (empty repo) - return empty set
             return head_blobs
 
-        # Recursively walk HEAD tree and collect all blob SHAs
-        def walk_tree(tree: pygit2.Tree) -> None:  # type: ignore[name-defined, no-any-unimported]
-            """Recursively walk tree and collect blob SHAs."""
-            for entry in tree:
-                if entry.type_str == "blob":
-                    head_blobs.add(str(entry.id))
-                elif entry.type_str == "tree":
-                    # Recurse into subdirectory
-                    subtree = self.repo.get(entry.id)
-                    if subtree:
-                        walk_tree(subtree)  # type: ignore[arg-type, no-any-unimported]
-
-        walk_tree(head_commit.tree)  # type: ignore[arg-type, no-any-unimported]
+        # Recursively collect all blob SHAs from HEAD tree
+        self._collect_tree_blobs(head_commit.tree, head_blobs)  # type: ignore[arg-type]
         return head_blobs
 
     def _walk_commits(self) -> Iterator[CommitMetadata]:
@@ -192,6 +201,65 @@ class CommitWalker:
 
             yield metadata
 
+    def _accumulate_blob_locations(  # type: ignore[no-any-unimported]
+        self,
+        tree: pygit2.Tree,  # type: ignore[name-defined]
+        commit_metadata: CommitMetadata,
+        path_prefix: str = "",
+    ) -> None:
+        """Recursively accumulate blob locations from a tree.
+
+        Args:
+            tree: pygit2 Tree object to traverse
+            commit_metadata: Metadata for the current commit
+            path_prefix: Path prefix for nested directories
+        """
+        from .models import BlobLocation
+
+        for entry in tree:
+            # Build full path for this entry
+            entry_path: str = str(f"{path_prefix}{entry.name}" if path_prefix else entry.name)
+
+            if entry.type_str == "blob":
+                # Skip symlinks (mode 0o120000)
+                # Symlinks are stored as blobs with target path as content
+                # We don't want to index them as they point to files already indexed
+                if entry.filemode == 0o120000:
+                    continue
+
+                blob_sha = str(entry.id)
+
+                # Skip already-indexed blobs (resume from partial index)
+                if blob_sha in self.seen_blobs:
+                    continue
+
+                # Create BlobLocation for this occurrence
+                location = BlobLocation(
+                    commit_sha=commit_metadata.commit_sha,
+                    file_path=entry_path,
+                    is_head=blob_sha in self.head_blobs,  # O(1) set lookup
+                    author_name=commit_metadata.author_name,
+                    author_email=commit_metadata.author_email,
+                    commit_date=commit_metadata.commit_date,
+                    commit_message=commit_metadata.commit_message,
+                    is_merge=commit_metadata.is_merge,
+                )
+
+                # Accumulate location
+                if blob_sha not in self.blob_locations:
+                    self.blob_locations[blob_sha] = []
+                self.blob_locations[blob_sha].append(location)
+
+            elif entry.type_str == "tree":
+                # Recurse into subdirectory
+                subtree = self.repo.get(entry.id)
+                if subtree:
+                    self._accumulate_blob_locations(
+                        subtree,  # type: ignore[arg-type, no-any-unimported]
+                        commit_metadata,
+                        f"{entry_path}/",
+                    )
+
     def walk_blobs(self) -> Iterator[BlobRecord]:
         """Walk commits and yield unique blobs with location metadata.
 
@@ -206,43 +274,15 @@ class CommitWalker:
         1. First pass: Walk all commits and accumulate all locations for all blobs
         2. Second pass: Yield BlobRecords with complete location lists
         """
-        from .models import BlobLocation, BlobRecord
+        from .models import BlobRecord
 
         # First pass: Accumulate all locations for all blobs
         for commit_metadata in self._walk_commits():
             commit = self.repo.get(commit_metadata.commit_sha)
             assert commit is not None, f"Commit {commit_metadata.commit_sha} not found"
 
-            # Walk the commit tree
-            for entry in commit.tree:
-                # Skip non-blob entries (trees/submodules)
-                if entry.type_str != "blob":
-                    continue
-
-                blob_sha = str(entry.id)
-                file_path: str = entry.name  # type: ignore[assignment]
-
-                # Skip already-indexed blobs (resume from partial index)
-                # Don't accumulate locations for blobs we won't yield
-                if blob_sha in self.seen_blobs:
-                    continue
-
-                # Create BlobLocation for this occurrence
-                location = BlobLocation(
-                    commit_sha=commit_metadata.commit_sha,
-                    file_path=file_path,
-                    is_head=blob_sha in self.head_blobs,  # O(1) set lookup
-                    author_name=commit_metadata.author_name,
-                    author_email=commit_metadata.author_email,
-                    commit_date=commit_metadata.commit_date,
-                    commit_message=commit_metadata.commit_message,
-                    is_merge=commit_metadata.is_merge,
-                )
-
-                # Accumulate location (don't yield yet)
-                if blob_sha not in self.blob_locations:
-                    self.blob_locations[blob_sha] = []
-                self.blob_locations[blob_sha].append(location)
+            # Recursively accumulate blob locations from commit tree
+            self._accumulate_blob_locations(commit.tree, commit_metadata)  # type: ignore[arg-type]
 
         # Second pass: Yield unique blobs with complete locations
         for blob_sha, locations in self.blob_locations.items():

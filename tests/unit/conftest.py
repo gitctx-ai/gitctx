@@ -347,3 +347,77 @@ def config_factory():
         return "\n".join(lines) + "\n"
 
     return _make_config
+
+
+@pytest.fixture
+def symlink_repo(tmp_path, git_isolation_base):
+    """
+    Create repository with symlinks (Unix/Linux/macOS only).
+
+    This fixture creates a repo with both regular files and symlinks to test
+    symlink handling. Symlinks are only reliably supported on Unix-like systems.
+
+    Returns:
+        Path: Repository path with symlinks
+
+    Usage:
+        @pytest.mark.skipif(is_windows(), reason="symlinks not reliable on Windows")
+        def test_symlinks(symlink_repo):
+            # Test symlink behavior...
+
+    Note: Import is_windows from tests.conftest for platform detection.
+    """
+    import subprocess
+
+    from tests.conftest import is_windows
+
+    # Skip fixture creation on Windows
+    if is_windows():
+        pytest.skip("Symlinks not reliably supported on Windows")
+
+    repo_path = tmp_path / "symlink_repo"
+    repo_path.mkdir()
+
+    # Initialize git
+    subprocess.run(
+        ["git", "init"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+    # Configure git
+    for cmd in [
+        ["git", "config", "user.name", "Test User"],
+        ["git", "config", "user.email", "test@example.com"],
+        ["git", "config", "commit.gpgsign", "false"],
+        ["git", "config", "core.symlinks", "true"],
+    ]:
+        subprocess.run(cmd, cwd=repo_path, env=git_isolation_base, check=True)
+
+    # Create regular files
+    (repo_path / "real_file.py").write_text("def real(): pass")
+    (repo_path / "target.txt").write_text("Target content")
+
+    # Create symlinks (Unix only)
+    import os
+
+    os.symlink("real_file.py", repo_path / "symlink_to_file.py")
+    os.symlink("target.txt", repo_path / "symlink_to_target")
+
+    # Commit everything
+    subprocess.run(
+        ["git", "add", "."],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Add files and symlinks"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    return repo_path

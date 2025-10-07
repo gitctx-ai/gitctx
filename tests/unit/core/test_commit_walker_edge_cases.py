@@ -4,7 +4,10 @@ Tests cover:
 - Partial clone detection
 - Shallow clone detection
 - Bare repository handling
+- Nested directory traversal
 """
+
+import subprocess
 
 import pytest
 
@@ -108,3 +111,113 @@ class TestBareRepositoryHandling:
         # bare_repo fixture creates 3 commits
         assert len(commits) == 3
         assert all(len(c.commit_sha) == 40 for c in commits)
+
+
+class TestNestedDirectoryTraversal:
+    """Test nested directory tree traversal (covers lines 152-156)."""
+
+    def test_nested_directories_traversed(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Blobs in nested directories are found via tree recursion."""
+        # Arrange - create repo with nested structure
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create nested directory structure: src/utils/helper.py
+        nested_dir = repo_path / "src" / "utils"
+        nested_dir.mkdir(parents=True)
+        (nested_dir / "helper.py").write_text("def helper(): pass")
+        (repo_path / "src" / "main.py").write_text("# Main")
+        (repo_path / "README.md").write_text("# README")
+
+        # Commit the structure
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add nested structure"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act
+        blob_records = list(walker.walk_blobs())
+
+        # Assert - all 3 files found via tree recursion
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+        # pygit2 returns just the filename in the immediate tree, not full paths
+        assert any("helper.py" in path for path in file_paths)
+        assert any("main.py" in path for path in file_paths)
+        assert "README.md" in file_paths
+
+    def test_deeply_nested_blobs_found(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Blobs 5 levels deep are found via recursive tree traversal."""
+        # Arrange - create deeply nested structure
+        repo_path = git_repo_factory(num_commits=0)
+
+        # Create 5-level nesting: a/b/c/d/e/deep.py
+        deep_path = repo_path / "a" / "b" / "c" / "d" / "e"
+        deep_path.mkdir(parents=True)
+        (deep_path / "deep.py").write_text("# Deep file")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add deeply nested file"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act
+        blob_records = list(walker.walk_blobs())
+
+        # Assert - deep.py found
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+        assert any("deep.py" in path for path in file_paths)
+
+    def test_empty_subdirectory_handling(self, git_repo_factory, git_isolation_base, isolated_env):
+        """Empty subdirectories don't break tree traversal."""
+        # Arrange - Git doesn't track empty directories, so create dir with .gitkeep
+        repo_path = git_repo_factory(num_commits=0)
+
+        empty_dir = repo_path / "empty"
+        empty_dir.mkdir()
+        (empty_dir / ".gitkeep").write_text("")
+        (repo_path / "README.md").write_text("# README")
+
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add directory with .gitkeep"],
+            cwd=repo_path,
+            env=git_isolation_base,
+            check=True,
+        )
+
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - should not raise exception
+        blob_records = list(walker.walk_blobs())
+
+        # Assert - both files found
+        file_paths = {loc.file_path for b in blob_records for loc in b.locations}
+        assert any(".gitkeep" in path for path in file_paths)
+        assert "README.md" in file_paths
