@@ -67,18 +67,27 @@ CLAUDE.md                        # Root - BDD/TDD workflow
 
 Currently implementing **INIT-0001: MVP Foundation** (Q4 2025)
 
-**EPIC-0001.1: CLI Foundation** (~80% complete - 8/10 story points)
+**EPIC-0001.1: CLI Foundation** ✅ Complete (10/10 story points)
+
 - ✅ Development Environment Setup (STORY-0001.1.0) - 5 points
   - Project structure, BDD/TDD framework, quality tools, CI/CD
 - ✅ CLI Framework Setup (STORY-0001.1.1) - 3 points
   - All 4 commands implemented (index, search, config, clear)
-  - 76 tests passing, 96.76% coverage
-  - 13 BDD scenarios enabled
-  - Quick start guide for new users
+  - 13 BDD scenarios, 76 tests passing, 96.76% coverage
+
+**EPIC-0001.2: Real Indexing** 🟡 In Progress (9/21 story points)
+
+- ✅ Commit Graph Walker (STORY-0001.2.1) - 9 points
+  - Blob deduplication, location metadata, filtering (binary/gitignore/size)
+  - Multi-ref support, progress callbacks, error handling
+  - 9 BDD scenarios, 267 tests passing, 95.09% coverage
+  - Fixed critical bug: walker now honors all configured refs
+- 🔵 Embedding Generation (STORY-0001.2.2) - 6 points
+- 🔵 LanceDB Storage (STORY-0001.2.3) - 6 points
 
 **Next Up:**
-- 🔵 EPIC-0001.2: Real Indexing (git blob extraction, OpenAI embeddings)
-- 🔵 EPIC-0001.3: Vector Search (LanceDB integration)
+
+- 🔵 EPIC-0001.3: Vector Search (semantic search with LanceDB)
 
 See [ROADMAP](docs/vision/ROADMAP.md) for detailed progress and [initiatives](docs/tickets/initiatives/) for tracking.
 
