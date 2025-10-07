@@ -58,16 +58,23 @@ class BlobLocation:
 
 @dataclass
 class BlobRecord:
-    """A unique blob with all its locations (walker output).
+    """A unique blob and all its locations in git history (walker output).
 
-    This is the primary output of CommitWalker.walk_blobs() - one record
-    per unique blob SHA, with all locations where that blob appears.
+    This dataclass represents the primary output of CommitWalker.walk_blobs():
+    one record per unique blob SHA-1 hash, with all locations (commits and file paths)
+    where that blob appears in the repository history.
+
+    This structure is designed for denormalized storage in LanceDB (see STORY-0001.2.1
+    Technical Design - Architecture Decision: Denormalized LanceDB), enabling efficient
+    retrieval of all commit/file locations for a given blob. All relevant commit metadata
+    is included in the nested BlobLocation objects for each location.
 
     Attributes:
-        sha: Blob SHA-1 hash (40 hex chars)
-        content: Raw blob content as bytes
-        size: Blob size in bytes
-        locations: list of all locations where this blob appears
+        sha: Blob SHA-1 hash (40 hex chars), uniquely identifies the blob content.
+        content: Raw blob content as bytes.
+        size: Blob size in bytes.
+        locations: List of BlobLocation objects, each describing a commit and file path
+            where this blob appears, with denormalized commit metadata.
     """
 
     sha: str
