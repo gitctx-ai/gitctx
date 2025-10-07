@@ -1,5 +1,7 @@
 """Git commit walker with validation and metadata extraction."""
 
+from __future__ import annotations
+
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -37,9 +39,9 @@ class CommitWalker:
     - Walk commits in reverse chronological order
     - Extract commit metadata (author, date, message, is_merge)
     - Support multiple refs with commit-level deduplication
+    - Track blob locations with is_head flag (TASK-0001.2.1.3 ✅)
 
     Does NOT (deferred to other tasks):
-    - Track blob locations (TASK-0001.2.1.3)
     - Filter blobs (TASK-0001.2.1.4)
     - Report progress (TASK-0001.2.1.5)
     """
@@ -86,6 +88,10 @@ class CommitWalker:
         # Accumulate blob locations for denormalized storage
         self.blob_locations: dict[str, list[BlobLocation]] = {}
 
+        # Build HEAD tree blob set for O(1) is_head lookup
+        # For bare repos, this will be empty (no HEAD working tree)
+        self.head_blobs: set[str] = self._build_head_tree()
+
     def _validate_repository(self) -> None:
         """Validate repository is not partial or shallow clone.
 
@@ -115,6 +121,42 @@ class CommitWalker:
                 "Repository is a shallow clone (incomplete history). "
                 "Run 'git fetch --unshallow' to fetch complete history."
             )
+
+    def _build_head_tree(self) -> set[str]:
+        """Build set of all blob SHAs in HEAD tree for O(1) is_head lookup.
+
+        For bare repositories, returns empty set (no HEAD working tree).
+
+        Returns:
+            Set of blob SHAs present in HEAD tree
+        """
+        head_blobs: set[str] = set()
+
+        # Bare repositories have no HEAD working tree
+        if self.repo.is_bare:
+            return head_blobs
+
+        # Get HEAD commit (may fail if repo has no commits)
+        try:
+            head_commit = self.repo.head.peel(pygit2.Commit)
+        except (pygit2.GitError, AttributeError):
+            # No HEAD (empty repo) - return empty set
+            return head_blobs
+
+        # Recursively walk HEAD tree and collect all blob SHAs
+        def walk_tree(tree: pygit2.Tree) -> None:  # type: ignore[name-defined, no-any-unimported]
+            """Recursively walk tree and collect blob SHAs."""
+            for entry in tree:
+                if entry.type_str == "blob":
+                    head_blobs.add(str(entry.id))
+                elif entry.type_str == "tree":
+                    # Recurse into subdirectory
+                    subtree = self.repo.get(entry.id)
+                    if subtree:
+                        walk_tree(subtree)  # type: ignore[arg-type, no-any-unimported]
+
+        walk_tree(head_commit.tree)  # type: ignore[arg-type, no-any-unimported]
+        return head_blobs
 
     def _walk_commits(self) -> Iterator[CommitMetadata]:
         """Walk commits from configured refs in reverse chronological order.
@@ -189,7 +231,7 @@ class CommitWalker:
                 location = BlobLocation(
                     commit_sha=commit_metadata.commit_sha,
                     file_path=file_path,
-                    is_head=False,  # Deferred to TASK-0001.2.1.3
+                    is_head=blob_sha in self.head_blobs,  # O(1) set lookup
                     author_name=commit_metadata.author_name,
                     author_email=commit_metadata.author_email,
                     commit_date=commit_metadata.commit_date,
