@@ -36,6 +36,11 @@ class LanguageAwareChunker:
         chunk_overlap_ratio: Overlap between chunks as ratio (0.2 = 20%)
     """
 
+    # Conservative chars-per-token estimate (validated by test_token_ratio.py)
+    # Empirical range: 2.5-4.2 characters/token
+    # Using 2.5 (lower bound) prevents exceeding max_tokens
+    CHARS_PER_TOKEN = 2.5
+
     def __init__(self, chunk_overlap_ratio: float = 0.2):
         """Initialize the chunker.
 
@@ -56,11 +61,7 @@ class LanguageAwareChunker:
         Returns:
             Configured text splitter (language-specific or generic)
         """
-        # Conservative chars-per-token estimate (validated by test_token_ratio.py)
-        # Empirical range: 2.5-4.2 characters/token
-        # Using 2.5 (lower bound) prevents exceeding max_tokens
-        # This is conservative but ensures chunks never exceed token limits
-        chunk_size = int(max_tokens * 2.5)
+        chunk_size = int(max_tokens * self.CHARS_PER_TOKEN)
         chunk_overlap = int(chunk_size * self.chunk_overlap_ratio)
 
         # Try language-specific splitter
