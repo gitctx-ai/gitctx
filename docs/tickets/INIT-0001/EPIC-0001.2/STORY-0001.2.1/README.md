@@ -412,9 +412,12 @@ class CommitWalker:
 The following are intentionally excluded from this story:
 
 1. ❌ **Corrupt blob recovery** - Scenario "Graceful error handling" permanently deferred
-   - Rationale: Creating test fixtures with corrupt blobs requires raw git object manipulation (unsafe, too complex for testing)
-   - Current behavior: Walker errors on corrupt blob (pygit2 raises exception)
-   - Future work: Not planned - users should fix corruption with `git fsck` before indexing
+   - Original motivation: Early discussions considered graceful degradation for partially-corrupted repositories to allow indexing of healthy blobs
+   - Rationale: Creating test fixtures with corrupt blobs requires raw git object manipulation (unsafe, too complex for testing framework)
+   - Current behavior: Walker errors on corrupt blob (pygit2 raises GitError exception, halts indexing)
+   - User impact: If corruption is encountered during indexing, operation fails with clear error message pointing to corrupt blob SHA
+   - User mitigation: Run `git fsck --full` to identify and repair corruption before running gitctx index (standard git best practice)
+   - Future work: Not planned - repository corruption should be fixed at the git level using git's built-in repair tools
    - Decision: Removed from BDD scenarios and acceptance criteria (see TASK-0001.2.1.7)
 2. ❌ **Git Notes** (`refs/notes/*`) - Defer to INIT-0002 (Intelligence Layer)
 3. ❌ **Reflog walking** - Only walk reachable commits from refs

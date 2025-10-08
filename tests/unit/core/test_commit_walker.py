@@ -200,6 +200,57 @@ class TestMergeCommitDetection:
         merge_commit = merge_commits[0]
         assert merge_commit.is_merge is True
 
+    def test_octopus_merge_detection(self, git_repo_factory, isolated_env):
+        """Octopus merge commits (3+ parents) have is_merge=True."""
+        # Arrange - create repo with octopus merge (5 commits: 2 main, 2 features, 1 octopus)
+        repo_path = git_repo_factory(num_commits=5, merge_type="octopus")
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - walk commits and collect metadata
+        commits = list(walker._walk_commits())
+
+        # Assert - should have at least 5 commits total
+        assert len(commits) >= 5, f"Expected at least 5 commits, got {len(commits)}"
+
+        # Assert - at least one commit is a merge (the octopus merge)
+        merge_commits = [c for c in commits if c.is_merge]
+        non_merge_commits = [c for c in commits if not c.is_merge]
+
+        assert len(merge_commits) >= 1, "Should have at least one octopus merge commit"
+        assert len(non_merge_commits) >= 4, "Should have at least four non-merge commits"
+
+        # Assert - octopus merge is detected correctly
+        octopus_commit = merge_commits[0]
+        assert octopus_commit.is_merge is True
+
+    def test_fast_forward_merge_not_detected_as_merge(self, git_repo_factory, isolated_env):
+        """Fast-forward merge creates linear history with no merge commit."""
+        # Arrange - create repo with fast-forward merge
+        # This creates linear history (no merge commit should be created)
+        repo_path = git_repo_factory(num_commits=3, merge_type="fast-forward")
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - walk commits and collect metadata
+        commits = list(walker._walk_commits())
+
+        # Assert - should have commits but NONE should be merge commits
+        # Fast-forward creates linear history, so all commits have 0 or 1 parent
+        assert len(commits) >= 3, f"Expected at least 3 commits, got {len(commits)}"
+
+        # Assert - NO merge commits should exist (fast-forward doesn't create merge commits)
+        merge_commits = [c for c in commits if c.is_merge]
+        assert len(merge_commits) == 0, (
+            f"Fast-forward should not create merge commits, but found {len(merge_commits)}"
+        )
+
+        # Assert - all commits should be regular commits
+        for commit in commits:
+            assert commit.is_merge is False, (
+                f"Commit {commit.sha[:7]} should not be marked as merge in fast-forward history"
+            )
+
 
 class TestProtocolAdherence:
     """Test CommitWalker implements CommitWalkerProtocol correctly."""
