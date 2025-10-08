@@ -3,7 +3,7 @@
 **Parent Initiative**: [INIT-0001](../README.md)
 **Status**: 🟡 In Progress
 **Estimated**: 25 story points
-**Progress**: ███░░░░░░░ 36% (9/25 story points complete)
+**Progress**: █████░░░░░ 56% (14/25 story points complete)
 
 ## Overview
 
@@ -24,7 +24,7 @@ Replace the mock indexing from EPIC-0001.1 with actual functionality that scans 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
 | [STORY-0001.2.1](STORY-0001.2.1/README.md) | Commit Graph Walker with Blob Deduplication | ✅ Complete | 9 |
-| [STORY-0001.2.2](STORY-0001.2.2/README.md) | Blob Content Chunking | 🔵 Not Started | 5 |
+| [STORY-0001.2.2](STORY-0001.2.2/README.md) | Blob Content Chunking | ✅ Complete | 5 |
 | [STORY-0001.2.3](STORY-0001.2.3/README.md) | OpenAI Embedding Generation | 🔵 Not Started | 5 |
 | [STORY-0001.2.4](STORY-0001.2.4/README.md) | LanceDB Denormalized Storage | 🔵 Not Started | 3 |
 | [STORY-0001.2.5](STORY-0001.2.5/README.md) | Progress Tracking and Cost Estimation | 🔵 Not Started | 3 |
