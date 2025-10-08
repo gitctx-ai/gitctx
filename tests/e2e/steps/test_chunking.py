@@ -540,11 +540,23 @@ def verify_language_metadata(chunking_context: dict[str, Any]) -> None:
 
 @given(parsers.parse("a blob chunked into {num_chunks:d} pieces"))
 def blob_chunked_into_pieces(chunking_context: dict[str, Any], num_chunks: int) -> None:
-    """Create blob that chunks into N pieces.
+    """Create blob that chunks into N pieces."""
+    from gitctx.core.chunker import LanguageAwareChunker
 
-    To be implemented in TASK-0001.2.2.3.
-    """
-    raise NotImplementedError("TASK-0001.2.2.3: Create blob with known chunk count")
+    # Configure chunking to create exactly N chunks
+    # For 5 chunks: 5000 tokens blob / 1000 max_tokens = 5 chunks
+    target_tokens = num_chunks * 1000
+    chunking_context["language"] = "python"
+    chunking_context["blob_content"] = _generate_code_blob("python", target_tokens)
+    chunking_context["max_tokens"] = 1000
+    chunking_context["chunk_overlap_ratio"] = 0.0  # No overlap for exact chunk count
+
+    # Perform chunking immediately so "examine" step has data
+    chunker = LanguageAwareChunker(chunk_overlap_ratio=0.0)
+    language = chunking_context["language"]
+    max_tokens = chunking_context["max_tokens"]
+    chunks = chunker.chunk_file(chunking_context["blob_content"], language, max_tokens)
+    chunking_context["chunks"] = chunks
 
 
 @when("I examine chunk metadata")
@@ -559,47 +571,67 @@ def examine_chunk_metadata(chunking_context: dict[str, Any]) -> None:
 
 @then("each chunk should have a content field")
 def verify_content_field(chunking_context: dict[str, Any]) -> None:
-    """Verify content field exists.
+    """Verify content field exists."""
+    chunks = chunking_context.get("chunks", [])
+    assert len(chunks) > 0, "No chunks found"
 
-    To be implemented in TASK-0001.2.2.4 (final metadata scenario).
-    """
-    raise NotImplementedError("TASK-0001.2.2.4: Verify chunk.content exists")
+    for i, chunk in enumerate(chunks):
+        assert hasattr(chunk, "content"), f"Chunk {i} missing 'content' field"
+        assert chunk.content is not None, f"Chunk {i} has None content"
+        assert isinstance(chunk.content, str), f"Chunk {i} content is not a string"
 
 
 @then("each chunk should have a start_line field")
 def verify_start_line_field(chunking_context: dict[str, Any]) -> None:
-    """Verify start_line field exists.
+    """Verify start_line field exists."""
+    chunks = chunking_context.get("chunks", [])
+    assert len(chunks) > 0, "No chunks found"
 
-    To be implemented in TASK-0001.2.2.4.
-    """
-    raise NotImplementedError("TASK-0001.2.2.4: Verify chunk.start_line exists")
+    for i, chunk in enumerate(chunks):
+        assert hasattr(chunk, "start_line"), f"Chunk {i} missing 'start_line' field"
+        assert chunk.start_line is not None, f"Chunk {i} has None start_line"
+        assert isinstance(chunk.start_line, int), f"Chunk {i} start_line is not an int"
+        assert chunk.start_line > 0, f"Chunk {i} has invalid start_line: {chunk.start_line}"
 
 
 @then("each chunk should have an end_line field")
 def verify_end_line_field(chunking_context: dict[str, Any]) -> None:
-    """Verify end_line field exists.
+    """Verify end_line field exists."""
+    chunks = chunking_context.get("chunks", [])
+    assert len(chunks) > 0, "No chunks found"
 
-    To be implemented in TASK-0001.2.2.4.
-    """
-    raise NotImplementedError("TASK-0001.2.2.4: Verify chunk.end_line exists")
+    for i, chunk in enumerate(chunks):
+        assert hasattr(chunk, "end_line"), f"Chunk {i} missing 'end_line' field"
+        assert chunk.end_line is not None, f"Chunk {i} has None end_line"
+        assert isinstance(chunk.end_line, int), f"Chunk {i} end_line is not an int"
+        assert chunk.end_line >= chunk.start_line, (
+            f"Chunk {i} has end_line ({chunk.end_line}) < start_line ({chunk.start_line})"
+        )
 
 
 @then("each chunk should have a token_count field")
 def verify_token_count_field(chunking_context: dict[str, Any]) -> None:
-    """Verify token_count field exists.
+    """Verify token_count field exists."""
+    chunks = chunking_context.get("chunks", [])
+    assert len(chunks) > 0, "No chunks found"
 
-    To be implemented in TASK-0001.2.2.4.
-    """
-    raise NotImplementedError("TASK-0001.2.2.4: Verify chunk.token_count exists")
+    for i, chunk in enumerate(chunks):
+        assert hasattr(chunk, "token_count"), f"Chunk {i} missing 'token_count' field"
+        assert chunk.token_count is not None, f"Chunk {i} has None token_count"
+        assert isinstance(chunk.token_count, int), f"Chunk {i} token_count is not an int"
+        assert chunk.token_count > 0, f"Chunk {i} has invalid token_count: {chunk.token_count}"
 
 
 @then("each chunk should have a metadata dictionary")
 def verify_metadata_dict(chunking_context: dict[str, Any]) -> None:
-    """Verify metadata dictionary exists.
+    """Verify metadata dictionary exists."""
+    chunks = chunking_context.get("chunks", [])
+    assert len(chunks) > 0, "No chunks found"
 
-    To be implemented in TASK-0001.2.2.4.
-    """
-    raise NotImplementedError("TASK-0001.2.2.4: Verify chunk.metadata dict exists")
+    for i, chunk in enumerate(chunks):
+        assert hasattr(chunk, "metadata"), f"Chunk {i} missing 'metadata' field"
+        assert chunk.metadata is not None, f"Chunk {i} has None metadata"
+        assert isinstance(chunk.metadata, dict), f"Chunk {i} metadata is not a dict"
 
 
 # ===== Scenario 8: Empty content handling =====

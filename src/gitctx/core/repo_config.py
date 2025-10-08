@@ -21,6 +21,18 @@ class IndexSettings(BaseModel):
     # Chunking settings (STORY-0001.2.2)
     chunk_size: int = Field(default=1000, gt=0)
     chunk_overlap: int = Field(default=200, ge=0)
+    max_chunk_tokens: int = Field(
+        default=1000,
+        ge=100,
+        le=8000,
+        description="Maximum tokens per chunk",
+    )
+    chunk_overlap_ratio: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=0.5,
+        description="Chunk overlap ratio (0.0-0.5)",
+    )
 
     # Walker settings (STORY-0001.2.1)
     max_blob_size_mb: int = Field(
@@ -65,6 +77,8 @@ class RepoConfig(BaseSettings):
     index:
       chunk_size: 1000
       chunk_overlap: 200
+      max_chunk_tokens: 1000
+      chunk_overlap_ratio: 0.2
     model:
       embedding: text-embedding-3-large
     ```

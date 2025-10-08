@@ -325,6 +325,120 @@ class TestFileCorruption:
             RepoConfig()
 
 
+class TestChunkingSettings:
+    """Test chunking-specific IndexSettings fields (STORY-0001.2.2)."""
+
+    def test_chunking_settings_defaults(self, tmp_path, monkeypatch):
+        """Chunking settings should use correct default values."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+
+        # Act - no config file
+        config = RepoConfig()
+
+        # Assert - defaults match chunker requirements
+        assert config.index.max_chunk_tokens == 1000
+        assert config.index.chunk_overlap_ratio == 0.2
+
+    def test_chunking_settings_load_from_yaml(self, tmp_path, monkeypatch):
+        """Chunking settings should load from YAML file."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+        config_dir = tmp_path / ".gitctx"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yml"
+        config_file.write_text("""
+index:
+  max_chunk_tokens: 1500
+  chunk_overlap_ratio: 0.15
+""")
+
+        # Act
+        config = RepoConfig()
+
+        # Assert
+        assert config.index.max_chunk_tokens == 1500
+        assert config.index.chunk_overlap_ratio == 0.15
+
+    def test_chunking_settings_env_var_override(self, tmp_path, monkeypatch):
+        """GITCTX_INDEX__* env vars should override YAML for chunking."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("GITCTX_INDEX__MAX_CHUNK_TOKENS", "2000")
+        monkeypatch.setenv("GITCTX_INDEX__CHUNK_OVERLAP_RATIO", "0.25")
+
+        # Create config file with different values
+        config_dir = tmp_path / ".gitctx"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yml"
+        config_file.write_text("""
+index:
+  max_chunk_tokens: 1000
+  chunk_overlap_ratio: 0.2
+""")
+
+        # Act
+        config = RepoConfig()
+
+        # Assert - env vars win
+        assert config.index.max_chunk_tokens == 2000
+        assert config.index.chunk_overlap_ratio == 0.25
+
+    def test_chunking_settings_validation_max_tokens(self, tmp_path, monkeypatch):
+        """max_chunk_tokens should validate constraints (100-8000)."""
+        from pydantic import ValidationError
+
+        from gitctx.core.repo_config import RepoConfig
+
+        # Test max_chunk_tokens must be >= 100
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"max_chunk_tokens": 50})
+
+        # Test max_chunk_tokens must be <= 8000
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"max_chunk_tokens": 10000})
+
+    def test_chunking_settings_validation_overlap_ratio(self, tmp_path, monkeypatch):
+        """chunk_overlap_ratio should validate constraints (0.0-0.5)."""
+        from pydantic import ValidationError
+
+        from gitctx.core.repo_config import RepoConfig
+
+        # Test chunk_overlap_ratio must be >= 0.0
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"chunk_overlap_ratio": -0.1})
+
+        # Test chunk_overlap_ratio must be <= 0.5
+        with pytest.raises(ValidationError):
+            RepoConfig(index={"chunk_overlap_ratio": 0.6})
+
+    def test_chunking_settings_persist_to_yaml(self, tmp_path, monkeypatch):
+        """Chunking settings should be saved to YAML file."""
+        from gitctx.core.repo_config import RepoConfig
+
+        # Arrange
+        monkeypatch.chdir(tmp_path)
+        config = RepoConfig()
+        config.index.max_chunk_tokens = 1200
+        config.index.chunk_overlap_ratio = 0.3
+
+        # Act
+        config.save()
+
+        # Assert - file exists with correct content
+        config_file = tmp_path / ".gitctx" / "config.yml"
+        assert config_file.exists()
+        content = config_file.read_text()
+        assert "max_chunk_tokens: 1200" in content
+        assert "chunk_overlap_ratio: 0.3" in content
+
+
 class TestWalkerSettings:
     """Test walker-specific IndexSettings fields."""
 
