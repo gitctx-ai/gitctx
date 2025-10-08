@@ -6,6 +6,10 @@
 
 **Context Reduction:** Removes ~300-400 lines of ticket parsing, hierarchy traversal, and completeness scoring from each slash command.
 
+**Contract:** This agent follows [AGENT_CONTRACT.md](AGENT_CONTRACT.md) for input/output formats and error handling.
+
+**Version:** 1.0
+
 ---
 
 ## Agent Mission
@@ -77,57 +81,70 @@ Analyze a story and all its tasks in depth.
 - ✅ Justifies any new patterns (explains why existing insufficient)
 
 **Output Format:**
+
+Wrapped in standard contract (see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)):
+
 ```json
 {
-  "story": {
-    "id": "STORY-NNNN.E.S",
-    "path": "docs/tickets/...",
-    "status": "🔵 Not Started | 🟡 In Progress | ✅ Complete",
-    "completeness_score": 85,
-    "completeness_breakdown": {
-      "user_story_format": true,
-      "parent_epic_exists": true,
-      "acceptance_criteria": false,
-      ...
-    },
-    "issues": [
-      {
-        "type": "missing_detail",
-        "priority": "high",
-        "location": "README.md:42",
-        "current": "Handle authentication",
-        "problem": "Vague - not testable",
-        "fix": "Replace with: 'Validate JWT tokens and return 401 for expired tokens'",
-        "impact": "Blocks implementation - unclear what to build"
+  "status": "success",
+  "agent": "ticket-analyzer",
+  "version": "1.0",
+  "operation": "story-deep",
+  "result": {
+    "story": {
+      "id": "STORY-NNNN.E.S",
+      "path": "docs/tickets/...",
+      "status": "🔵 Not Started | 🟡 In Progress | ✅ Complete",
+      "completeness_score": 85,
+      "completeness_breakdown": {
+        "user_story_format": true,
+        "parent_epic_exists": true,
+        "acceptance_criteria": false,
+        ...
+      },
+      "issues": [
+        {
+          "type": "missing_detail",
+          "priority": "high",
+          "location": "README.md:42",
+          "current": "Handle authentication",
+          "problem": "Vague - not testable",
+          "fix": "Replace with: 'Validate JWT tokens and return 401 for expired tokens'",
+          "impact": "Blocks implementation - unclear what to build"
+        }
+      ],
+      "progress": {
+        "stated": "40%",
+        "actual": "60%",
+        "accurate": false,
+        "tasks_complete": 3,
+        "tasks_total": 5
       }
+    },
+    "tasks": [
+      {
+        "id": "TASK-NNNN.E.S.1",
+        "path": "docs/tickets/.../TASK-NNNN.E.S.1.md",
+        "status": "✅ Complete",
+        "completeness_score": 90,
+        "issues": [...],
+        "estimated_hours": 4,
+        "actual_hours": 5
+      },
+      ...
     ],
-    "progress": {
-      "stated": "40%",
-      "actual": "60%",
-      "accurate": false,
-      "tasks_complete": 3,
-      "tasks_total": 5
+    "hierarchy": {
+      "parent_epic": "EPIC-NNNN.E",
+      "parent_initiative": "INIT-NNNN",
+      "epic_alignment": true,
+      "initiative_alignment": true,
+      "sibling_stories": ["STORY-NNNN.E.1", "STORY-NNNN.E.3"],
+      "conflicts": []
     }
   },
-  "tasks": [
-    {
-      "id": "TASK-NNNN.E.S.1",
-      "path": "docs/tickets/.../TASK-NNNN.E.S.1.md",
-      "status": "✅ Complete",
-      "completeness_score": 90,
-      "issues": [...],
-      "estimated_hours": 4,
-      "actual_hours": 5
-    },
-    ...
-  ],
-  "hierarchy": {
-    "parent_epic": "EPIC-NNNN.E",
-    "parent_initiative": "INIT-NNNN",
-    "epic_alignment": true,
-    "initiative_alignment": true,
-    "sibling_stories": ["STORY-NNNN.E.1", "STORY-NNNN.E.3"],
-    "conflicts": []
+  "metadata": {
+    "execution_time_ms": 1250,
+    "files_read": 12
   }
 }
 ```
@@ -165,27 +182,40 @@ Analyze completeness of a single ticket (INIT, EPIC, STORY, or TASK).
 **Task (10 criteria):** See `story-deep` above
 
 **Output Format:**
+
+Wrapped in standard contract (see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)):
+
 ```json
 {
-  "ticket_id": "EPIC-0001.2",
-  "ticket_type": "epic",
-  "path": "docs/tickets/INIT-0001/EPIC-0001.2/README.md",
-  "completeness_score": 75,
-  "score_breakdown": {
-    "clear_overview": true,
-    "parent_exists": true,
-    "bdd_scenarios": false,
-    ...
+  "status": "success",
+  "agent": "ticket-analyzer",
+  "version": "1.0",
+  "operation": "ticket-completeness",
+  "result": {
+    "ticket_id": "EPIC-0001.2",
+    "ticket_type": "epic",
+    "path": "docs/tickets/INIT-0001/EPIC-0001.2/README.md",
+    "completeness_score": 75,
+    "score_breakdown": {
+      "clear_overview": true,
+      "parent_exists": true,
+      "bdd_scenarios": false,
+      ...
+    },
+    "missing_criteria": [
+      {
+        "criterion": "bdd_scenarios",
+        "description": "At least 1 key BDD scenario",
+        "impact": "high",
+        "fix": "Add Gherkin scenario showing main behavior"
+      }
+    ],
+    "quality_level": "ready_with_issues"
   },
-  "missing_criteria": [
-    {
-      "criterion": "bdd_scenarios",
-      "description": "At least 1 key BDD scenario",
-      "impact": "high",
-      "fix": "Add Gherkin scenario showing main behavior"
-    }
-  ],
-  "quality_level": "ready_with_issues"
+  "metadata": {
+    "execution_time_ms": 450,
+    "files_read": 3
+  }
 }
 ```
 
@@ -202,42 +232,55 @@ Identify missing or incomplete tickets in hierarchy.
 - Undocumented task additions (in-progress mode)
 
 **Output Format:**
+
+Wrapped in standard contract (see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)):
+
 ```json
 {
-  "scope": "EPIC-0001.2 and children",
-  "total_tickets": 15,
-  "gaps_found": 3,
-  "gaps": [
-    {
-      "gap_id": "GAP-001",
-      "type": "missing_ticket",
-      "description": "EPIC-0001.2 references 4 stories but only 2 exist",
-      "missing_tickets": ["STORY-0001.2.3", "STORY-0001.2.4"],
-      "priority": "P0",
-      "blocking": "EPIC-0001.2 completion",
-      "ready": true,
-      "effort_hours": 3
-    },
-    {
-      "gap_id": "GAP-002",
-      "type": "incomplete_detail",
-      "ticket_id": "STORY-0001.2.1",
-      "completeness": 65,
-      "missing": ["BDD scenarios", "task breakdown", "technical design"],
-      "priority": "P1",
-      "ready": false,
-      "blocked_by": ["STORY-0001.2.0 must complete first"]
-    },
-    {
-      "gap_id": "GAP-003",
-      "type": "undocumented_addition",
-      "ticket_id": "TASK-0001.2.1.5",
-      "description": "Task exists but not mentioned in story header",
-      "impact": "Story scope unclear - task addition not explained",
-      "priority": "P2",
-      "fix": "Add note to story README explaining why task was added"
-    }
-  ]
+  "status": "success",
+  "agent": "ticket-analyzer",
+  "version": "1.0",
+  "operation": "hierarchy-gaps",
+  "result": {
+    "scope": "EPIC-0001.2 and children",
+    "total_tickets": 15,
+    "gaps_found": 3,
+    "gaps": [
+      {
+        "gap_id": "GAP-001",
+        "type": "missing_ticket",
+        "description": "EPIC-0001.2 references 4 stories but only 2 exist",
+        "missing_tickets": ["STORY-0001.2.3", "STORY-0001.2.4"],
+        "priority": "P0",
+        "blocking": "EPIC-0001.2 completion",
+        "ready": true,
+        "effort_hours": 3
+      },
+      {
+        "gap_id": "GAP-002",
+        "type": "incomplete_detail",
+        "ticket_id": "STORY-0001.2.1",
+        "completeness": 65,
+        "missing": ["BDD scenarios", "task breakdown", "technical design"],
+        "priority": "P1",
+        "ready": false,
+        "blocked_by": ["STORY-0001.2.0 must complete first"]
+      },
+      {
+        "gap_id": "GAP-003",
+        "type": "undocumented_addition",
+        "ticket_id": "TASK-0001.2.1.5",
+        "description": "Task exists but not mentioned in story header",
+        "impact": "Story scope unclear - task addition not explained",
+        "priority": "P2",
+        "fix": "Add note to story README explaining why task was added"
+      }
+    ]
+  },
+  "metadata": {
+    "execution_time_ms": 850,
+    "files_read": 15
+  }
 }
 ```
 
@@ -255,30 +298,43 @@ Validate that a task is ready for implementation.
 - Pattern reuse identified
 
 **Output Format:**
+
+Wrapped in standard contract (see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)):
+
 ```json
 {
-  "task_id": "TASK-0001.2.1.3",
-  "ready": false,
-  "blocking_issues": [
-    {
-      "type": "prerequisite",
-      "description": "TASK-0001.2.1.2 must be complete",
-      "current_status": "🟡 In Progress",
-      "required_status": "✅ Complete"
-    },
-    {
-      "type": "missing_dependency",
-      "description": "BDD scenarios not found",
-      "expected_file": "tests/e2e/features/cli.feature",
-      "found": false
-    }
-  ],
-  "readiness_score": 40,
-  "estimated_time_to_ready": "30 minutes",
-  "recommendations": [
-    "Complete TASK-0001.2.1.2 first",
-    "Add BDD scenarios before starting implementation"
-  ]
+  "status": "success",
+  "agent": "ticket-analyzer",
+  "version": "1.0",
+  "operation": "task-readiness",
+  "result": {
+    "task_id": "TASK-0001.2.1.3",
+    "ready": false,
+    "blocking_issues": [
+      {
+        "type": "prerequisite",
+        "description": "TASK-0001.2.1.2 must be complete",
+        "current_status": "🟡 In Progress",
+        "required_status": "✅ Complete"
+      },
+      {
+        "type": "missing_dependency",
+        "description": "BDD scenarios not found",
+        "expected_file": "tests/e2e/features/cli.feature",
+        "found": false
+      }
+    ],
+    "readiness_score": 40,
+    "estimated_time_to_ready": "30 minutes",
+    "recommendations": [
+      "Complete TASK-0001.2.1.2 first",
+      "Add BDD scenarios before starting implementation"
+    ]
+  },
+  "metadata": {
+    "execution_time_ms": 320,
+    "files_read": 5
+  }
 }
 ```
 
@@ -423,12 +479,31 @@ For stories not yet started, validate proper BDD/TDD task breakdown:
 ## Output Requirements
 
 1. **Always return valid JSON** - parseable by orchestrating commands
-2. **Be specific** - include file:line locations for issues
-3. **Provide fixes** - don't just identify problems, suggest solutions
-4. **Prioritize** - use P0/P1/P2/P3 for gaps, High/Medium/Low for issues
-5. **Be concise** - orchestrator needs quick structured data, not essays
-6. **Include metrics** - scores, percentages, counts
-7. **Reference sources** - cite which file/line you found issues
+2. **Wrap in standard contract** - see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)
+3. **Be specific** - include file:line locations for issues
+4. **Provide fixes** - don't just identify problems, suggest solutions
+5. **Prioritize** - use P0/P1/P2/P3 for gaps, High/Medium/Low for issues
+6. **Be concise** - orchestrator needs quick structured data, not essays
+7. **Include metrics** - scores, percentages, counts
+8. **Reference sources** - cite which file/line you found issues
+
+---
+
+## Error Handling
+
+This agent follows the standard error handling contract defined in [AGENT_CONTRACT.md](AGENT_CONTRACT.md#standard-error-types).
+
+**Common error scenarios:**
+
+- `missing_file` - Target ticket file not found (check branch name, verify file exists)
+- `parse_error` - Ticket file malformed (missing required sections, invalid format)
+- `invalid_input` - Missing required parameters (analysis type, target, scope)
+
+**Graceful degradation:**
+
+When story exists but task files missing, return `partial` status with story analysis and warnings about missing tasks.
+
+See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for complete error handling specification.
 
 ---
 

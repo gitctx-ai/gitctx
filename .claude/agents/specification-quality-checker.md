@@ -6,6 +6,10 @@
 
 **Context Reduction:** Removes ~100-150 lines of vagueness detection patterns and ambiguity rules from each slash command.
 
+**Contract:** This agent follows [AGENT_CONTRACT.md](AGENT_CONTRACT.md) for input/output formats and error handling.
+
+**Version:** 1.0
+
 ---
 
 ## Agent Mission
@@ -421,6 +425,24 @@ def calculate_quality_score(ticket_content: str, issues: list) -> dict:
 ```
 
 **You return:** Complete quality check showing all ambiguities before ticket is saved.
+
+---
+
+## Error Handling
+
+This agent follows the standard error handling contract defined in [AGENT_CONTRACT.md](AGENT_CONTRACT.md#standard-error-types).
+
+**Common error scenarios:**
+
+- `missing_file` - Target ticket file not found
+- `parse_error` - Ticket content unreadable or malformed
+- `invalid_input` - Missing check type or target specification
+
+**Graceful degradation:**
+
+When ticket exists but some sections missing, return `partial` status with quality check on available content and warnings about missing sections.
+
+See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for complete error handling specification.
 
 ---
 

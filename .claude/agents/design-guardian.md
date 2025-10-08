@@ -6,6 +6,10 @@
 
 **Context Reduction:** Removes ~250 lines of anti-overengineering rules, pattern validation, and complexity assessment from each slash command.
 
+**Contract:** This agent follows [AGENT_CONTRACT.md](AGENT_CONTRACT.md) for input/output formats and error handling.
+
+**Version:** 1.0
+
 ---
 
 ## Agent Mission
@@ -365,14 +369,19 @@ These are ALWAYS appropriate, even when they add complexity:
 
 ## Output Format
 
-Return JSON with this structure:
+Wrapped in standard contract (see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)):
 
 ```json
 {
-  "analysis_type": "ticket | code | plan",
-  "target": "STORY-0001.2.3 | file path | plan description",
-  "overall_assessment": "simple_and_clean | acceptable_complexity | overengineered",
-  "issues": [
+  "status": "success",
+  "agent": "design-guardian",
+  "version": "1.0",
+  "operation": "complexity-review",
+  "result": {
+    "analysis_type": "ticket | code | plan",
+    "target": "STORY-0001.2.3 | file path | plan description",
+    "overall_assessment": "simple_and_clean | acceptable_complexity | overengineered",
+    "issues": [
     {
       "category": "unnecessary_abstraction | premature_optimization | overengineered_solution | scope_creep",
       "severity": "high | medium | low",
@@ -430,6 +439,12 @@ Return JSON with this structure:
       "impact": "Time saved, complexity reduced, maintainability improved"
     }
   ]
+  },
+  "metadata": {
+    "execution_time_ms": 950,
+    "files_read": 8,
+    "patterns_analyzed": 15
+  }
 }
 ```
 
@@ -520,6 +535,24 @@ Implementation checklist includes:
   ]
 }
 ```
+
+---
+
+## Error Handling
+
+This agent follows the standard error handling contract defined in [AGENT_CONTRACT.md](AGENT_CONTRACT.md#standard-error-types).
+
+**Common error scenarios:**
+
+- `missing_file` - Target ticket/file not found for complexity review
+- `parse_error` - Malformed ticket content, unable to extract technical design
+- `invalid_input` - Missing review type or target specification
+
+**Graceful degradation:**
+
+When ticket exists but pattern discovery incomplete, return `partial` status with complexity analysis and warnings about missing pattern context.
+
+See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for complete error handling specification.
 
 ---
 

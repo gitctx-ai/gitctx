@@ -6,6 +6,10 @@
 
 **Context Reduction:** Removes ~150-200 lines of git command sequences, commit parsing, and status comparison logic from each slash command.
 
+**Contract:** This agent follows [AGENT_CONTRACT.md](AGENT_CONTRACT.md) for input/output formats and error handling.
+
+**Version:** 1.0
+
 ---
 
 ## Agent Mission
@@ -62,38 +66,51 @@ git log main..HEAD --format='%H|%an|%ae|%ai|%s%n%b'
 ```
 
 **Output Format:**
+
+Wrapped in standard contract (see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)):
+
 ```json
 {
-  "branch": "STORY-0001.2.3",
-  "head_sha": "a1b2c3d",
-  "commits": {
-    "total": 4,
-    "shas": ["a1b2c3d", "e4f5g6h", "i7j8k9l", "m0n1o2p"],
-    "messages": [
-      {
-        "sha": "a1b2c3d",
-        "author": "Name",
-        "email": "email@example.com",
-        "date": "2025-10-07T10:30:00-07:00",
-        "subject": "feat(TASK-0001.2.3.1): Add config init command",
-        "body": "Implements config init subcommand...",
-        "task_references": ["TASK-0001.2.3.1"]
-      }
-    ]
-  },
-  "files": {
-    "committed": {
-      "modified": ["src/gitctx/cli.py", "tests/unit/test_cli.py"],
-      "added": ["src/gitctx/config.py"],
-      "deleted": [],
-      "stat": "+234 -12"
+  "status": "success",
+  "agent": "git-state-analyzer",
+  "version": "1.0",
+  "operation": "branch-status",
+  "result": {
+    "branch": "STORY-0001.2.3",
+    "head_sha": "a1b2c3d",
+    "commits": {
+      "total": 4,
+      "shas": ["a1b2c3d", "e4f5g6h", "i7j8k9l", "m0n1o2p"],
+      "messages": [
+        {
+          "sha": "a1b2c3d",
+          "author": "Name",
+          "email": "email@example.com",
+          "date": "2025-10-07T10:30:00-07:00",
+          "subject": "feat(TASK-0001.2.3.1): Add config init command",
+          "body": "Implements config init subcommand...",
+          "task_references": ["TASK-0001.2.3.1"]
+        }
+      ]
     },
-    "uncommitted": {
-      "modified": ["README.md"],
-      "added": [],
-      "deleted": [],
-      "stat": "+5 -0"
+    "files": {
+      "committed": {
+        "modified": ["src/gitctx/cli.py", "tests/unit/test_cli.py"],
+        "added": ["src/gitctx/config.py"],
+        "deleted": [],
+        "stat": "+234 -12"
+      },
+      "uncommitted": {
+        "modified": ["README.md"],
+        "added": [],
+        "deleted": [],
+        "stat": "+5 -0"
+      }
     }
+  },
+  "metadata": {
+    "execution_time_ms": 450,
+    "git_commands_run": 4
   }
 }
 ```
@@ -111,62 +128,76 @@ Compare what tickets claim is done vs what git shows.
 3. Identify mismatches
 
 **Output Format:**
+
+Wrapped in standard contract (see [AGENT_CONTRACT.md](AGENT_CONTRACT.md)):
+
 ```json
 {
-  "validated_tasks": [
-    {
-      "task_id": "TASK-0001.2.3.1",
-      "ticket_status": "✅ Complete",
-      "git_evidence": {
-        "found": true,
-        "commits": ["a1b2c3d"],
-        "commit_messages": ["feat(TASK-0001.2.3.1): Add config init command"],
-        "files_modified": ["src/gitctx/cli.py", "src/gitctx/config.py"],
-        "expected_files": ["src/gitctx/cli.py", "src/gitctx/config.py"],
-        "files_match": true
+  "status": "success",
+  "agent": "git-state-analyzer",
+  "version": "1.0",
+  "operation": "task-validation",
+  "result": {
+    "validated_tasks": [
+      {
+        "task_id": "TASK-0001.2.3.1",
+        "ticket_status": "✅ Complete",
+        "git_evidence": {
+          "found": true,
+          "commits": ["a1b2c3d"],
+          "commit_messages": ["feat(TASK-0001.2.3.1): Add config init command"],
+          "files_modified": ["src/gitctx/cli.py", "src/gitctx/config.py"],
+          "expected_files": ["src/gitctx/cli.py", "src/gitctx/config.py"],
+          "files_match": true
+        },
+        "verdict": "accurate",
+        "confidence": "high"
       },
-      "verdict": "accurate",
-      "confidence": "high"
-    },
-    {
-      "task_id": "TASK-0001.2.3.2",
-      "ticket_status": "✅ Complete",
-      "git_evidence": {
-        "found": false,
-        "commits": [],
-        "commit_messages": [],
-        "files_modified": [],
-        "expected_files": ["tests/e2e/features/cli.feature"],
-        "files_match": false
+      {
+        "task_id": "TASK-0001.2.3.2",
+        "ticket_status": "✅ Complete",
+        "git_evidence": {
+          "found": false,
+          "commits": [],
+          "commit_messages": [],
+          "files_modified": [],
+          "expected_files": ["tests/e2e/features/cli.feature"],
+          "files_match": false
+        },
+        "verdict": "ticket_ahead_of_reality",
+        "confidence": "high",
+        "problem": "Task marked complete but no commit found implementing it",
+        "fix": "Change status to 🔵 Not Started or 🟡 In Progress"
       },
-      "verdict": "ticket_ahead_of_reality",
-      "confidence": "high",
-      "problem": "Task marked complete but no commit found implementing it",
-      "fix": "Change status to 🔵 Not Started or 🟡 In Progress"
-    },
-    {
-      "task_id": "TASK-0001.2.3.3",
-      "ticket_status": "🔵 Not Started",
-      "git_evidence": {
-        "found": true,
-        "commits": ["e4f5g6h"],
-        "commit_messages": ["feat(TASK-0001.2.3.3): Implement config validation"],
-        "files_modified": ["src/gitctx/config.py", "tests/unit/test_config.py"],
-        "expected_files": ["src/gitctx/config.py"],
-        "files_match": true
-      },
-      "verdict": "reality_ahead_of_ticket",
-      "confidence": "high",
-      "problem": "Work complete but task not marked ✅",
-      "fix": "Change status to ✅ Complete, record actual hours"
+      {
+        "task_id": "TASK-0001.2.3.3",
+        "ticket_status": "🔵 Not Started",
+        "git_evidence": {
+          "found": true,
+          "commits": ["e4f5g6h"],
+          "commit_messages": ["feat(TASK-0001.2.3.3): Implement config validation"],
+          "files_modified": ["src/gitctx/config.py", "tests/unit/test_config.py"],
+          "expected_files": ["src/gitctx/config.py"],
+          "files_match": true
+        },
+        "verdict": "reality_ahead_of_ticket",
+        "confidence": "high",
+        "problem": "Work complete but task not marked ✅",
+        "fix": "Change status to ✅ Complete, record actual hours"
+      }
+    ],
+    "summary": {
+      "total_tasks": 5,
+      "accurate": 2,
+      "ticket_ahead": 1,
+      "reality_ahead": 2,
+      "drift_count": 3
     }
-  ],
-  "summary": {
-    "total_tasks": 5,
-    "accurate": 2,
-    "ticket_ahead": 1,
-    "reality_ahead": 2,
-    "drift_count": 3
+  },
+  "metadata": {
+    "execution_time_ms": 680,
+    "git_commands_run": 6,
+    "tickets_read": 5
   }
 }
 ```
@@ -539,6 +570,25 @@ If task file exists but not in story's task table:
 ```
 
 **You return:** Current branch state JSON showing commits, files changed, uncommitted changes.
+
+---
+
+## Error Handling
+
+This agent follows the standard error handling contract defined in [AGENT_CONTRACT.md](AGENT_CONTRACT.md#standard-error-types).
+
+**Common error scenarios:**
+
+- `missing_file` - Not in a git repository, or ticket files not found
+- `access_denied` - Cannot run git commands (permissions, not in repo)
+- `invalid_input` - Missing branch name or comparison base
+- `internal_error` - Git command failed unexpectedly
+
+**Graceful degradation:**
+
+When git commands succeed but ticket files missing, return `partial` status with git analysis and warnings about missing ticket context.
+
+See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for complete error handling specification.
 
 ---
 

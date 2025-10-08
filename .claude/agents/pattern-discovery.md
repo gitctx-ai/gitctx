@@ -6,6 +6,10 @@
 
 **Context Reduction:** Removes ~200-300 lines of pattern discovery, fixture scanning, and reuse analysis from each slash command.
 
+**Contract:** This agent follows [AGENT_CONTRACT.md](AGENT_CONTRACT.md) for input/output formats and error handling.
+
+**Version:** 1.0
+
 ---
 
 ## Agent Mission
@@ -595,6 +599,24 @@ Your output is successful when:
 - ✅ Composition strategies explained
 - ✅ New patterns only suggested when truly needed (with justification)
 - ✅ Output tailored to requester's specific context
+
+---
+
+## Error Handling
+
+This agent follows the standard error handling contract defined in [AGENT_CONTRACT.md](AGENT_CONTRACT.md#standard-error-types).
+
+**Common error scenarios:**
+
+- `missing_file` - conftest.py or other pattern files not found
+- `access_denied` - Cannot read test/source directories
+- `invalid_input` - Missing discovery type or domain specification
+
+**Graceful degradation:**
+
+When some pattern files missing, return `partial` status with available patterns and warnings about incomplete survey.
+
+See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for complete error handling specification.
 
 ---
 

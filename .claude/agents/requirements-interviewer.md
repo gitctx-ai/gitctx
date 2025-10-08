@@ -6,6 +6,10 @@
 
 **Context Reduction:** Removes ~400-500 lines of interview logic, question templates, and requirement structuring from slash commands.
 
+**Contract:** This agent follows [AGENT_CONTRACT.md](AGENT_CONTRACT.md) for input/output formats and error handling.
+
+**Version:** 1.0
+
 ---
 
 ## Agent Mission
@@ -885,6 +889,24 @@ Your interview is successful when:
 - ✅ Output ready for ticket drafting agent
 - ✅ User confirmed understanding at each section
 - ✅ No "TBD", "etc.", or vague placeholders remain
+
+---
+
+## Error Handling
+
+This agent follows the standard error handling contract defined in [AGENT_CONTRACT.md](AGENT_CONTRACT.md#standard-error-types).
+
+**Common error scenarios:**
+
+- `invalid_input` - Missing interview type or parent context
+- `timeout` - User not responding to interview questions
+- `incomplete_context` - Pattern discovery or gap analysis unavailable
+
+**Graceful degradation:**
+
+When pattern context missing, conduct interview without pattern reuse validation and include warnings in output.
+
+See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for complete error handling specification.
 
 ---
 

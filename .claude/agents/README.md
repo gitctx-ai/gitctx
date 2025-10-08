@@ -291,6 +291,14 @@ Show aggregated analysis to user with:
 
 ## Error Handling Strategy
 
+**Note:** All agents now follow a standardized error handling contract defined in [AGENT_CONTRACT.md](AGENT_CONTRACT.md). See that document for:
+- Standard input/output formats
+- Error response structures
+- Graceful degradation strategies
+- Output validation requirements
+
+The examples below show how slash commands should integrate with contract-compliant agents.
+
 ### Agent Output Validation
 
 **Always validate agent outputs before using them:**
