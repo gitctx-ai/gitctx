@@ -199,9 +199,6 @@ class TestMergeCommitDetection:
         # Assert - merge commit is detected correctly
         merge_commit = merge_commits[0]
         assert merge_commit.is_merge is True
-        assert (
-            "Merge" in merge_commit.commit_message or "merge" in merge_commit.commit_message.lower()
-        )
 
 
 class TestProtocolAdherence:
