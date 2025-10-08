@@ -15,13 +15,14 @@ So that chunks can be semantically searched with high-quality vector representat
 
 - [ ] Generate embeddings using OpenAI text-embedding-3-large model (3072 dimensions)
 - [ ] Batch chunk requests to maximize throughput (up to 2048 chunks per API call)
-- [ ] Track token usage and API costs per chunk and in aggregate
+- [ ] Track token usage and API costs per chunk and in aggregate (accurate to ±1% compared to OpenAI billing)
 - [ ] Handle API errors gracefully (rate limits, network errors, invalid requests)
 - [ ] Implement exponential backoff retry logic for transient failures
 - [ ] Cache embeddings by blob SHA to avoid re-computing unchanged content
 - [ ] Support async/await for concurrent embedding generation
 - [ ] Validate embedding dimensions match expected model output (3072)
 - [ ] Log progress (chunks embedded, tokens used, estimated cost)
+- [ ] Handle empty chunk lists gracefully (return empty list, no API calls)
 - [ ] Read API key from GitCtxSettings with proper validation
 
 ## BDD Scenarios
@@ -112,11 +113,11 @@ Feature: OpenAI Embedding Generation
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
 | [TASK-0001.2.3.1](TASK-0001.2.3.1.md) | Write BDD scenarios for embedding generation | 🔵 | 2 | 0/10 scenarios (all failing) |
-| [TASK-0001.2.3.2](TASK-0001.2.3.2.md) | Define EmbedderProtocol and embedding dataclasses (with tests) | 🔵 | 3 | 1/10 scenarios passing |
-| [TASK-0001.2.3.3](TASK-0001.2.3.3.md) | Implement OpenAIEmbedder with batching and retry logic (TDD) and BDD scenarios | 🔵 | 10 | 7/10 scenarios passing |
-| [TASK-0001.2.3.4](TASK-0001.2.3.4.md) | Integration with EmbeddingCache, configuration, and final BDD scenarios | 🔵 | 5 | 10/10 scenarios passing ✅ |
+| [TASK-0001.2.3.2](TASK-0001.2.3.2.md) | Define protocols, models, and EmbeddingCache + add dependencies | 🔵 | 4 | 2/10 scenarios passing |
+| [TASK-0001.2.3.3](TASK-0001.2.3.3.md) | Implement OpenAIEmbedder with cache integration (TDD) and BDD | 🔵 | 8 | 8/10 scenarios passing |
+| [TASK-0001.2.3.4](TASK-0001.2.3.4.md) | Configuration integration, cost tracking, and final BDD scenarios | 🔵 | 4 | 10/10 scenarios passing ✅ |
 
-**Total**: 20 hours = 5 story points
+**Total**: 18 hours = 5 story points (reduced from 20h due to LangChain handling complexity)
 
 ## Technical Design
 
@@ -167,25 +168,31 @@ class EmbedderProtocol(Protocol):
         ...
 ```
 
-### OpenAI API Integration
+### OpenAI API Integration (LangChain v1.0 Alpha)
 
-Use AsyncOpenAI client with batching for maximum throughput:
+Use LangChain wrapper for OpenAI embeddings with automatic batching, retry, and rate limiting:
 
 ```python
 # src/gitctx/embeddings/openai_embedder.py
 
-from openai import AsyncOpenAI
-import asyncio
-from typing import List
+from langchain_openai import OpenAIEmbeddings
 
 class OpenAIEmbedder(EmbedderProtocol):
-    """OpenAI embedding generator with batching and retry logic.
+    """OpenAI embedding generator wrapping LangChain.
 
     Implementation notes:
-    - Uses text-embedding-3-large model (3072 dimensions, $0.13/1M tokens)
-    - Batches up to 2048 chunks per API call for efficiency
-    - Implements exponential backoff for rate limits and network errors
+    - Uses LangChain's OpenAIEmbeddings (langchain_openai v1.0 alpha)
+    - LangChain handles batching (up to 2048 chunks), retry, rate limiting
     - Validates embedding dimensions to catch API changes
+    - Wraps LangChain for provider abstraction (easy to add Anthropic, Cohere, etc.)
+
+    LangChain Benefits:
+    - ✅ Automatic batching via chunk_size parameter
+    - ✅ Exponential backoff retry via max_retries
+    - ✅ Rate limiting handling (429 errors)
+    - ✅ Token counting via tiktoken
+    - ✅ Long input handling (auto-split)
+    - ✅ Future provider flexibility
     """
 
     MODEL = "text-embedding-3-large"
@@ -193,141 +200,96 @@ class OpenAIEmbedder(EmbedderProtocol):
     COST_PER_MILLION_TOKENS = 0.13  # USD
     MAX_BATCH_SIZE = 2048  # OpenAI API limit
 
-    def __init__(self, api_key: str, max_retries: int = 5, base_delay: float = 1.0):
+    def __init__(
+        self,
+        api_key: str,
+        max_retries: int = 3,
+        show_progress: bool = False,
+        **kwargs
+    ):
         """Initialize the embedder.
 
         Args:
-            api_key: OpenAI API key
-            max_retries: Maximum retry attempts for transient failures
-            base_delay: Base delay in seconds for exponential backoff
+            api_key: OpenAI API key (must start with 'sk-')
+            max_retries: Maximum retry attempts for transient failures (default: 3)
+            show_progress: Show progress bar for batch processing
+            **kwargs: Additional args for OpenAIEmbeddings
         """
-        self.client = AsyncOpenAI(api_key=api_key)
-        self.max_retries = max_retries
-        self.base_delay = base_delay
+        if not api_key or not api_key.startswith("sk-"):
+            raise ConfigurationError("Invalid OpenAI API key")
+
+        # Wrap LangChain OpenAIEmbeddings
+        self._embeddings = OpenAIEmbeddings(
+            model=self.MODEL,
+            dimensions=self.DIMENSIONS,
+            chunk_size=self.MAX_BATCH_SIZE,  # Automatic batching
+            max_retries=max_retries,          # Exponential backoff
+            show_progress_bar=show_progress,
+            tiktoken_enabled=True,            # Token counting
+            check_embedding_ctx_length=True,  # Auto-split long inputs
+            api_key=api_key,
+            **kwargs
+        )
 
     async def embed_chunks(
         self,
         chunks: list[CodeChunk],
         blob_sha: str
     ) -> list[Embedding]:
-        """Generate embeddings for chunks with batching and retry logic."""
-        embeddings = []
+        """Generate embeddings for chunks (LangChain handles batching/retry).
 
-        # Process in batches of MAX_BATCH_SIZE
-        for i in range(0, len(chunks), self.MAX_BATCH_SIZE):
-            batch = chunks[i:i + self.MAX_BATCH_SIZE]
-            batch_embeddings = await self._embed_batch_with_retry(batch, blob_sha)
-            embeddings.extend(batch_embeddings)
+        Args:
+            chunks: Code chunks to embed
+            blob_sha: Git blob SHA for metadata
 
-        return embeddings
+        Returns:
+            List of Embedding objects with vectors and metadata
+        """
+        # Extract content from chunks
+        contents = [chunk.content for chunk in chunks]
 
-    async def _embed_batch_with_retry(
-        self,
-        chunks: list[CodeChunk],
-        blob_sha: str
-    ) -> list[Embedding]:
-        """Embed a batch with exponential backoff retry logic."""
-        for attempt in range(self.max_retries):
-            try:
-                return await self._embed_batch(chunks, blob_sha)
-            except RateLimitError:
-                if attempt == self.max_retries - 1:
-                    raise
-                delay = self.base_delay * (2 ** attempt)
-                logger.warning(f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{self.max_retries})")
-                await asyncio.sleep(delay)
-            except NetworkError:
-                if attempt == self.max_retries - 1:
-                    raise
-                delay = self.base_delay * (2 ** attempt)
-                logger.warning(f"Network error, retrying in {delay}s (attempt {attempt + 1}/{self.max_retries})")
-                await asyncio.sleep(delay)
+        # Call LangChain (handles batching, retry, rate limiting)
+        vectors = await self._embeddings.aembed_documents(contents)
 
-    async def _embed_batch(
-        self,
-        chunks: list[CodeChunk],
-        blob_sha: str
-    ) -> list[Embedding]:
-        """Embed a single batch (no retry logic)."""
-        # Extract chunk content
-        texts = [chunk.content for chunk in chunks]
-
-        # Call OpenAI API
-        response = await self.client.embeddings.create(
-            input=texts,
-            model=self.MODEL,
-            dimensions=self.DIMENSIONS
-        )
-
-        # Validate and convert to Embedding objects
-        embeddings = []
-        for idx, (chunk, embedding_data) in enumerate(zip(chunks, response.data)):
-            # Validate dimensions
-            if len(embedding_data.embedding) != self.DIMENSIONS:
+        # Validate dimensions
+        for vector in vectors:
+            if len(vector) != self.DIMENSIONS:
                 raise DimensionMismatchError(
-                    f"Expected {self.DIMENSIONS} dimensions, got {len(embedding_data.embedding)}"
+                    f"Expected {self.DIMENSIONS} dimensions, got {len(vector)}"
                 )
 
+        # Build Embedding objects with metadata
+        embeddings = []
+        for idx, (chunk, vector) in enumerate(zip(chunks, vectors)):
             embeddings.append(Embedding(
-                vector=embedding_data.embedding,
+                vector=vector,
                 token_count=chunk.token_count,
                 model=self.MODEL,
                 cost_usd=self.estimate_cost(chunk.token_count),
                 blob_sha=blob_sha,
-                chunk_index=chunk.metadata["chunk_index"]
+                chunk_index=idx
             ))
 
         return embeddings
 
     def estimate_cost(self, token_count: int) -> float:
-        """Estimate cost in USD for embedding token_count tokens."""
+        """Estimate cost in USD for embedding token_count tokens.
+
+        Note: LangChain doesn't expose cost automatically, so we calculate manually.
+        """
         return (token_count / 1_000_000) * self.COST_PER_MILLION_TOKENS
 ```
 
-### Retry Logic (Exponential Backoff)
+### Retry Logic (Handled by LangChain)
 
-Exponential backoff for transient failures:
+LangChain handles retry logic automatically with exponential backoff:
 
-- **Rate Limits (429)**: Retry with delays 1s, 2s, 4s, 8s, 16s (up to max_retries)
-- **Network Errors**: Same exponential backoff pattern
+- **Rate Limits (429)**: LangChain detects HTTP 429 errors and automatically retries with exponential backoff (delays: 4s, 8s, 16s) up to max_retries attempts
+- **Network Errors**: Connection errors, timeouts, and transient failures follow same exponential backoff pattern (base delay 1s, max 20s)
+- **Configuration**: Control via `max_retries` parameter (default: 3, configurable via constructor)
 - **Other Errors**: Fail immediately (invalid API key, malformed request, etc.)
 
-### Caching Strategy
-
-Reuse EmbeddingCache from prototype for blob-based caching:
-
-```python
-# Integration with existing cache (from STORY-0001.1.3)
-
-async def embed_with_cache(
-    chunker: ChunkerProtocol,
-    embedder: EmbedderProtocol,
-    cache: EmbeddingCache,
-    blob_record: BlobRecord
-) -> list[Embedding]:
-    """Embed blob chunks with caching by blob SHA."""
-
-    # Check cache first
-    cached = await cache.get(blob_record.sha)
-    if cached:
-        logger.info(f"Cache hit for blob {blob_record.sha}")
-        return cached
-
-    # Cache miss - generate embeddings
-    logger.info(f"Cache miss for blob {blob_record.sha}")
-    chunks = chunker.chunk_file(
-        content=blob_record.content.decode("utf-8"),
-        language=detect_language_from_extension(blob_record.locations[0].file_path),
-        max_tokens=800
-    )
-
-    embeddings = await embedder.embed_chunks(chunks, blob_record.sha)
-
-    # Store in cache
-    await cache.set(blob_record.sha, embeddings)
-
-    return embeddings
-```
+**Complexity Reduction**: ~200 lines of custom retry logic eliminated by using LangChain.
 
 ### Cost Tracking
 
@@ -373,14 +335,18 @@ class GitCtxSettings(BaseSettings):
 
 ### External Libraries
 
-- `openai>=1.0.0,<2.0` - AsyncOpenAI client (1.x API stability)
-- `tiktoken>=0.8.0,<1.0` - Token counting (used by chunker, validates chunk tokens)
+- `langchain-core>=1.0.0a0` - Core abstractions (v1.0 alpha, requires Python ≥3.10)
+- `langchain-openai>=1.0.0a0` - OpenAI embeddings provider (wraps OpenAI API)
+- `tiktoken>=0.5.0` - Token counting (peer dependency for LangChain)
 
 ### Internal Dependencies
 
 - **STORY-0001.2.2** (Blob Chunking) - Provides CodeChunk input
-- **STORY-0001.1.3** (Embedding Cache) - Provides EmbeddingCache for caching ✅
 - **STORY-0001.1.2** (Configuration) - Provides GitCtxSettings for API key ✅
+
+**Internal Components** (implemented within this story):
+- `EmbeddingCache` - Safetensor-based persistent cache (`.gitctx/embeddings/{model}/{blob_sha}.safetensors`)
+- `OpenAIEmbedder` - LangChain wrapper with batching, retry logic, cost tracking
 
 ### Downstream Consumers
 
@@ -405,8 +371,9 @@ From existing codebase analysis:
 **Anti-Patterns to Avoid**:
 
 - ❌ Don't use numpy arrays (breaks FFI compatibility)
-- ❌ Don't implement custom retry logic (use tenacity or builtin)
+- ❌ Don't implement custom retry logic (LangChain handles this)
 - ❌ Don't cache in memory (use EmbeddingCache for persistence)
+- ❌ Don't use direct OpenAI client (use LangChain for provider flexibility)
 
 ## Success Criteria
 
@@ -431,10 +398,11 @@ Story is complete when:
 
 ## Notes
 
-- Follow the prototype in `/Users/bram/Code/codectl-ai/gitctx` closely
+- **LangChain v1.0 Alpha Adoption**: Using latest LangChain for future provider flexibility
+- **Provider Abstraction**: Easy to add Anthropic, Cohere, HuggingFace embeddings later
 - OpenAI text-embedding-3-large: 3072 dimensions, $0.13/1M tokens
 - Batching is critical for performance (500x speedup vs individual calls)
-- Exponential backoff prevents cascading failures during rate limits
+- LangChain handles retry, batching, rate limiting automatically (~200 lines of code saved)
 - Cache by blob SHA ensures identical content never re-embedded
 
 ---
