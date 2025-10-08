@@ -43,6 +43,268 @@ def isolated_env(temp_home: Path, monkeypatch):
 # === Fixture Factories ===
 
 
+def _get_main_branch_name(repo_path, git_isolation_base) -> str:
+    """Determine default branch name (main, master, trunk, etc.).
+
+    Uses git branch --list to find which default branch exists in the repo.
+    More robust than substring matching - checks for actual branch existence.
+
+    Returns:
+        str: Name of the default branch (main, master, trunk, develop, etc.)
+    """
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "branch", "--list"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    branches = result.stdout.strip()
+
+    # Check for common default branch names in order of modern preference
+    for branch_name in ["main", "master", "trunk", "develop"]:
+        # Match whole words with leading * or whitespace to avoid substring matches
+        if f"* {branch_name}" in branches or f"  {branch_name}" in branches:
+            return branch_name
+
+    # Fallback: return the first branch found (removing * and whitespace)
+    first_branch = branches.split("\n")[0].strip().lstrip("* ").strip()
+    return first_branch if first_branch else "main"
+
+
+def _create_two_way_merge(repo_path, git_isolation_base, num_commits: int) -> None:
+    """Create a two-way merge commit (2 parents).
+
+    Args:
+        repo_path: Path to git repository
+        git_isolation_base: Git isolation environment
+        num_commits: Total number of commits (for commit message)
+    """
+    import subprocess
+
+    # Create feature branch from current HEAD
+    subprocess.run(
+        ["git", "branch", "feature"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Switch to feature branch
+    subprocess.run(
+        ["git", "checkout", "feature"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create commit on feature branch
+    (repo_path / "feature.py").write_text("def feature(): pass")
+    subprocess.run(
+        ["git", "add", "feature.py"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Feature commit"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Switch back to main/master
+    main_branch = _get_main_branch_name(repo_path, git_isolation_base)
+    subprocess.run(
+        ["git", "checkout", main_branch],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create merge commit with 2 parents (--no-ff forces merge commit)
+    subprocess.run(
+        [
+            "git",
+            "merge",
+            "feature",
+            "--no-ff",
+            "-m",
+            f"Merge commit (Commit {num_commits})",
+        ],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _create_octopus_merge(repo_path, git_isolation_base, num_commits: int) -> None:
+    """Create an octopus merge commit (3+ parents).
+
+    Args:
+        repo_path: Path to git repository
+        git_isolation_base: Git isolation environment
+        num_commits: Total number of commits (for commit message)
+    """
+    import subprocess
+
+    # Create feature1 branch
+    subprocess.run(
+        ["git", "branch", "feature1"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "checkout", "feature1"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+    (repo_path / "feature1.py").write_text("def feature1(): pass")
+    subprocess.run(
+        ["git", "add", "feature1.py"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Feature1 commit"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Switch back to main
+    main_branch = _get_main_branch_name(repo_path, git_isolation_base)
+    subprocess.run(
+        ["git", "checkout", main_branch],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create feature2 branch
+    subprocess.run(
+        ["git", "branch", "feature2"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "checkout", "feature2"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+    (repo_path / "feature2.py").write_text("def feature2(): pass")
+    subprocess.run(
+        ["git", "add", "feature2.py"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Feature2 commit"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Switch back to main
+    subprocess.run(
+        ["git", "checkout", main_branch],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create octopus merge (3 parents: main + feature1 + feature2)
+    # Git supports merging multiple branches at once
+    subprocess.run(
+        [
+            "git",
+            "merge",
+            "feature1",
+            "feature2",
+            "--no-ff",
+            "-m",
+            f"Octopus merge commit (Commit {num_commits})",
+        ],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _create_fast_forward_merge(repo_path, git_isolation_base) -> None:
+    """Create a fast-forward merge (linear history, no merge commit).
+
+    Args:
+        repo_path: Path to git repository
+        git_isolation_base: Git isolation environment
+    """
+    import subprocess
+
+    # Create feature branch
+    subprocess.run(
+        ["git", "branch", "feature"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "checkout", "feature"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create commit on feature branch
+    (repo_path / "feature.py").write_text("def feature(): pass")
+    subprocess.run(
+        ["git", "add", "feature.py"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Feature commit"],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Switch back to main and fast-forward merge (default behavior when possible)
+    main_branch = _get_main_branch_name(repo_path, git_isolation_base)
+    subprocess.run(
+        ["git", "checkout", main_branch],
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "merge", "feature", "--ff-only"],  # Force fast-forward only
+        cwd=repo_path,
+        env=git_isolation_base,
+        check=True,
+        capture_output=True,
+    )
+
+
 @pytest.fixture
 def git_repo_factory(git_isolation_base, tmp_path):
     """
@@ -64,16 +326,38 @@ def git_repo_factory(git_isolation_base, tmp_path):
     def _make_repo(
         num_commits: int = 1,
         files: dict[str, str] | None = None,
-        create_merge: bool = False,
+        create_merge: bool = False,  # DEPRECATED: Use merge_type instead
+        merge_type: str | None = None,
     ) -> Path:
         """Create git repo with N commits.
 
         Args:
             num_commits: Number of commits to create
             files: Optional dict of filename -> content
-            create_merge: If True, create a merge commit with 2 parents
-                         (requires num_commits >= 3: 1 initial, 1 feature, 1 merge)
+            create_merge: DEPRECATED - Use merge_type="two-way" instead
+            merge_type: Type of merge commit to create:
+                       - None: No merge (default)
+                       - "two-way": 2-parent merge (requires num_commits >= 3)
+                       - "octopus": 3-parent merge (requires num_commits >= 5)
+                       - "fast-forward": Linear history, no merge commit
+
+        Raises:
+            ValueError: If merge_type requires more commits than num_commits
         """
+        # Handle backward compatibility: create_merge=True -> merge_type="two-way"
+        if create_merge and merge_type is None:
+            merge_type = "two-way"
+        elif create_merge and merge_type is not None:
+            raise ValueError("Cannot specify both create_merge and merge_type")
+
+        # Validate merge_type requirements
+        if merge_type == "two-way" and num_commits < 3:
+            raise ValueError("merge_type='two-way' requires num_commits >= 3")
+        elif merge_type == "octopus" and num_commits < 5:
+            raise ValueError(
+                "merge_type='octopus' requires num_commits >= 5 (2 initial, 2 branches, 1 merge)"
+            )
+
         repo_path = tmp_path / f"test_repo_{id(files)}"
         repo_path.mkdir(exist_ok=True)
 
@@ -104,12 +388,17 @@ def git_repo_factory(git_isolation_base, tmp_path):
             (repo_path / "main.py").write_text('print("Hello")')
 
         # Determine how many regular commits to create
-        if create_merge:
+        if merge_type == "two-way":
             # Reserve last commit for merge
-            if num_commits < 3:
-                raise ValueError("create_merge requires num_commits >= 3")
             regular_commits = num_commits - 1  # -1 for merge commit
+        elif merge_type == "octopus":
+            # Reserve last commit for octopus merge
+            regular_commits = num_commits - 1  # -1 for merge commit
+        elif merge_type == "fast-forward":
+            # Fast-forward doesn't create merge commit, all commits are regular
+            regular_commits = num_commits
         else:
+            # No merge
             regular_commits = num_commits
 
         # Create regular commits
@@ -132,76 +421,12 @@ def git_repo_factory(git_isolation_base, tmp_path):
             )
 
         # Create merge commit if requested
-        if create_merge:
-            # Create feature branch from current HEAD
-            subprocess.run(
-                ["git", "branch", "feature"],
-                cwd=repo_path,
-                env=git_isolation_base,
-                check=True,
-            )
-
-            # Switch to feature branch
-            subprocess.run(
-                ["git", "checkout", "feature"],
-                cwd=repo_path,
-                env=git_isolation_base,
-                check=True,
-                capture_output=True,  # Suppress "Switched to branch" message
-            )
-
-            # Create commit on feature branch
-            (repo_path / "feature.py").write_text("def feature(): pass")
-            subprocess.run(
-                ["git", "add", "feature.py"],
-                cwd=repo_path,
-                env=git_isolation_base,
-                check=True,
-            )
-            subprocess.run(
-                ["git", "commit", "-m", "Feature commit"],
-                cwd=repo_path,
-                env=git_isolation_base,
-                check=True,
-            )
-
-            # Switch back to main/master branch
-            # First determine which branch name is used
-            result = subprocess.run(
-                ["git", "branch", "--list"],
-                cwd=repo_path,
-                env=git_isolation_base,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            # Look for main or master in branch list
-            main_branch = "main" if "main" in result.stdout else "master"
-
-            subprocess.run(
-                ["git", "checkout", main_branch],
-                cwd=repo_path,
-                env=git_isolation_base,
-                check=True,
-                capture_output=True,  # Suppress "Switched to branch" message
-            )
-
-            # Create merge commit with 2 parents using git merge
-            # Use --no-ff to force merge commit even if fast-forward possible
-            subprocess.run(
-                [
-                    "git",
-                    "merge",
-                    "feature",
-                    "--no-ff",
-                    "-m",
-                    f"Merge commit (Commit {num_commits})",
-                ],
-                cwd=repo_path,
-                env=git_isolation_base,
-                check=True,
-                capture_output=True,
-            )
+        if merge_type == "two-way":
+            _create_two_way_merge(repo_path, git_isolation_base, num_commits)
+        elif merge_type == "octopus":
+            _create_octopus_merge(repo_path, git_isolation_base, num_commits)
+        elif merge_type == "fast-forward":
+            _create_fast_forward_merge(repo_path, git_isolation_base)
 
         return repo_path
 
