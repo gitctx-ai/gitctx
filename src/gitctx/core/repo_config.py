@@ -21,6 +21,8 @@ class IndexSettings(BaseModel):
     # Chunking settings (STORY-0001.2.2)
     chunk_size: int = Field(default=1000, gt=0)
     chunk_overlap: int = Field(default=200, ge=0)
+    # Safety margin below text-embedding-3-large's 8191 limit to account for
+    # token estimation errors (chunker uses char-to-token ratio approximation)
     max_chunk_tokens: int = Field(
         default=1000,
         ge=100,
