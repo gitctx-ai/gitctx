@@ -1,6 +1,7 @@
 """Data models for commit walker."""
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -147,3 +148,38 @@ class WalkStats:
         """Initialize errors list if None."""
         if self.errors is None:
             self.errors = []
+
+
+@dataclass
+class CodeChunk:
+    """Represents a chunk of code with metadata.
+
+    Design notes:
+    - Simple dataclass for easy FFI serialization (future Rust optimization)
+    - All fields use primitive types (str, int, dict)
+    - No Path objects (use strings for Rust compatibility)
+
+    Attributes:
+        content: Chunk text content
+        start_line: Line number where chunk starts (1-indexed)
+        end_line: Line number where chunk ends (inclusive)
+        token_count: Exact token count via tiktoken
+        metadata: Additional metadata (blob_sha, chunk_index, language, etc.)
+
+    Examples:
+        >>> chunk = CodeChunk(
+        ...     content="def foo():\\n    pass",
+        ...     start_line=10,
+        ...     end_line=11,
+        ...     token_count=8,
+        ...     metadata={"language": "python", "chunk_index": 0}
+        ... )
+        >>> chunk.token_count
+        8
+    """
+
+    content: str
+    start_line: int
+    end_line: int
+    token_count: int
+    metadata: dict[str, Any]
