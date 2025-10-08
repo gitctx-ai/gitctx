@@ -61,8 +61,19 @@ def git_repo_factory(git_isolation_base, tmp_path):
     """
     import subprocess
 
-    def _make_repo(num_commits: int = 1, files: dict[str, str] | None = None) -> Path:
-        """Create git repo with N commits."""
+    def _make_repo(
+        num_commits: int = 1,
+        files: dict[str, str] | None = None,
+        create_merge: bool = False,
+    ) -> Path:
+        """Create git repo with N commits.
+
+        Args:
+            num_commits: Number of commits to create
+            files: Optional dict of filename -> content
+            create_merge: If True, create a merge commit with 2 parents
+                         (requires num_commits >= 3: 1 initial, 1 feature, 1 merge)
+        """
         repo_path = tmp_path / f"test_repo_{id(files)}"
         repo_path.mkdir(exist_ok=True)
 
@@ -92,8 +103,17 @@ def git_repo_factory(git_isolation_base, tmp_path):
         else:
             (repo_path / "main.py").write_text('print("Hello")')
 
-        # Create commits
-        for i in range(num_commits):
+        # Determine how many regular commits to create
+        if create_merge:
+            # Reserve last commit for merge
+            if num_commits < 3:
+                raise ValueError("create_merge requires num_commits >= 3")
+            regular_commits = num_commits - 1  # -1 for merge commit
+        else:
+            regular_commits = num_commits
+
+        # Create regular commits
+        for i in range(regular_commits):
             if i > 0:
                 # Modify file for subsequent commits
                 (repo_path / "main.py").write_text(f'print("Commit {i + 1}")')
@@ -109,6 +129,78 @@ def git_repo_factory(git_isolation_base, tmp_path):
                 cwd=repo_path,
                 env=git_isolation_base,
                 check=True,
+            )
+
+        # Create merge commit if requested
+        if create_merge:
+            # Create feature branch from current HEAD
+            subprocess.run(
+                ["git", "branch", "feature"],
+                cwd=repo_path,
+                env=git_isolation_base,
+                check=True,
+            )
+
+            # Switch to feature branch
+            subprocess.run(
+                ["git", "checkout", "feature"],
+                cwd=repo_path,
+                env=git_isolation_base,
+                check=True,
+                capture_output=True,  # Suppress "Switched to branch" message
+            )
+
+            # Create commit on feature branch
+            (repo_path / "feature.py").write_text("def feature(): pass")
+            subprocess.run(
+                ["git", "add", "feature.py"],
+                cwd=repo_path,
+                env=git_isolation_base,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "Feature commit"],
+                cwd=repo_path,
+                env=git_isolation_base,
+                check=True,
+            )
+
+            # Switch back to main/master branch
+            # First determine which branch name is used
+            result = subprocess.run(
+                ["git", "branch", "--list"],
+                cwd=repo_path,
+                env=git_isolation_base,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            # Look for main or master in branch list
+            main_branch = "main" if "main" in result.stdout else "master"
+
+            subprocess.run(
+                ["git", "checkout", main_branch],
+                cwd=repo_path,
+                env=git_isolation_base,
+                check=True,
+                capture_output=True,  # Suppress "Switched to branch" message
+            )
+
+            # Create merge commit with 2 parents using git merge
+            # Use --no-ff to force merge commit even if fast-forward possible
+            subprocess.run(
+                [
+                    "git",
+                    "merge",
+                    "feature",
+                    "--no-ff",
+                    "-m",
+                    f"Merge commit (Commit {num_commits})",
+                ],
+                cwd=repo_path,
+                env=git_isolation_base,
+                check=True,
+                capture_output=True,
             )
 
         return repo_path

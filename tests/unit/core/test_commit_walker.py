@@ -177,10 +177,126 @@ class TestMergeCommitDetection:
         assert all(commit.is_merge is False for commit in commits)
 
     def test_merge_commit_detection(self, git_repo_factory, isolated_env):
-        """Merge commits have is_merge=True (deferred to later task)."""
-        # This test is a placeholder for TASK-0001.2.1.2 or later
-        # when we implement merge commit creation in fixtures
-        pytest.skip("Merge commit fixture not yet implemented")
+        """Merge commits have is_merge=True."""
+        # Arrange - create repo with merge commit (3 commits: 1 main, 1 feature, 1 merge)
+        repo_path = git_repo_factory(num_commits=3, create_merge=True)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - walk commits and collect metadata
+        commits = list(walker._walk_commits())
+
+        # Assert - should have at least 3 commits total (initial + feature + merge)
+        assert len(commits) >= 3, f"Expected at least 3 commits, got {len(commits)}"
+
+        # Assert - at least one commit is a merge
+        merge_commits = [c for c in commits if c.is_merge]
+        non_merge_commits = [c for c in commits if not c.is_merge]
+
+        assert len(merge_commits) >= 1, "Should have at least one merge commit"
+        assert len(non_merge_commits) >= 2, "Should have at least two non-merge commits"
+
+        # Assert - merge commit is detected correctly
+        merge_commit = merge_commits[0]
+        assert merge_commit.is_merge is True
+        assert (
+            "Merge" in merge_commit.commit_message or "merge" in merge_commit.commit_message.lower()
+        )
+
+
+class TestProtocolAdherence:
+    """Test CommitWalker implements CommitWalkerProtocol correctly."""
+
+    def test_commit_walker_implements_protocol(self, git_repo_factory, isolated_env):
+        """CommitWalker satisfies CommitWalkerProtocol (mypy verification)."""
+        # Arrange
+        from gitctx.core import create_walker
+
+        repo_path = git_repo_factory(num_commits=1)
+        config = GitCtxSettings()
+
+        # Act
+        walker = create_walker(str(repo_path), config)
+
+        # Assert - verify walker has required protocol methods
+        assert hasattr(walker, "walk_blobs")
+        assert hasattr(walker, "get_stats")
+        assert callable(walker.walk_blobs)
+        assert callable(walker.get_stats)
+
+        # Verify return types use primitives (mypy checks at compile time)
+        # Runtime check: verify BlobRecord fields are primitives
+        for blob_record in walker.walk_blobs():
+            assert isinstance(blob_record.sha, str)
+            assert isinstance(blob_record.content, bytes)
+            assert isinstance(blob_record.size, int)
+            assert isinstance(blob_record.locations, list)
+
+            for loc in blob_record.locations:
+                assert isinstance(loc.commit_sha, str)
+                assert isinstance(loc.file_path, str)  # Not Path!
+                assert isinstance(loc.is_head, bool)
+                assert isinstance(loc.is_merge, bool)
+            break  # Check first record only
+
+    def test_factory_returns_protocol_type(self, git_repo_factory, isolated_env):
+        """create_walker() returns CommitWalkerProtocol instance."""
+        # Arrange
+        from gitctx.core import create_walker
+        from gitctx.core.commit_walker import CommitWalker
+
+        repo_path = git_repo_factory(num_commits=1)
+        config = GitCtxSettings()
+
+        # Act
+        walker = create_walker(str(repo_path), config)
+
+        # Assert - walker is CommitWalker instance
+        assert isinstance(walker, CommitWalker)
+
+        # Assert - walker has protocol methods (duck typing)
+        assert hasattr(walker, "walk_blobs")
+        assert hasattr(walker, "get_stats")
+
+        # Type checker verifies: create_walker() -> CommitWalkerProtocol
+        # at compile time via mypy strict mode
+
+    def test_ffi_primitive_type_constraints(self, git_repo_factory, isolated_env):
+        """Walker API uses only FFI-compatible primitive types."""
+        # Arrange
+        from pathlib import Path
+
+        from gitctx.core import create_walker
+
+        repo_path = git_repo_factory(num_commits=1)
+        config = GitCtxSettings()
+
+        # Act
+        # Factory accepts str, not Path (FFI compatible)
+        walker = create_walker(str(repo_path), config)
+
+        # Assert - walk_blobs yields BlobRecord with primitive fields
+        for blob_record in walker.walk_blobs():
+            # Verify no Path objects (FFI incompatible)
+            assert not isinstance(blob_record.sha, Path)
+            assert isinstance(blob_record.sha, str)
+            assert isinstance(blob_record.content, bytes)
+            assert isinstance(blob_record.size, int)
+
+            for loc in blob_record.locations:
+                # file_path must be str, not Path (FFI compatible)
+                assert not isinstance(loc.file_path, Path)
+                assert isinstance(loc.file_path, str)
+
+                # Other fields must be primitives
+                assert isinstance(loc.commit_sha, str)
+                assert isinstance(loc.is_head, bool)
+                assert isinstance(loc.is_merge, bool)
+                assert isinstance(loc.author_name, str)
+                assert isinstance(loc.author_email, str)
+                assert isinstance(loc.commit_date, int)
+                assert isinstance(loc.commit_message, str)
+            break  # Check first record only
 
 
 # ============================================================================
