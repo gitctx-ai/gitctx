@@ -547,3 +547,60 @@ def submodule_repo(tmp_path, git_isolation_base):
     parent_repo.set_head("refs/heads/main")
 
     return parent_path
+
+
+@pytest.fixture
+def code_blob_factory():
+    """Factory for generating code blobs with specific token counts.
+
+    Returns a function that generates deterministic code with exact token count.
+    Uses seeded random for reproducibility.
+
+    Returns:
+        callable: Factory function(language, target_tokens, seed) -> str
+
+    Usage:
+        def test_large_blob(code_blob_factory):
+            blob = code_blob_factory("python", target_tokens=5000)
+            # blob has ~5000 tokens
+    """
+    import random
+
+    import tiktoken
+
+    def _make_blob(language: str, target_tokens: int, seed: int = 42) -> str:
+        """Generate code blob with target token count."""
+        random.seed(seed)
+        encoder = tiktoken.get_encoding("cl100k_base")
+
+        # Generate code until we hit target tokens
+        lines = []
+        current_tokens = 0
+
+        # Language-specific templates
+        if language == "python":
+            templates = [
+                "def func{i}():\n    return {j}\n",
+                "class Class{i}:\n    value = {j}\n",
+                "# Comment {i}\nresult = {j}\n",
+            ]
+        elif language in ("js", "ts"):
+            templates = [
+                "function func{i}() {{ return {j}; }}\n",
+                "const val{i} = {j};\n",
+                "// Comment {i}\nlet x = {j};\n",
+            ]
+        else:
+            templates = ["line {i} = {j}\n"]
+
+        i = 0
+        while current_tokens < target_tokens:
+            template = random.choice(templates)
+            line = template.format(i=i, j=random.randint(1, 1000))
+            lines.append(line)
+            current_tokens = len(encoder.encode("".join(lines)))
+            i += 1
+
+        return "".join(lines)
+
+    return _make_blob

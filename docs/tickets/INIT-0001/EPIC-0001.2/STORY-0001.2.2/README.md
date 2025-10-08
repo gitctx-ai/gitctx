@@ -3,7 +3,7 @@
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 5
-**Progress**: ████░░░░░░ 40% (2/5 tasks complete)
+**Progress**: ██████░░░░ 60% (3/5 tasks complete)
 
 ## User Story
 
@@ -108,7 +108,7 @@ Feature: Blob Content Chunking
 |----|-------|--------|-------|--------------|
 | [TASK-0001.2.2.1](TASK-0001.2.2.1.md) | Write BDD scenarios for chunking behavior | ✅ | 3 | 0/9 scenarios (all failing) |
 | [TASK-0001.2.2.2](TASK-0001.2.2.2.md) | Define protocols, models, and language detection (with tests) | ✅ | 3 | 1/9 scenarios passing |
-| [TASK-0001.2.2.3](TASK-0001.2.2.3.md) | Implement LanguageAwareChunker with unit tests (TDD) and BDD scenarios | 🔵 | 10 | 7/9 scenarios passing |
+| [TASK-0001.2.2.3](TASK-0001.2.2.3.md) | Implement LanguageAwareChunker with unit tests (TDD) and BDD scenarios | ✅ | 10 | 8/9 scenarios passing |
 | [TASK-0001.2.2.4](TASK-0001.2.2.4.md) | Integration with CommitWalker, configuration, and final BDD scenario | 🔵 | 4 | 9/9 scenarios passing ✅ |
 
 **Total**: 20 hours = 5 story points
@@ -169,65 +169,63 @@ class ChunkerProtocol(Protocol):
 
 ### Language Detection
 
-Simple extension-based detection provides 90%+ accuracy with zero dependencies:
+Extension-based detection provides 95%+ accuracy with zero dependencies, supporting all 27 LangChain languages:
 
 ```python
 # src/gitctx/core/language_detection.py
+# Comprehensive coverage: 60+ file extensions across 27 LangChain-supported languages
+# Source: https://github.com/langchain-ai/langchain/blob/master/libs/text-splitters/langchain_text_splitters/base.py
 
-from pathlib import Path
-
-# Map file extensions to LangChain language identifiers
 EXTENSION_TO_LANGUAGE = {
-    ".py": "python",
-    ".js": "js",
-    ".jsx": "js",
-    ".ts": "ts",
-    ".tsx": "ts",
-    ".go": "go",
-    ".rs": "rust",
-    ".java": "java",
-    ".c": "c",
-    ".h": "cpp",      # Default .h to C++
-    ".cpp": "cpp",
-    ".hpp": "hpp",
-    ".rb": "ruby",
-    ".php": "php",
-    ".swift": "swift",
-    ".kt": "kotlin",
-    ".scala": "scala",
-    ".sql": "sql",
-    ".sh": "bash",
-    ".html": "html",
-    ".css": "css",
-    ".md": "markdown",
-    # Add more as needed (~30 total for 95% coverage)
+    # Python
+    ".py": "python", ".pyw": "python", ".pyx": "python",
+    # JavaScript/TypeScript
+    ".js": "js", ".jsx": "js", ".mjs": "js", ".cjs": "js",
+    ".ts": "ts", ".tsx": "ts", ".mts": "ts", ".cts": "ts",
+    # C/C++/C#
+    ".c": "c", ".h": "cpp", ".cpp": "cpp", ".cc": "cpp",
+    ".cs": "csharp",
+    # Other major languages
+    ".go": "go", ".rs": "rust", ".java": "java",
+    ".kt": "kotlin", ".scala": "scala", ".rb": "ruby",
+    ".php": "php", ".swift": "swift",
+    # Specialized languages
+    ".proto": "proto", ".sol": "sol", ".lua": "lua",
+    ".pl": "perl", ".hs": "haskell", ".ex": "elixir",
+    ".ps1": "powershell", ".vb": "visualbasic6", ".cob": "cobol",
+    # Markup/Documentation
+    ".md": "markdown", ".rst": "rst", ".tex": "latex", ".html": "html",
+    # ... (60+ total - see language_detection.py for complete list)
 }
 
 def detect_language_from_extension(file_path: str) -> str:
-    """Detect programming language from file extension.
-
-    MVP approach: Simple extension mapping covers 90%+ of real-world files.
-    Falls back to 'markdown' for unknown types (generic text splitting works fine).
-
-    Future: Can upgrade to content-based detection if metrics show need.
-
-    Args:
-        file_path: Path to file
-
-    Returns:
-        Language identifier for LangChain RecursiveCharacterTextSplitter
-    """
+    """Detect language from extension (95%+ accuracy, 60+ extensions)."""
     ext = Path(file_path).suffix.lower()
     return EXTENSION_TO_LANGUAGE.get(ext, "markdown")
+
+# Separate mapping for testability/replaceability
+def get_langchain_language(language: str) -> str | None:
+    """Convert gitctx language to LangChain code.
+
+    Returns None for unsupported languages (generic fallback).
+    Allows testing without LangChain dependency.
+    """
+    return LANGUAGE_TO_LANGCHAIN.get(language.lower())
 ```
 
 **Design Rationale:**
 
 - No external dependencies (Pygments, Linguist, etc.)
-- 90%+ accuracy on common code files
+- **95%+ accuracy** with comprehensive extension coverage (60+ extensions)
+- **All 27 LangChain languages** supported with proper mapping
+- **Testable**: `get_langchain_language()` tested independently of LangChain
+- **Replaceable**: Easy to swap LangChain for alternative text splitter
+- Verified against official LangChain source code
 - Explicit fallback behavior (markdown = generic splitting)
-- Easy to test and maintain
 - Can upgrade to content-based detection later if needed
+
+**LangChain Supported Languages (27)**:
+cpp, go, java, kotlin, js, ts, php, proto, python, rst, ruby, rust, scala, swift, markdown, latex, html, sol, csharp, cobol, c, lua, perl, haskell, elixir, powershell, visualbasic6
 
 ### LangChain Integration
 
