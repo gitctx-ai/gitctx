@@ -1,9 +1,9 @@
 # STORY-0001.2.1: Commit Graph Walker with Blob Deduplication
 
 **Parent**: [EPIC-0001.2](../README.md)
-**Status**: ✅ Complete
-**Story Points**: 9
-**Progress**: ██████████ 100% (7/7 tasks complete)
+**Status**: 🟡 In Progress
+**Story Points**: 10
+**Progress**: ███████████░ 87% (7/8 tasks complete)
 
 ## User Story
 
@@ -26,7 +26,8 @@ So that downstream components can chunk, embed, and store with complete git cont
 - [ ] Detects partial clones and errors with helpful message
 - [ ] Detects shallow clones and errors asking for unshallow
 - [ ] Reports progress during walk (callback with metrics)
-- [ ] Handles errors gracefully (corrupt blobs, missing refs)
+- [ ] Handles non-fatal errors gracefully (oversized blobs, LFS pointers, invalid encoding logged to WalkStats.errors)
+- [ ] Fatal errors (partial clone, shallow clone, missing refs) raise specific exceptions with helpful messages
 - [ ] Can resume from partial index (skip already-indexed blobs)
 
 ## BDD Scenarios
@@ -108,13 +109,6 @@ Feature: Commit Graph Walker
     And package.json should be indexed (not gitignored)
     And gitignore rules should apply to all commits (historical and current)
 
-  Scenario: Graceful error handling
-    Given a repository with a corrupt blob (can't read content)
-    When I walk the commit graph
-    Then the corrupt blob should be skipped with a warning
-    And the walker should continue processing other blobs
-    And WalkStats.errors should contain a WalkError for the corrupt blob
-    And the error should include blob SHA, commit SHA, and error message
 ```
 
 ### Edge Case Scenarios (Unit Tests)
@@ -158,10 +152,82 @@ def test_octopus_merge_detection(tmp_path):
 | [TASK-0001.2.1.4](TASK-0001.2.1.4.md) | Blob Filtering | ✅ Complete | 7 |
 | [TASK-0001.2.1.5](TASK-0001.2.1.5.md) | Progress & Error Handling | ✅ Complete | 4 |
 | [TASK-0001.2.1.6](TASK-0001.2.1.6.md) | BDD Scenarios & Integration Tests | ✅ Complete | 12 |
+| [TASK-0001.2.1.7](TASK-0001.2.1.7.md) | Protocol-Based Refactor & Merge Commit Test | 🔵 Not Started | 6 |
 
-**Total**: 48 hours (46 estimated, 48 actual)
+**Total**: 54 hours (52 estimated, 48 actual + 6 pending)
 
 ## Technical Design
+
+### Protocol-Based Design
+
+Following Core Design Principle #1 (Protocol-Based Design for Future Rust Optimization), the walker uses a protocol-based architecture:
+
+```python
+# src/gitctx/core/protocols.py (extend existing)
+
+from typing import Iterator, Protocol, Callable
+
+class CommitWalkerProtocol(Protocol):
+    """Protocol for commit graph walking - can be fulfilled by Python or Rust.
+
+    Enables future optimization: Python implementation now, Rust implementation
+    later via PyO3 bindings, without breaking changes to consuming code.
+
+    Design principles:
+    - Use primitive types (str, int, bool) for FFI compatibility
+    - Return dataclasses with primitive fields only (no Path objects)
+    - Stateful protocol with initialization and walk separation
+    """
+
+    def walk(
+        self,
+        progress_callback: Callable[[WalkProgress], None] | None = None
+    ) -> Iterator[BlobRecord]:
+        """Walk commits and yield unique blobs with location metadata.
+
+        Args:
+            progress_callback: Optional callback invoked every 10 commits
+                             with WalkProgress metrics
+
+        Yields:
+            BlobRecord containing sha, content, size, and all locations
+
+        Raises:
+            PartialCloneError: If repository is a partial clone
+            ShallowCloneError: If repository is a shallow clone
+            GitRepositoryError: If repository is invalid or inaccessible
+        """
+        ...
+
+    def get_stats(self) -> WalkStats:
+        """Get statistics from completed or in-progress walk."""
+        ...
+
+
+def create_walker(
+    repo_path: str,
+    config: GitCtxSettings,
+    already_indexed: set[str] | None = None
+) -> CommitWalkerProtocol:
+    """Factory function to create a commit walker.
+
+    This allows easy swapping of implementations in the future
+    (e.g., Rust implementation via PyO3).
+
+    Args:
+        repo_path: Path to git repository (str for FFI compatibility)
+        config: Configuration settings
+        already_indexed: Set of blob SHAs to skip (for resume)
+
+    Returns:
+        Walker instance implementing CommitWalkerProtocol
+
+    Raises:
+        PartialCloneError: If repo is partial clone
+        ShallowCloneError: If repo is shallow clone
+    """
+    return CommitWalker(repo_path, config, already_indexed)
+```
 
 ### Core Data Structures
 
@@ -345,12 +411,17 @@ class CommitWalker:
 
 The following are intentionally excluded from this story:
 
-1. ❌ **Git Notes** (`refs/notes/*`) - Defer to INIT-0002 (Intelligence Layer)
-2. ❌ **Reflog walking** - Only walk reachable commits from refs
-3. ❌ **Submodule recursion** - Treat submodules as separate repos (user runs gitctx in each)
-4. ❌ **Parent commit SHAs** - Defer to STORY-0001.2.6 (graph topology)
-5. ❌ **Commit graph analytics** - Defer to INIT-0002
-6. ❌ **Normalized LanceDB tables** - Using denormalized schema for MVP
+1. ❌ **Corrupt blob recovery** - Scenario "Graceful error handling" permanently deferred
+   - Rationale: Creating test fixtures with corrupt blobs requires raw git object manipulation (unsafe, too complex for testing)
+   - Current behavior: Walker errors on corrupt blob (pygit2 raises exception)
+   - Future work: Not planned - users should fix corruption with `git fsck` before indexing
+   - Decision: Removed from BDD scenarios and acceptance criteria (see TASK-0001.2.1.7)
+2. ❌ **Git Notes** (`refs/notes/*`) - Defer to INIT-0002 (Intelligence Layer)
+3. ❌ **Reflog walking** - Only walk reachable commits from refs
+4. ❌ **Submodule recursion** - Treat submodules as separate repos (user runs gitctx in each)
+5. ❌ **Parent commit SHAs** - Defer to STORY-0001.2.6 (graph topology)
+6. ❌ **Commit graph analytics** - Defer to INIT-0002
+7. ❌ **Normalized LanceDB tables** - Using denormalized schema for MVP
 
 ## Success Criteria
 
