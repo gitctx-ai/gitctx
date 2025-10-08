@@ -14,7 +14,7 @@ Instead of monolithic slash commands with embedded analysis logic, we use **spec
 
 ## Architecture Pattern
 
-```
+```text
 Slash Command (Orchestrator)
     ↓
     ├─→ Agent 1 (analyze X) → returns structured data
@@ -179,7 +179,7 @@ Aggregate results → Present to user → Execute actions
 
 Use when each agent needs output from the previous one:
 
-```
+```text
 1. ticket-analyzer → identifies gaps
 2. requirements-interviewer → fills gaps (using gap analysis)
 3. specification-quality-checker → validates clarity (using captured requirements)
@@ -190,7 +190,7 @@ Use when each agent needs output from the previous one:
 
 Use when agents can run independently:
 
-```
+```text
 Launch in parallel:
 ├─→ ticket-analyzer (completeness)
 ├─→ pattern-discovery (reusable patterns)
@@ -204,7 +204,7 @@ Wait for all → Aggregate results → Present combined report
 
 Use when some agents are only needed in certain modes:
 
-```
+```text
 Always invoke:
 ├─→ ticket-analyzer
 └─→ specification-quality-checker
@@ -273,19 +273,304 @@ Show aggregated analysis to user with:
 
 ## Best Practices
 
-### DO:
+### DO
+
 - ✅ Use agents for analysis, commands for orchestration
 - ✅ Invoke agents in parallel when possible
 - ✅ Store agent outputs for later reference
 - ✅ Aggregate results before presenting to user
 - ✅ Pass context between agents (e.g., gap analysis → interviewer)
 
-### DON'T:
+### DON'T
+
 - ❌ Duplicate agent logic in slash commands
 - ❌ Invoke agents sequentially if they can run in parallel
 - ❌ Skip agent validation in commands
 - ❌ Ignore agent recommendations
 - ❌ Mix orchestration and analysis logic
+
+## Error Handling Strategy
+
+### Agent Output Validation
+
+**Always validate agent outputs before using them:**
+
+```python
+import json
+from typing import Any
+
+def validate_agent_output(
+    output: str,
+    agent_name: str,
+    required_keys: list[str]
+) -> dict[str, Any]:
+    """
+    Validate agent output is valid JSON with required keys.
+
+    Args:
+        output: Raw agent output string
+        agent_name: Name of agent for error messages
+        required_keys: List of required top-level keys
+
+    Returns:
+        Parsed and validated JSON dict
+
+    Raises:
+        ValueError: If output is invalid or missing keys
+    """
+    # Parse JSON
+    try:
+        data = json.loads(output)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"{agent_name} returned invalid JSON: {str(e)}\n"
+            f"Output preview: {output[:200]}"
+        )
+
+    # Validate required keys
+    missing = set(required_keys) - set(data.keys())
+    if missing:
+        raise ValueError(
+            f"{agent_name} output missing required keys: {missing}\n"
+            f"Available keys: {list(data.keys())}"
+        )
+
+    return data
+
+
+# Usage in slash commands
+try:
+    ticket_analysis = invoke_agent("ticket-analyzer", input_spec)
+    validated = validate_agent_output(
+        ticket_analysis,
+        "ticket-analyzer",
+        ["analysis_type", "completeness_score", "issues"]
+    )
+except ValueError as e:
+    # Handle validation error
+    show_error(f"Agent validation failed: {e}")
+    return
+```
+
+### Graceful Degradation
+
+**When agents fail, commands should degrade gracefully:**
+
+```python
+def invoke_agent_safe(
+    agent_name: str,
+    input_spec: str,
+    timeout: int = 300
+) -> dict[str, Any] | None:
+    """
+    Invoke agent with error handling and timeout.
+
+    Returns None if agent fails, allowing command to continue
+    with reduced functionality.
+    """
+    try:
+        output = invoke_agent(agent_name, input_spec, timeout=timeout)
+        return validate_agent_output(output, agent_name, EXPECTED_KEYS[agent_name])
+    except TimeoutError:
+        log.warning(f"{agent_name} timed out after {timeout}s")
+        return None
+    except ValueError as e:
+        log.warning(f"{agent_name} validation failed: {e}")
+        return None
+    except Exception as e:
+        log.error(f"{agent_name} unexpected error: {e}")
+        return None
+
+
+# Usage: Continue with reduced analysis
+ticket_analysis = invoke_agent_safe("ticket-analyzer", spec)
+pattern_analysis = invoke_agent_safe("pattern-discovery", spec)
+
+if not ticket_analysis:
+    show_warning("Ticket analysis unavailable - continuing with limited checks")
+    # Proceed with basic validation instead
+
+if pattern_analysis:
+    show_patterns(pattern_analysis["fixtures_available"])
+else:
+    show_warning("Pattern discovery failed - manual pattern search required")
+```
+
+### Parallel Agent Error Handling
+
+**When running agents in parallel, decide on fail-fast vs continue:**
+
+```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def invoke_agents_parallel(
+    agents: list[tuple[str, str]],  # [(agent_name, input_spec), ...]
+    fail_fast: bool = False
+) -> dict[str, dict[str, Any]]:
+    """
+    Invoke multiple agents in parallel.
+
+    Args:
+        agents: List of (agent_name, input_spec) tuples
+        fail_fast: If True, cancel remaining on first failure
+
+    Returns:
+        Dict mapping agent_name to output (or None if failed)
+    """
+    results = {}
+
+    with ThreadPoolExecutor(max_workers=len(agents)) as executor:
+        # Submit all agent invocations
+        futures = {
+            executor.submit(invoke_agent_safe, name, spec): name
+            for name, spec in agents
+        }
+
+        # Collect results
+        for future in as_completed(futures):
+            agent_name = futures[future]
+
+            try:
+                result = future.result()
+                results[agent_name] = result
+
+                if fail_fast and result is None:
+                    # Cancel remaining agents
+                    for f in futures:
+                        f.cancel()
+                    raise RuntimeError(f"{agent_name} failed (fail-fast mode)")
+
+            except Exception as e:
+                log.error(f"{agent_name} failed: {e}")
+                results[agent_name] = None
+
+                if fail_fast:
+                    raise
+
+    return results
+
+
+# Usage: Continue-on-error mode (default)
+results = invoke_agents_parallel([
+    ("ticket-analyzer", ticket_spec),
+    ("pattern-discovery", pattern_spec),
+    ("design-guardian", design_spec),
+])
+
+# Check which agents succeeded
+successful = [name for name, result in results.items() if result is not None]
+failed = [name for name, result in results.items() if result is None]
+
+if failed:
+    show_warning(f"Some agents failed: {failed}. Continuing with {successful}.")
+```
+
+### User-Facing Error Messages
+
+**Translate technical errors into actionable guidance:**
+
+```python
+def handle_agent_error(agent_name: str, error: Exception) -> str:
+    """Generate user-friendly error message with action steps."""
+
+    error_guidance = {
+        "ticket-analyzer": (
+            "Unable to analyze ticket completeness.\n"
+            "**Action**: Manually review story README and task files for:\n"
+            "  - Missing acceptance criteria\n"
+            "  - Incomplete technical design\n"
+            "  - Vague task descriptions"
+        ),
+        "pattern-discovery": (
+            "Pattern discovery failed.\n"
+            "**Action**: Manually search for reusable fixtures:\n"
+            "  - Check tests/conftest.py for existing fixtures\n"
+            "  - Search for similar tests: grep -r 'test_similar' tests/\n"
+            "  - Review existing helpers in src/gitctx/utils/"
+        ),
+        "git-state-analyzer": (
+            "Git analysis unavailable.\n"
+            "**Action**: Manually verify ticket status matches commits:\n"
+            "  - Run: git log main..HEAD --oneline\n"
+            "  - Compare commits to task checklist\n"
+            "  - Update task statuses if drift detected"
+        ),
+    }
+
+    default_message = (
+        f"{agent_name} analysis failed.\n"
+        f"**Action**: Proceed with manual review or skip this validation."
+    )
+
+    return error_guidance.get(agent_name, default_message)
+```
+
+### Retry Strategy
+
+**For transient failures, implement retry with backoff:**
+
+```python
+import time
+
+def invoke_agent_with_retry(
+    agent_name: str,
+    input_spec: str,
+    max_retries: int = 2,
+    backoff: float = 2.0
+) -> dict[str, Any] | None:
+    """
+    Invoke agent with exponential backoff retry.
+
+    Useful for transient failures (network, rate limits, etc.)
+    """
+    for attempt in range(max_retries + 1):
+        try:
+            output = invoke_agent(agent_name, input_spec)
+            return validate_agent_output(output, agent_name, EXPECTED_KEYS[agent_name])
+
+        except (TimeoutError, ConnectionError) as e:
+            if attempt < max_retries:
+                wait_time = backoff ** attempt
+                log.warning(
+                    f"{agent_name} attempt {attempt + 1} failed: {e}. "
+                    f"Retrying in {wait_time}s..."
+                )
+                time.sleep(wait_time)
+            else:
+                log.error(f"{agent_name} failed after {max_retries + 1} attempts")
+                return None
+
+        except ValueError as e:
+            # Validation errors don't benefit from retry
+            log.error(f"{agent_name} validation error (not retrying): {e}")
+            return None
+```
+
+### Error Reporting to Users
+
+**When presenting analysis results, clearly indicate partial results:**
+
+```text
+# Story Analysis Report
+
+## ✅ Completed Analyses
+- **Ticket Structure**: 85% complete (see details below)
+- **Pattern Discovery**: 12 reusable fixtures found
+
+## ⚠️ Partial Analyses
+- **Design Complexity**: Analysis timed out
+  - **Impact**: Cannot validate against overengineering patterns
+  - **Action**: Manual review recommended for abstractions and caching
+
+## ❌ Failed Analyses
+- **Git State**: Analysis failed (not a git branch)
+  - **Impact**: Cannot detect ticket drift
+  - **Action**: Ensure you're on the correct story branch
+
+---
+
+**Overall Confidence**: Medium (2/3 analyses completed)
+```
 
 ## Context Reduction Achieved
 
@@ -301,6 +586,8 @@ Show aggregated analysis to user with:
 
 ## Troubleshooting
 
+**For systematic error handling patterns, see [Error Handling Strategy](#error-handling-strategy) above.**
+
 ### Agent returns unexpected format
 
 **Problem**: Agent output doesn't match expected structure.
@@ -309,6 +596,7 @@ Show aggregated analysis to user with:
 - Check that input format is correct
 - Verify agent file has clear output format specification
 - Review agent's completeness checklist
+- Implement output validation (see [Agent Output Validation](#agent-output-validation))
 
 ### Agent analysis incomplete
 

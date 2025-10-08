@@ -118,6 +118,39 @@ Execute the analysis now.
 
 Store output as `TICKET_ANALYSIS`.
 
+### Validate ticket-analyzer Output
+
+After receiving ticket-analyzer output, validate before using:
+
+**Required checks**:
+- Output is non-empty
+- Contains expected sections: "analysis_type", "target", "gaps", "recommendations"
+- Data is parseable (valid markdown with structured sections)
+- Critical fields are present (gap analysis, completeness scores)
+
+**If validation fails**:
+- Show raw agent output to user
+- Ask: "⚠️ ticket-analyzer returned unexpected output. Options: **retry** / **skip** / **abort**"
+- If retry: Re-invoke agent with same inputs
+- If skip: Continue without gap analysis (severely degraded - not recommended)
+- If abort: Exit cleanly
+
+**Example**:
+```markdown
+{IF TICKET_ANALYSIS is empty OR missing required sections}
+⚠️ ticket-analyzer returned incomplete output
+
+Expected: Gap analysis with completeness scores
+Received: {show what was received}
+
+Options:
+- retry: Run ticket-analyzer again
+- skip: Continue without gap analysis (not recommended)
+- abort: Exit and investigate
+
+Your choice:
+```
+
 ### 1.2 Invoke pattern-discovery Agent
 
 Use Task tool (general-purpose) with pattern-discovery agent in parallel:
@@ -151,6 +184,39 @@ Execute the survey now.
 
 Store output as `PATTERN_INVENTORY`.
 
+### Validate pattern-discovery Output
+
+After receiving pattern-discovery output, validate before using:
+
+**Required checks**:
+- Output is non-empty
+- Contains expected sections: "fixtures_available", "test_patterns", "source_patterns", "pattern_reuse_score"
+- Pattern reuse score is 0-10
+- Fixture listings include name, location, purpose
+
+**If validation fails**:
+- Show raw agent output to user
+- Ask: "⚠️ pattern-discovery returned unexpected output. Options: **retry** / **skip** / **abort**"
+- If retry: Re-invoke agent with same inputs
+- If skip: Continue without pattern suggestions (degraded mode)
+- If abort: Exit cleanly
+
+**Example**:
+```markdown
+{IF PATTERN_INVENTORY is empty OR missing required sections}
+⚠️ pattern-discovery returned incomplete output
+
+Expected: Fixture inventory with reuse score
+Received: {show what was received}
+
+Options:
+- retry: Run pattern-discovery again
+- skip: Continue without pattern suggestions
+- abort: Exit and investigate
+
+Your choice:
+```
+
 ### 1.3 Invoke design-guardian Agent
 
 Use Task tool (general-purpose) with design-guardian agent in parallel:
@@ -182,6 +248,39 @@ Execute the review now.
 ```
 
 Store output as `COMPLEXITY_ANALYSIS`.
+
+### Validate design-guardian Output
+
+After receiving design-guardian output, validate before using:
+
+**Required checks**:
+- Output is non-empty
+- Contains expected sections: "review_type", "issues", "overengineering_score", "recommendations"
+- Overengineering score is 0-10
+- Issues have severity levels
+
+**If validation fails**:
+- Show raw agent output to user
+- Ask: "⚠️ design-guardian returned unexpected output. Options: **retry** / **skip** / **abort**"
+- If retry: Re-invoke agent with same inputs
+- If skip: Continue without complexity checks (minor degradation)
+- If abort: Exit cleanly
+
+**Example**:
+```markdown
+{IF COMPLEXITY_ANALYSIS is empty OR missing required sections}
+⚠️ design-guardian returned incomplete output
+
+Expected: Complexity analysis with recommendations
+Received: {show what was received}
+
+Options:
+- retry: Run design-guardian again
+- skip: Continue without complexity checks
+- abort: Exit and investigate
+
+Your choice:
+```
 
 ### 1.4 Aggregate Agent Results
 
