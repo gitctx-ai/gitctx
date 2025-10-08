@@ -14,7 +14,7 @@ You are tasked with performing a comprehensive review of a story with dual capab
 
 1. **Gather User Context** - Ask if standard or focused review
 2. **Verify Story Branch & Detect Mode** - Check branch, count commits
-3. **Deep Analysis** - Use Task agent to analyze story quality + git state
+3. **Deep Analysis** - Invoke specialized agents for quality + git state analysis
 4. **Present Combined Report** - Show quality score + issues + proposed edits
 5. **Get User Approval** ⚠️ **REQUIRED** - Present all edits and wait for approval
 6. **Execute Edits** - Apply approved changes to ticket files
@@ -99,385 +99,252 @@ git branch --show-current
 
 **Extract Story Info:**
 
-From the branch name (e.g., `STORY-0001.1.2`), construct the necessary paths:
-
-**Example for STORY-0001.1.2:**
+From branch `STORY-0001.1.2`:
 - Story ID: `STORY-0001.1.2`
 - Epic ID: `EPIC-0001.1` (first two numbers)
 - Initiative ID: `INIT-0001` (first number)
-- Story path: `docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/README.md`
-- Epic path: `docs/tickets/INIT-0001/EPIC-0001.1/README.md`
-- Initiative path: `docs/tickets/INIT-0001/README.md`
 
-**Pattern:**
-- For `STORY-NNNN.E.S`:
-  - Initiative: `INIT-NNNN`
-  - Epic: `EPIC-NNNN.E`
-  - Story: `STORY-NNNN.E.S`
-  - Story dir: `docs/tickets/INIT-NNNN/EPIC-NNNN.E/STORY-NNNN.E.S/`
+**Construct paths:**
+- Story dir: `docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/`
+- Story README: `docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/README.md`
+- Task pattern: `docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/TASK-*.md`
+- Epic README: `docs/tickets/INIT-0001/EPIC-0001.1/README.md`
+- Initiative README: `docs/tickets/INIT-0001/README.md`
 
-**Detect Mode:**
+**Detect Mode (pre-work vs in-progress):**
 
 ```bash
-# Count commits on current branch vs main
+# Count commits on this branch
 git rev-list --count main..HEAD
 ```
 
-- **0 commits** → `pre-work` mode (story not started)
-- **N commits** → `in-progress` mode (work underway)
+- If count == 0: `MODE = "pre-work"` (no commits yet, planning only)
+- If count > 0: `MODE = "in-progress"` (has commits, can sync tickets)
 
----
-
-## Step 2: Gather Context with Task Agent
-
-Use the Task agent (general-purpose) to perform deep analysis:
-
+Output:
 ```markdown
-**Task Agent Prompt:**
+📋 Story Review: {STORY_ID}
 
-Perform comprehensive story review combining quality validation and git reality analysis.
-
-**Story Context:**
-- Story ID: [STORY_ID from branch]
-- Story path: docs/tickets/INIT-[NNNN]/EPIC-[NNNN.E]/STORY-[NNNN.E.S]/README.md
-- Epic ID: EPIC-[NNNN.E]
-- Epic path: docs/tickets/INIT-[NNNN]/EPIC-[NNNN.E]/README.md
-- Initiative ID: INIT-[NNNN]
-- Initiative path: docs/tickets/INIT-[NNNN]/README.md
-- Mode: {pre-work | in-progress}
-
-**IMPORTANT:** Construct paths from the branch name. For example, branch `STORY-0001.1.2` means:
-- Initiative: INIT-0001
-- Epic: EPIC-0001.1
-- Story: STORY-0001.1.2
-
-**Review Type:** {REVIEW_TYPE from Step 0}
-
-{IF REVIEW_TYPE == "focused"}
-**User Focus Context:**
-
-{USER_CONTEXT from Step 0}
-
-**Instructions:**
-- Perform all standard validation checks
-- Pay special attention to areas mentioned in user focus
-- In your output, create a dedicated "Focus Area Analysis" section
-- Highlight findings that directly relate to user's context
-- Prioritize these findings in proposed edits
-{ENDIF}
-
-**Analysis Required:**
-
-### Part 1: Quality Validation (ALWAYS)
-
-**Read All Context Files:**
-1. Story README: ${STORY_DIR}/README.md
-2. All task files: ${STORY_DIR}/TASK-*.md
-3. Parent epic: ${EPIC_DIR}/README.md
-4. Sibling stories: All other STORY-${INIT}-${EPIC}.* in same epic directory
-5. Initiative: ${INIT_DIR}/README.md
-6. Roadmap: docs/vision/ROADMAP.md
-7. Root CLAUDE.md and relevant nested CLAUDE.md files
-
-**Validation Categories:**
-
-#### 1. Story Completeness (10 checks)
-- ✅ User story follows "As a/I want/So that" format
-- ✅ All acceptance criteria are testable (not vague)
-- ✅ All child tasks listed and linked
-- ✅ Story points estimated and match task hours sum
-- ✅ BDD scenarios written in Gherkin (if applicable)
-- ✅ Technical design section present and detailed
-- ✅ Success metrics defined and measurable
-- ✅ Dependencies documented
-- ✅ Risks identified with mitigations
-- ✅ Example code/schemas provided for complex logic
-
-#### 2. Hierarchy Consistency (6 checks base + 2 if in-progress)
-- ✅ Story aligns with parent epic's goals
-- ✅ Story doesn't duplicate sibling stories
-- ✅ Story contributes to epic's completion criteria
-- ✅ Story points fit within epic's total
-- ✅ Prerequisites from other stories identified
-- ✅ No conflicting assumptions with siblings
+**Mode**: {pre-work | in-progress}
 {IF in-progress}
-- ✅ New tasks (if any) align with story scope
-- ✅ Task additions documented in story progress/notes
+**Commits**: {count} commits on branch
 {ENDIF}
-
-#### 3. Roadmap Alignment (5 checks base + 1 if in-progress)
-- ✅ Story contributes to initiative objectives
-- ✅ Story aligns with version planning milestones
-- ✅ Story supports success metrics from roadmap
-- ✅ Story doesn't contradict core design principles
-- ✅ Technology choices match approved stack
-{IF in-progress}
-- ✅ Scope changes (if any) align with roadmap priorities
-{ENDIF}
-
-#### 4. Implementation Readiness (10 checks base + 1 if in-progress)
-- ✅ Every task has concrete steps (not "implement X")
-- ✅ File paths and module names specified
-- ✅ BDD scenarios have corresponding step definitions planned
-- ✅ Test coverage targets specified (e.g., ≥85%)
-- ✅ Example code/pseudocode provided for complex logic
-- ✅ Edge cases identified in scenarios
-- ✅ Error handling paths specified
-- ✅ All external APIs/libraries identified
-- ✅ Solution complexity matches problem scope (not over-architected)
-- ✅ Tasks avoid premature optimization (implement MVP first, optimize when metrics show need)
-{IF in-progress}
-- ✅ Implementation matches task specifications
-{ENDIF}
-
-{IF pre-work}
-#### 5. BDD/TDD Task Structure (7 checks - PRE-WORK MODE ONLY)
-- ✅ Task 1 writes ALL BDD scenarios (with stubbed step definitions that fail)
-- ✅ Subsequent tasks include both implementation AND relevant BDD step implementation
-- ✅ No separate "implement BDD tests at end" task (BDD incremental)
-- ✅ No separate "write unit tests" task (unit tests embedded in implementation tasks)
-- ✅ Each implementation task specifies which BDD scenarios it will make pass
-- ✅ BDD progress tracked incrementally across tasks (e.g., "1/9 passing" → "7/9" → "9/9")
-- ✅ Unit tests written BEFORE implementation in each task (TDD red→green→refactor)
-
-**Anti-Patterns to Detect:**
-- Task titles: "Write/Implement BDD scenarios/tests" (except Task 1)
-- Task titles: "Write/Implement unit tests" (should be embedded in impl)
-- Task titles: "Integration tests" as standalone final task
-- Last task is "Implement tests" or "BDD implementation"
-- Task table missing "BDD Progress" column
-- Tasks don't specify test-first (TDD) approach
-- Tasks don't specify which scenarios they implement
-
-**When Anti-Patterns Found, Propose:**
-- Merge BDD implementation into relevant feature tasks
-- Add "BDD Progress" column to task table (0/N → X/N → N/N)
-- Specify which scenarios each task implements in checklist
-- Add TDD workflow (tests first → implement → refactor) to checklists
-- Restructure to: Task 1 = all scenarios, Tasks 2-N = implement incrementally
-{ENDIF}
-
-**Anti-Overengineering Detection Patterns:**
-
-For checks 9-10, flag issues when tasks propose complexity without clear justification:
-
-- **Caching/Memoization** for:
-  - Small files (<10KB) loaded once per process
-  - CLI tools where each invocation is a new process
-  - Data that changes frequently
-  - No performance metrics showing it's needed
-
-- **Abstraction Layers** when:
-  - Only one concrete implementation exists
-  - No indication multiple implementations will be needed
-  - Adds complexity without solving a real problem
-  - Uses terms like "future-proof" without roadmap evidence
-
-- **Performance Optimizations** before:
-  - Performance metrics exist showing a problem
-  - Profiling data identifies the bottleneck
-  - User-facing performance requirements exist
-  - MVP implementation is complete
-
-- **Premature Refactoring** such as:
-  - Large refactors when targeted fixes would work
-  - Breaking working code "for cleanliness" without quality threshold violations
-  - Architectural changes without clear requirements driving them
-
-**Valid Complexity** (do NOT flag):
-- Security hardening (always appropriate)
-- Type safety and validation (catches bugs early)
-- Error handling for user-facing features
-- Test coverage improvements
-- Documentation
-- Fixing actual quality threshold violations (complexity, line limits, etc.)
-
-When flagging overengineering, propose specific edits like:
-- Remove unnecessary task entirely
-- Reduce task scope (e.g., "refactor entire module" → "fix specific complexity violation")
-- Move to future story with "if metrics show need" condition
-
-{IF pre-work}
-#### 6. Specification Ambiguity Detection (8 checks)
-{ELSE}
-#### 5. Specification Ambiguity Detection (8 checks)
-{ENDIF}
-- 🔍 Vague terms: "simple", "basic", "handle", "support", "improve"
-- 🔍 Missing details: "TBD", "etc.", "and so on", "as needed"
-- 🔍 Implicit assumptions: "obviously", "clearly", "simply"
-- �� Unquantified requirements: "fast", "efficient", "user-friendly"
-- 🔍 Missing acceptance criteria for edge cases
-- 🔍 Incomplete error handling specifications
-- 🔍 Missing validation rules
-- 🔍 Newly added tasks with vague descriptions
-
-{IF in-progress}
-#### 7. Coherence Validation (6 checks - IN-PROGRESS MODE ONLY)
-- 🔍 Git commits match story scope (no scope creep)
-- 🔍 Completed tasks align with acceptance criteria
-- 🔍 New tasks don't conflict with completed work
-- 🔍 Task sequence makes logical sense
-- 🔍 Progress percentage matches reality
-- 🔍 Story status reflects actual state
-{ENDIF}
-
-**For Each Failed Check:**
-- Document: Location (file:line), Current state, Issue description, Proposed fix, Impact/Priority
-
-### Part 2: Ticket Sync Analysis (IN-PROGRESS MODE ONLY)
-
-**Analyze Git State:**
-- Committed changes: `git diff main...HEAD --stat`
-- Committed changes detail: `git diff main...HEAD`
-- Uncommitted changes: `git status --short`
-- Uncommitted changes detail: `git diff`
-- Recent commits: `git log --oneline main..HEAD`
-
-**Compare Ticket vs Reality:**
-
-For each task in the story:
-- What does the task say it should accomplish?
-- What files should be modified according to task description?
-- Are those files actually modified in git diff?
-- Are task checkboxes accurate?
-- Is task status accurate (🔵 Not Started / 🟡 In Progress / ✅ Complete)?
-- Are actual hours recorded?
-
-**Identify Ticket Drift:**
-- Tasks marked incomplete but code is done
-- Tasks marked complete but code is missing
-- Progress percentages that don't match reality
-- Missing context or documentation in tickets
-- Status inconsistencies (task complete but story not updated)
-- Parent epic/initiative progress bars out of sync
-- New tasks added but not documented in story header
-- Task additions not explained in story notes
-
-**For Each Drift Item:**
-- Specify: Which file needs updating (exact path), What section/field needs changing, Old value vs new value, Justification based on git diff
-
----
-
-**Output Format:**
-
-Return a structured analysis with:
-
-## 1. Review Configuration
-- Review Type: {standard | focused}
-- Mode: {pre-work | in-progress}
-- Commits on branch: {0 | N}
+**Review Type**: {standard | focused}
 {IF focused}
-- User Focus: "{USER_CONTEXT}"
+**Focus**: {USER_CONTEXT}
 {ENDIF}
 
-{IF focused}
-## 2. Focus Area Analysis
-
-**User Requested Focus:**
-"{USER_CONTEXT}"
-
-**Findings Related to Focus:**
-[List specific findings that directly address user's focus context]
-[If no issues found in focus area, explicitly state that]
-
-**Priority Recommendations:**
-[Recommendations specifically for the focus area]
-
----
-{ENDIF}
-
-## {2 or 3}. Quality Validation Summary
-
-**Overall Quality Score**: XX% ({Ready | Ready with Issues | Needs Review | Not Ready})
-
-### Category Scores:
-- Story Completeness: XX% (N/10 checks)
-- Hierarchy Consistency: XX% ({6 | 8} checks)
-- Roadmap Alignment: XX% ({5 | 6} checks)
-- Implementation Readiness: XX% ({10 | 11} checks)
-{IF pre-work}
-- BDD/TDD Task Structure: XX% (7 checks)
-{ENDIF}
-- Specification Ambiguity: XX% (8 checks - higher is better)
-{IF in-progress}
-- Coherence Validation: XX% (6 checks)
-{ENDIF}
-
-### Quality Issues Found: [count]
-[List each issue with: Type, Priority (High/Medium/Low), Location, Current state, Proposed fix, Impact]
-
-## 3. Ticket Sync Analysis (IN-PROGRESS ONLY)
-
-**Git Activity Summary:**
-- Files modified: [count]
-- Lines added/removed: +X -Y
-- Commits on branch: [count]
-- Uncommitted changes: [yes/no with count]
-
-**Task Status Validation Table:**
-
-| Task | Ticket Status | Git Evidence | Match? |
-|------|---------------|--------------|--------|
-| TASK-X.X.X.X | ✅ Complete | ✅ Commit abc123 | ✅ |
-| TASK-Y.Y.Y.Y | 🔵 Not Started | ❌ No commit | ✅ |
-
-**Ticket Drift Found**: [count]
-[List each drift with: Type, Location, Current value, Git reality, Proposed fix]
-
-## 4. Proposed File Edits
-
-**Total Edits**: [count quality + count sync] across [N] files
-
-### Quality Fix Edits ([count])
-For each quality issue that can be fixed with an edit:
-- File: [exact path]
-- Edit type: [Add missing section | Replace vague text | etc.]
-- OLD: [exact current text to find]
-- NEW: [exact replacement text]
-- Reason: [why this fixes the issue]
-
-{IF in-progress}
-### Ticket Sync Edits ([count])
-For each ticket drift that needs fixing:
-- File: [exact path]
-- Edit type: [Update status | Update progress | etc.]
-- OLD: [exact current text]
-- NEW: [exact replacement text]
-- Reason: [git evidence justifying change]
-{ENDIF}
-
-## 5. Comparative Analysis
-
-**Sibling Stories:**
-- STORY-X.X.X: Quality XX% (status)
-- STORY-Y.Y.Y: Quality YY% (status)
-- Current story: Quality ZZ%
-
-**Best Practices:**
-- Applied: [list practices found in story]
-- Missing: [list practices missing vs high-quality siblings]
-
-## 6. Recommendations
-
-{IF pre-work}
-**Before Starting Work:**
-[List specific actions with time estimates to improve quality score]
-{ELSE}
-**Before Next Commit:**
-[List quality fixes and ticket sync actions with time estimates]
-{ENDIF}
-
-**Estimated Time to Address All Issues**: [X] minutes
-**Quality Score Improvement**: XX% → YY%
-{IF in-progress}
-**Ticket Accuracy Improvement**: [N] drift → 0 drift
-{ENDIF}
+Starting analysis...
 ```
 
-**Agent Configuration:**
-- Type: general-purpose
-- Mode: Research only (no code changes yet)
-- Output: Detailed analysis with exact file edit specifications
+---
+
+## Step 2: Deep Analysis with Specialized Agents
+
+Launch specialized agents in parallel for comprehensive analysis.
+
+### 2.1 Invoke ticket-analyzer Agent
+
+Use Task tool (general-purpose) with ticket-analyzer agent:
+
+```markdown
+You are the ticket-analyzer specialized agent. Analyze story and task quality.
+
+**Analysis Type**: story-deep
+**Target**: {STORY_ID from branch}
+**Scope**: story-and-tasks
+**Mode**: {pre-work | in-progress from commit count}
+
+{IF REVIEW_TYPE == "focused"}
+**Focus areas**: {USER_CONTEXT}
+{ENDIF}
+
+## Your Mission
+
+Perform deep analysis of the story and all its tasks:
+
+1. Score story completeness (14 criteria)
+2. Score each task completeness (10 criteria per task)
+3. Validate story-task alignment
+4. Check parent epic goals alignment
+5. Compare to sibling stories for consistency
+6. Validate progress accuracy
+7. Check status consistency
+
+{IF focused}
+Prioritize findings related to: {USER_CONTEXT}
+{ENDIF}
+
+**Output Format**: Structured markdown with:
+- Story completeness score and breakdown
+- Task completeness scores (each task)
+- Issues found (priority, location, fix)
+- Hierarchy validation results
+- Progress accuracy analysis
+- Recommendations
+
+Execute the analysis now.
+```
+
+Store output as `TICKET_QUALITY`.
+
+### 2.2 Invoke specification-quality-checker Agent
+
+Use Task tool (general-purpose) with specification-quality-checker agent in parallel:
+
+```markdown
+You are the specification-quality-checker specialized agent. Validate specification clarity.
+
+**Check Type**: full-ticket
+**Target**: {STORY_ID}
+**Strictness**: strict
+
+**Content to Check**:
+{Story README.md content}
+{All TASK-*.md content}
+
+## Your Mission
+
+Analyze the story and task specifications for vague/ambiguous language:
+
+1. Detect vague terms in acceptance criteria (handle, support, manage, etc.)
+2. Find missing details in technical design (TBD, etc., as needed)
+3. Identify implicit assumptions (obviously, clearly, simply)
+4. Flag unquantified requirements (fast, efficient, user-friendly)
+5. Check BDD scenarios for specificity
+6. Verify task steps are concrete (not "implement X")
+7. Score agent-executability (can autonomous agent implement this?)
+
+**Output Format**: Markdown report with:
+- Ambiguity score per ticket (0-100%, higher is clearer)
+- List of vague terms with locations and concrete replacements
+- Missing quantifications
+- Agent-executability score
+- Improvements needed to reach 95%+ clarity
+
+Execute the check now.
+```
+
+Store output as `SPECIFICATION_QUALITY`.
+
+### 2.3 Invoke git-state-analyzer Agent (if in-progress)
+
+**Only if MODE == "in-progress"** (commit count > 0):
+
+Use Task tool (general-purpose) with git-state-analyzer agent in parallel:
+
+```markdown
+You are the git-state-analyzer specialized agent. Analyze git state and compare to tickets.
+
+**Analysis Type**: ticket-drift
+**Branch**: {current branch}
+**Ticket Context**: {STORY_ID and path}
+**Include uncommitted**: true
+
+## Your Mission
+
+Analyze git commits and file changes, compare to ticket documentation:
+
+1. Parse git commit history (`git log main..HEAD`)
+2. Analyze file changes (`git diff main...HEAD --stat`)
+3. Extract commit metadata (message, files, author, date)
+4. Compare task statuses to commit evidence
+5. Detect ticket drift (status mismatch, undocumented changes)
+6. Validate progress percentages against reality
+7. Identify uncommitted work
+
+**Output Format**: Markdown report with:
+- Git activity summary (commits, files, lines changed)
+- Task status validation table (ticket vs git)
+- Drift items with OLD/NEW proposed fixes
+- Progress accuracy analysis
+- Uncommitted changes summary
+
+Execute the analysis now.
+```
+
+Store output as `GIT_STATE`.
+
+**If MODE == "pre-work":**
+- Skip git-state-analyzer
+- Set `GIT_STATE = null`
+
+### 2.4 Invoke design-guardian Agent
+
+Use Task tool (general-purpose) with design-guardian agent in parallel:
+
+```markdown
+You are the design-guardian specialized agent. Check for overengineering in the story.
+
+**Review Type**: story-review
+**Target**: {STORY_ID}
+**Context**: {Story user story and description}
+
+**Proposed Work**:
+{Story technical design}
+{All task checklists}
+
+## Your Mission
+
+Review the story and tasks for unnecessary complexity:
+
+1. Detect premature abstraction (single impl, no roadmap evidence)
+2. Flag premature optimization (no metrics showing need)
+3. Identify unnecessary caching (small data, CLI tool, rarely accessed)
+4. Detect scope creep beyond acceptance criteria
+5. Distinguish valid complexity (security, testing, validation) from overengineering
+
+**Output Format**: Markdown with:
+- Complexity flags (severity, what, why, simpler alternative)
+- Per-task overengineering scores (0-10, lower is simpler)
+- Valid complexity justifications
+- Recommendations to simplify
+
+Execute the review now.
+```
+
+Store output as `COMPLEXITY_ANALYSIS`.
+
+### 2.5 Aggregate Agent Results
+
+Wait for all agents to complete, then synthesize:
+
+```markdown
+# 📊 Story Review Analysis: {STORY_ID}
+
+## Quality Assessment
+{From TICKET_QUALITY}
+
+**Story Completeness**: {score}%
+**Average Task Completeness**: {avg_score}%
+
+## Specification Clarity
+{From SPECIFICATION_QUALITY}
+
+**Story Ambiguity Score**: {score}% (target: ≥95%)
+**Average Task Clarity**: {avg_score}%
+
+{IF MODE == "in-progress"}
+## Ticket Sync Status
+{From GIT_STATE}
+
+**Commits Analyzed**: {count}
+**Ticket Drift Items**: {count}
+**Progress Accuracy**: {analysis}
+{ENDIF}
+
+## Complexity Check
+{From COMPLEXITY_ANALYSIS}
+
+**Overengineering Risks**: {count} flags
+**Average Complexity Score**: {avg_score}/10
+
+---
+
+**Analysis complete. Preparing report...**
+```
+
+Store as `COMBINED_ANALYSIS`.
 
 ---
 
@@ -485,687 +352,403 @@ For each ticket drift that needs fixing:
 
 ⚠️ **MANDATORY STOP POINT**
 
-After receiving the Task agent's analysis, present the complete findings to the user.
-
-### Report Format
+Present comprehensive findings and proposed edits (if any):
 
 ```markdown
-# 📋 Story Review Report: ${STORY_ID}
+# 📋 Story Review Report: {STORY_ID}
 
-**Branch**: ${BRANCH}
-**Review Type**: {Standard | Focused}
+**Review Type**: {standard | focused}
 {IF focused}
-**Focus Area**: "{USER_CONTEXT}"
+**Focus**: {USER_CONTEXT}
 {ENDIF}
-**Review Mode**: {Pre-Work (0 commits) | In-Progress (N commits)}
-**Story Status**: {🔵 Not Started | 🟡 In Progress | ✅ Complete}
+**Mode**: {pre-work | in-progress}
+**Date**: {date}
 
 ═══════════════════════════════════════════════════════════
 
-{IF focused}
-## Focus Area Analysis
+## Quality Score: {overall_score}%
 
-**You asked us to focus on:**
-> {USER_CONTEXT}
+{Based on combined metrics}
 
-**Findings Related to Your Focus:**
-
-{agent's focus area findings}
-
-**Recommendations:**
-
-{agent's focus area recommendations}
-
-═══════════════════════════════════════════════════════════
-{ENDIF}
-
-## Quality Validation
-
-**Overall Quality Score**: ████████░░ XX% ({Ready | Ready with Issues | Needs Review})
-
-### Readiness Breakdown
-
-[For each category, show progress bar + score + list of checks with ✅/⚠️]
-
-#### 1. Story Completeness: ██████████ 100% (10/10 checks)
-✅ User story format correct
-✅ Acceptance criteria testable
-...
-
-#### 2. Hierarchy Consistency: ████████░░ 83% (5/6 checks)
-✅ Aligns with epic goals
-⚠️ **ISSUE**: [Description]
-...
-
-[Continue for all categories]
-
----
-
-### 🚨 Quality Issues Found ([count] total)
-
-#### High Priority ([count])
-1. **[Issue Title]** (Category)
-   - **Location**: [file:line]
-   - **Current**: [what's there now]
-   - **Fix**: [what it should be]
-   - **Impact**: [why this matters]
-
-[List all high priority issues]
-
-#### Medium Priority ([count])
-[List all medium priority issues]
-
-#### Low Priority ([count])
-[List all low priority issues]
-
-═══════════════════════════════════════════════════════════
-
+**Story Completeness**: {from TICKET_QUALITY}/100
+**Specification Clarity**: {from SPECIFICATION_QUALITY}/100
 {IF in-progress}
-## Ticket Synchronization
-
-**Git Activity Summary**:
-- Commits: [N] commits on ${BRANCH}
-- Files: [N] files modified
-- Changes: +[additions] -[deletions]
-- Uncommitted: [N files or "None"]
-
-### Task Status Validation
-
-[Show table from agent analysis]
-
-### Ticket Drift
-
-{IF drift found}
-**Status**: ⚠️ [N] discrepancies found
-
-[List each drift item with details]
-{ELSE}
-**Status**: ✅ All tickets match git reality (0 discrepancies)
-
-All ticket documentation is accurate and matches implementation:
-- Task statuses are correct
-- Progress percentages match reality
-- All checkboxes reflect actual work completed
-- Parent epic/initiative properly updated
+**Ticket Accuracy**: {from GIT_STATE}/100
 {ENDIF}
+**Complexity (lower is better)**: {from COMPLEXITY_ANALYSIS}/10
+
+**Assessment**: {Ready | Ready with Minor Issues | Needs Improvement | Not Ready}
+
+═══════════════════════════════════════════════════════════
+
+## Quality Issues ({count})
+
+{From TICKET_QUALITY - issues sorted by priority}
+
+### P0 Critical ({count})
+{List critical issues with locations and fixes}
+
+### P1 High ({count})
+{List high-priority issues}
+
+### P2 Medium ({count})
+{List medium issues - collapsed}
+
+═══════════════════════════════════════════════════════════
+
+## Specification Clarity Issues ({count})
+
+{From SPECIFICATION_QUALITY}
+
+**Vague Terms Found**: {count}
+{List with locations and concrete replacements}
+
+**Missing Quantifications**: {count}
+{List with suggestions}
+
+**Agent-Executability**: {score}%
+{If <95%, list what makes it hard for autonomous agent}
+
+═══════════════════════════════════════════════════════════
+
+{IF MODE == "in-progress"}
+## Ticket Drift ({count} discrepancies)
+
+{From GIT_STATE}
+
+**Status Mismatches**:
+{Table showing ticket status vs git evidence}
+
+**Undocumented Changes**:
+{List commits/changes not reflected in tickets}
+
+**Progress Inaccuracies**:
+{List where progress % doesn't match reality}
 
 ═══════════════════════════════════════════════════════════
 {ENDIF}
 
-## Proposed File Edits
+## Complexity Warnings ({count})
 
-{IF no edits needed}
-✅ **No edits needed** - Story is {ready | accurate}
+{From COMPLEXITY_ANALYSIS}
 
-{IF pre-work}
-Story meets quality standards for starting work.
-{ELSE}
-All documentation matches git reality.
-{ENDIF}
-
-{ELSE}
-**Total**: {N quality + M sync} edits proposed across [X] files
-
-### Quality Fix Edits ([N] edits)
-
-[For each quality fix:]
-
-**File**: `[path]`
-
-Edit: [Description]
-\`\`\`
-OLD (line [N]):
-[exact current text]
-
-NEW:
-[exact replacement text]
-\`\`\`
-Reason: [explanation]
-
----
-
-{IF in-progress}
-### Ticket Sync Edits ([M] edits)
-
-[For each sync fix:]
-
-**File**: `[path]`
-
-Edit: [Description]
-\`\`\`
-OLD (line [N]):
-[exact current text]
-
-NEW:
-[exact replacement text]
-\`\`\`
-Reason: [git evidence]
-
----
-{ENDIF}
-
-### Impact Assessment
-
-{IF pre-work}
-**Quality Improvement**: XX% → YY% (after fixes)
-**Time to Execute**: ~[N] minutes
-{ELSE}
-**Quality Improvement**: XX% → YY%
-**Ticket Accuracy**: [M] drift → 0 drift ✅
-**Time to Execute**: ~[N] minutes
-{ENDIF}
+{FOR each flag}
+**{TASK_ID or "Story"}**: {issue}
+- **Severity**: {low | med | high}
+- **Problem**: {description}
+- **Simpler Alternative**: {recommendation}
+{ENDFOR}
 
 ═══════════════════════════════════════════════════════════
 
-## Comparative Analysis
+## Proposed File Edits ({count} files)
 
-### Sibling Stories in ${EPIC_ID}:
-[Show quality scores from agent analysis]
+{IF any edits needed from agent analysis}
 
-### Best Practices Applied/Missing:
-[Show from agent analysis]
+{FOR each file with proposed edits}
+### {file_path}
 
-═══════════════════════════════════════════════════════════
+**Edit 1**: {description}
+```diff
+-OLD: {old_text}
++NEW: {new_text}
+```
 
-## Recommended Actions
-
-{IF pre-work}
-### Before Starting Work:
-[Numbered list from agent recommendations with time estimates]
-
-**Total Time**: ~[X] minutes to reach [target]% readiness
-{ELSE}
-### Before Next Commit:
-[Numbered list from agent recommendations]
-
-**Total Time**: ~[X] minutes to restore quality/accuracy
-{ENDIF}
+{More edits for same file...}
+{ENDFOR}
 
 ═══════════════════════════════════════════════════════════
 
-## Approval & Execution
+## Quality Improvement
+
+**Before**: {old_score}%
+**After** (if edits applied): {projected_new_score}%
+**Improvement**: +{delta}%
+
+═══════════════════════════════════════════════════════════
+
+## Approval Required
 
 {IF edits proposed}
-**Do you approve these file edits?** (yes/no/modify)
+**I've identified {count} issues with proposed fixes.**
 
 Options:
-- **yes**: Execute all proposed edits
-- **no**: Skip all edits (issues documented for manual fix)
-- **modify**: Discuss which edits to apply
-{ELSE}
-**No edits required - story is {ready | accurate}! ✨**
+- **yes**: Apply all proposed edits
+- **selective**: Review each edit individually
+- **no**: Don't apply edits (manual fixes only)
+- **report**: Just show report, no edits
 
-{IF pre-work}
-Proceed with starting work on TASK-${FIRST_TASK}.
+Your choice:
 {ELSE}
-Continue with next pending task or create PR if story complete.
+**No edits needed!** ✅
+
+Story quality is {score}% - {assessment}.
+
+{IF issues exist but no edits}
+**Manual attention needed for**:
+{List issues that need manual review}
 {ENDIF}
 {ENDIF}
 ```
 
-**CRITICAL:** Do not make any file edits until user explicitly approves with "yes".
+**CRITICAL**: Wait for user response.
+
+**Response Handling:**
+
+**If "yes":**
+- Proceed to Step 4 (execute all edits)
+
+**If "selective":**
+- For each proposed edit:
+  - Show edit in detail
+  - Ask: "Apply this edit? (yes/no/modify)"
+  - If yes: Add to execute list
+  - If no: Skip it
+  - If modify: Let user suggest change, update edit
+- After reviewing all: Proceed to Step 4 with approved edits
+
+**If "no":**
+- Skip to Step 5 (final report without edits)
+
+**If "report":**
+- Print detailed report
+- Exit without making changes
 
 ---
 
 ## Step 4: Execute Edits (After Approval)
 
-**Only proceed if:**
-- User approved with "yes"
-- Edits were proposed in Step 3
+**Only proceed if user approved edits.**
 
-**Update Order:** (dependencies matter)
-1. Task files (TASK-*.md) - lowest level
-2. Story README.md - aggregates tasks
-3. Epic README.md - aggregates stories
-4. Initiative README.md - aggregates epics
-
-**For Each Edit from Agent Analysis:**
-
-Use the Edit tool with exact OLD and NEW strings from agent's "Proposed File Edits" section.
+For each approved edit:
 
 ```python
-# Example: Quality fix
+# Read target file
+content = Read(file_path="{file_path}")
+
+# Apply edit
 Edit(
-    file_path="docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/README.md",
-    old_string="## Dependencies\n\n- Parent story created",
-    new_string="## Dependencies\n\n- Requires STORY-0001.1.1 (CLI Framework) complete\n- Parent story created"
+    file_path="{file_path}",
+    old_string="{old_text}",
+    new_string="{new_text}"
 )
 
-# Example: Ticket sync fix
-Edit(
-    file_path="docs/tickets/INIT-0001/EPIC-0001.1/STORY-0001.1.2/README.md",
-    old_string="**Progress**: ████░░░░░░ 40% (2/5 tasks complete)",
-    new_string="**Progress**: ████████░░ 80% (4/5 tasks complete)"
-)
+# Verify
+print(f"✅ Applied edit to {file_path}")
 ```
 
-**Error Handling:**
-- If Edit fails (non-unique string), show error and ask user for guidance
-- Continue with remaining edits even if one fails
-- Track which edits succeeded vs failed
+After all edits:
+
+```bash
+# Show what changed
+git diff --stat
+```
+
+Output:
+```markdown
+✅ All edits applied ({count} edits across {N} files)
+
+**Files modified**:
+{List with edit counts}
+
+**Changes summary**:
+{git diff --stat output}
+```
 
 ---
 
 ## Step 5: Print Final Report
 
-Print a comprehensive report based on whether edits were made.
-
-### Variant A: Edits Were Made
-
-If edits were executed (came from Step 4):
+Print comprehensive summary:
 
 ```markdown
-# ✨ Story Review Complete: ${STORY_ID}
+# ✨ Story Review Complete: {STORY_ID}
 
-**Branch**: ${BRANCH}
-**Review Type**: {Standard | Focused}
-{IF focused}
-**Focus Area**: "{USER_CONTEXT}"
-{ENDIF}
-**Date**: [current date]
-**Mode**: {Pre-Work | In-Progress}
+**Review Type**: {standard | focused}
+**Mode**: {pre-work | in-progress}
+**Date**: {date}
 
----
+═══════════════════════════════════════════════════════════
 
-{IF focused}
-## Focus Area Summary
+## Quality Score
 
-**Your Focus:** "{USER_CONTEXT}"
-
-**Status:**
-{IF issues found in focus area}
-⚠️  Issues found and addressed (see edits below)
-{ELSE}
-✅ No issues found in focus area - meets expectations
+**Before**: {old_score}%
+{IF edits applied}
+**After**: {new_score}%
+**Improvement**: +{delta}%
 {ENDIF}
 
----
-{ENDIF}
+**Current Assessment**: {Ready | Ready with Minor Issues | Needs Improvement}
 
-## Summary
+═══════════════════════════════════════════════════════════
 
-✅ **Edits Completed**: [N] files modified
-⚠️ **Edit Failures**: [M] failures (if any)
+## Metrics Breakdown
 
-### Quality Improvement
-- **Before**: [XX]% quality score
-- **After**: [YY]% quality score
-- **Improvement**: +[ZZ] points ✨
+**Story Completeness**: {score}/100
+- User story format: {✓ | ✗}
+- Acceptance criteria: {✓ | ✗}
+- BDD scenarios: {✓ | ✗}
+- Technical design: {✓ | ✗}
+- Task breakdown: {✓ | ✗}
+- Dependencies: {✓ | ✗}
+
+**Specification Clarity**: {score}/100
+- Vague terms: {count} {✓ if 0, else ✗}
+- Missing details: {count} {✓ if 0, else ✗}
+- Ambiguity score: {score}% {✓ if ≥95%, else ✗}
 
 {IF in-progress}
-### Ticket Accuracy Improvement
-- **Before**: [N] discrepancies
-- **After**: 0 discrepancies ✅
-- **Progress**: Now matches git reality
+**Ticket Accuracy**: {score}/100
+- Task status matches commits: {✓ | ✗}
+- Progress bars accurate: {✓ | ✗}
+- All changes documented: {✓ | ✗}
 {ENDIF}
 
----
+**Complexity**: {score}/10
+- Overengineering flags: {count} {✓ if 0, else ✗}
+- Pattern reuse validated: {✓ | ✗}
+- Scope appropriate: {✓ | ✗}
 
-## Files Updated
+═══════════════════════════════════════════════════════════
 
-[List each file with changes made]
+{IF edits applied}
+## Changes Applied
 
-1. **[path]/TASK-X.md**
-   - Added step definition plan
-   - Clarified vague description
+**Files modified**: {count}
+{List files with edit descriptions}
 
-2. **[path]/README.md**
-   - Added prerequisite documentation
-   - Quantified acceptance criteria
-   {IF in-progress}
-   - Updated progress percentage
-   - Documented task additions
-   {ENDIF}
+**Quality improvements**:
+{List specific improvements}
 
-3. **[path]/EPIC-X.md** (if in-progress)
-   - Updated epic progress bar
-   - Updated story status in table
+═══════════════════════════════════════════════════════════
+{ENDIF}
 
----
+{IF remaining issues}
+## Remaining Issues ({count})
 
-{IF pre-work}
-## Story Readiness
+{List issues that need manual attention}
 
-**Status**: ✅ Ready to Start Work
+**Recommendations**:
+{Specific next steps to address issues}
 
-Story is now complete, cohesive, and unambiguous:
-- All specifications measurable
-- Implementation steps concrete
-- Dependencies documented
-- Aligned with epic/roadmap
+═══════════════════════════════════════════════════════════
+{ENDIF}
 
-### Next Steps
+## Next Steps
 
-1. **Begin work**: Start with [FIRST_TASK_ID]
-2. **Follow BDD/TDD**: Write tests first, then implement
-3. **Commit after each task**: Use format `feat([TASK_ID]): description`
-4. **Run `/review-story` again**: If adding tasks mid-work
+{IF quality >= 95%}
+### Story Ready! ✅
+
+{IF MODE == "pre-work"}
+**Start implementation**:
+1. Create story branch: `git checkout -b {STORY_ID}`
+2. Run `/start-next-task` to begin first task
+3. Follow BDD/TDD workflow
 
 {ELSE}
-## Story Status
+**Continue implementation**:
+1. Run `/start-next-task` for next pending task
+2. Or create PR if all tasks complete
 
-**Status**: ✅ Documentation Accurate
+{ENDIF}
 
-All ticket documentation now matches implementation reality:
-- Task statuses reflect git commits
-- Progress percentages accurate
-- New tasks properly documented
-- Parent tickets updated
-
-### Next Steps
-
-{IF story complete}
-**Story appears complete! Consider:**
-1. Push branch: `git push -u origin ${BRANCH}`
-2. Create PR: `gh pr create --title "${STORY_ID}: [title]"`
-3. Monitor CI: `gh run watch`
 {ELSE}
-**Continue implementation:**
-1. Review next pending task: [NEXT_TASK_ID]
-2. Run quality gates: `uv run poe quality`
-3. Commit when task complete
-{ENDIF}
-{ENDIF}
+### Improvements Needed
 
----
+**Before starting work**:
+1. Address P0/P1 issues listed above
+2. Run `/review-story` again to validate
+3. Target quality score: ≥95%
 
-## Quality Metrics
-
-**Specification Quality**: [YY]% (Agent-Friendly)
-- Strengths: [from analysis]
-- Improvements made: [what was fixed]
-
-{IF in-progress}
-**Tracking Discipline**: [score]% (Excellent/Good/Needs Work)
-- Commits reference task IDs: ✅
-- Statuses match reality: ✅
-- Progress tracking accurate: ✅
 {ENDIF}
 
----
+═══════════════════════════════════════════════════════════
 
-**Review completed successfully! ✨**
+**Review complete!** 📋
 ```
 
-### Variant B: No Edits Made
+**Exit successfully.**
 
-If user declined edits OR no edits were needed:
+---
+
+## Error Recovery
+
+### Error: Not on Story Branch
 
 ```markdown
-# 📋 Story Review Complete: ${STORY_ID}
+✗ Not on a story branch
 
-**Branch**: ${BRANCH}
-**Review Type**: {Standard | Focused}
-{IF focused}
-**Focus Area**: "{USER_CONTEXT}"
-{ENDIF}
-**Date**: [current date]
-**Mode**: {Pre-Work | In-Progress}
+Current branch: {branch_name}
 
----
+Options:
+1. Checkout existing story branch
+2. Create new story branch
+3. Exit
 
-{IF focused}
-## Focus Area Summary
+Choose:
+```
 
-**Your Focus:** "{USER_CONTEXT}"
+### Error: Story Files Not Found
 
-**Status:**
-{IF issues exist in focus area}
-⚠️  Issues remain (see above for details)
-{ELSE}
-✅ No issues found in focus area - meets expectations
-{ENDIF}
+```markdown
+✗ Story files not found
 
----
-{ENDIF}
+Expected: {STORY_README_PATH}
+Status: File does not exist
 
-## Summary
+This story may not have been created yet.
 
-{IF user declined}
-⏭️ **Edits Skipped** - Issues remain in documentation
+Run `/write-next-tickets` to create it.
+```
 
-You chose not to apply the proposed edits. Issues are documented above for manual resolution.
-{ELSE}
-✅ **No Edits Needed** - Story {meets quality standards | matches git reality}
+Exit.
 
-{IF pre-work}
-Story is complete and ready for implementation.
-{ELSE}
-All ticket documentation accurately reflects implementation.
-{ENDIF}
-{ENDIF}
+### Error: Agent Analysis Failed
 
----
+```markdown
+⚠️ Agent analysis incomplete
 
-## Current Status
+{Agent_name} analysis failed:
+{Error details}
 
-{IF pre-work}
-**Quality Score**: [XX]% ({Ready | Ready with Issues | Needs Review})
+Partial results available:
+{Show what succeeded}
 
-{IF issues exist}
-**Remaining Issues**: [N] issues documented
-- High priority: [count]
-- Medium priority: [count]
-- Low priority: [count]
-
-You can:
-- Address issues manually before starting work
-- Run `/review-story` again after manual fixes
-- Proceed with work (quality improvements optional)
-{ELSE}
-**Quality**: Excellent - all validation checks passed ✅
-{ENDIF}
-
-### Next Steps
-
-{IF issues exist}
-**Option 1 (Recommended)**: Fix issues manually ([X] min)
-**Option 2**: Proceed with work (accept current quality)
-{ELSE}
-1. **Begin work**: Start with [FIRST_TASK_ID]
-2. **Follow BDD/TDD**: Write tests first
-3. **Commit after each task**: Use format `feat([TASK_ID]): description`
-{ENDIF}
-
-{ELSE}
-**Quality Score**: [XX]%
-{IF quality issues}
-**Quality Issues**: [N] specification issues remain
-{ELSE}
-**Quality**: Excellent ✅
-{ENDIF}
-
-{IF drift exists}
-**Ticket Drift**: [N] discrepancies remain
-- Task status mismatches: [count]
-- Progress inaccuracies: [count]
-- Undocumented changes: [count]
-
-You can:
-- Run `/review-story` again and approve edits
-- Update tickets manually
-- Continue work (tracking optional, not blocking)
-{ELSE}
-**Ticket Accuracy**: Perfect - matches git reality ✅
-{ENDIF}
-
-### Next Steps
-
-{IF story complete}
-**Story appears complete!**
-1. Push branch: `git push -u origin ${BRANCH}`
-2. Create PR: `gh pr create --title "${STORY_ID}: [title]"`
-{ELSE}
-**Continue implementation:**
-1. Review next task: [NEXT_TASK_ID]
-2. {Address quality/tracking issues | } Run quality gates
-3. Commit when complete
-{ENDIF}
-{ENDIF}
-
----
-
-**Review completed! {✨ | Run again with approval to apply fixes.}**
+Continue with partial analysis? (yes/no)
 ```
 
 ---
 
-## Important Notes
+## Success Criteria
 
-1. **Dual Validation**: Always check quality; add sync check if in-progress
-2. **Single Approval Gate**: Present complete edit plan, get one approval, then execute all
-3. **Update Order Matters**: Tasks → Story → Epic → Initiative (bottom-up)
-4. **Quality Scoring**:
-   - Pre-work: 6 categories, 46 total checks (includes BDD/TDD Task Structure)
-   - In-progress: 6 categories, 49 total checks
-   - Each category scored independently, average = overall score
-5. **Edit Precision**: Use exact OLD/NEW strings from agent analysis
-6. **Error Recovery**: Continue updates even if one fails, report all failures
-7. **Mode Auto-Detection**: Based on commit count, no user input needed
-8. **Flexibility**: User can decline edits and fix manually
-9. **No File Creation**: This command only EDITS existing tickets, never creates
+- ✅ Validates story quality using ticket-analyzer
+- ✅ Checks specification clarity using specification-quality-checker
+- ✅ Compares tickets to git reality using git-state-analyzer (if in-progress)
+- ✅ Detects overengineering using design-guardian
+- ✅ Produces comprehensive quality score (0-100%)
+- ✅ Proposes specific file edits with OLD/NEW
+- ✅ Gets user approval before making changes
+- ✅ Applies edits accurately
+- ✅ Reports before/after quality improvement
+- ✅ Provides actionable next steps
 
 ---
 
-## Thresholds & Scoring
+## Agent Coordination Summary
 
-### Quality Score Interpretation
-- 95-100%: Ready to start / Ready to continue
-- 85-94%: Ready with minor issues
-- 70-84%: Needs review before proceeding
-- Below 70%: Not ready - significant work needed
+This command uses 4 specialized agents:
 
-### Edit Types
+1. **ticket-analyzer** (Step 2.1): Story completeness, task quality, hierarchy validation
+2. **specification-quality-checker** (Step 2.2): Ambiguity detection, clarity scoring
+3. **git-state-analyzer** (Step 2.3): Ticket drift detection (if in-progress)
+4. **design-guardian** (Step 2.4): Overengineering and complexity check
 
-**Quality Fixes** (both modes):
-- Add missing documentation sections
-- Replace vague terms with concrete specifications
-- Quantify unquantified requirements
-- Add missing step definitions/examples
-- Clarify ambiguous task descriptions
-
-**Ticket Sync** (in-progress only):
-- Update task statuses to match commits
-- Adjust progress percentages
-- Document new task additions
-- Update parent epic/initiative progress
-- Record actual hours worked
-
----
-
-## Example Complete Flow
-
-### Example 1: Standard Review
-
-```bash
-# User on story branch with 6 commits
-$ /review-story
-
-# 0. Gather user context
-Which type of review? (standard/focused)
-> standard
-
-# 1. Verify branch & detect mode
-Current branch: STORY-0001.1.2 ✓
-Mode: in-progress (6 commits)
-
-# 2. Launch Task agent (internal - user sees "Analyzing...")
-Analyzing story quality and git state...
-
-# 3. Present combined report
-# 📋 Story Review Report: STORY-0001.1.2
-# Review Type: Standard
-# Quality Score: 85%
-# Ticket Sync: 2 discrepancies
-# 5 edits proposed (3 quality + 2 sync)
-# [Shows all details...]
-Do you approve these file edits? (yes/no/modify)
-
-# 4. User approves
-yes
-
-# 5. Execute edits (user sees progress)
-Updating STORY-0001.1.2/README.md (3 edits)... ✓
-Updating TASK-0001.1.2.1.md (1 edit)... ✓
-Updating EPIC-0001.1/README.md (1 edit)... ✓
-
-# 6. Print final report
-# ✨ Story Review Complete: STORY-0001.1.2
-# Quality: 85% → 93% (+8 points)
-# Ticket accuracy: 2 drift → 0 drift ✅
-# [Shows improvements...]
-```
-
-### Example 2: Focused Review
-
-```bash
-# User on story branch, pre-work
-$ /review-story
-
-# 0. Gather user context
-Which type of review? (standard/focused)
-> focused
-
-What should this review focus on?
-> Check if BDD scenarios match acceptance criteria and have step definitions planned
-
-# 1. Verify branch & detect mode
-Current branch: STORY-0001.1.3 ✓
-Mode: pre-work (0 commits)
-
-# 2. Launch Task agent with focus context
-Analyzing story with focus on BDD scenarios...
-
-# 3. Present combined report
-# 📋 Story Review Report: STORY-0001.1.3
-# Review Type: Focused
-# Focus Area: "Check if BDD scenarios match acceptance criteria and have step definitions planned"
-
-## Focus Area Analysis
-
-**You asked us to focus on:**
-> Check if BDD scenarios match acceptance criteria and have step definitions planned
-
-**Findings Related to Your Focus:**
-- ✅ BDD scenarios exist and cover all 5 acceptance criteria
-- ⚠️  Step definition plan missing in TASK-0001.1.3.2
-- ⚠️  Scenario for edge case "empty config file" not found
-
-**Recommendations:**
-- Add step definition plan to TASK-0001.1.3.2
-- Add BDD scenario for edge case handling
-
-## Quality Validation
-# Overall Quality: 78%
-# 3 edits proposed (all focused on BDD alignment)
-# [Shows all details...]
-Do you approve these file edits? (yes/no/modify)
-
-# 4. User approves
-yes
-
-# 5. Execute edits
-Updating TASK-0001.1.3.2.md (1 edit)... ✓
-Updating STORY-0001.1.3/README.md (2 edits)... ✓
-
-# 6. Print final report
-# ✨ Story Review Complete: STORY-0001.1.3
-# Review Type: Focused
-# Focus Area: BDD scenarios alignment
-# Quality: 78% → 92% (+14 points)
-# Focus issues: 2 found and fixed ✅
-```
+**Context Reduction**: ~66% (1,171 lines → ~400 lines)
 
 ---
 
 ## Begin Execution
 
-1. **Gather user context** - Ask standard vs focused, collect context if focused
-2. **Verify branch & detect mode** - Check STORY-* branch, count commits
-3. **Launch Task agent** - Analyze quality (always) + sync (if in-progress), with optional focus context
-4. **Present combined report** - Show quality + sync + proposed edits (+ focus area if focused)
-5. **Two paths:**
-   - **If edits proposed**: Get approval → Execute edits → Print report (Variant A)
-   - **If no edits OR user declines**: Print status report (Variant B)
+Follow the workflow steps 0-5 in order. Stop at approval gates and wait for user input.
 
-**Remember:** Always present findings to user. Only make edits after explicit approval with "yes".
+**Start with Step 0: Gather User Context**

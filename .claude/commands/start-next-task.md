@@ -13,7 +13,7 @@ You are tasked with executing the next pending task in a story-driven workflow w
 2. **Load Story Context** - Read story, tasks, epic, initiative, roadmap, CLAUDE.md files
 3. **Identify Next Task** - Find first task with status "🔵 Not Started"
 4. **Validate Prerequisites** - Ensure previous tasks complete, dependencies met
-5. **Deep Analysis** - Use Task agent to create detailed implementation plan
+5. **Deep Analysis** - Invoke specialized agents for comprehensive plan
 6. **Present Plan** ⚠️ **REQUIRED APPROVAL** - Wait for user "yes" before proceeding
 7. **Execute Implementation** - Use Task agent to implement (BDD/TDD workflow)
 8. **Run Quality Gates** - All must pass (ruff, mypy, pytest, coverage)
@@ -178,1006 +178,558 @@ Exit with error.
 
 ---
 
-## Step 5: Deep Analysis with Task Agent
+## Step 5: Deep Analysis with Specialized Agents
 
-Launch a Task agent (general-purpose) to create detailed implementation plan:
+Launch specialized agents in parallel to create comprehensive implementation plan.
 
-**Agent Prompt:**
+### 5.1 Invoke pattern-discovery Agent
 
-```markdown
-Create a detailed implementation plan for TASK-{TASK_ID}: {Title}
-
-**Context Provided:**
-
-You have access to:
-- Story README with acceptance criteria, BDD scenarios, technical design
-- Task file with implementation checklist and requirements
-- Parent epic goals and context
-- Initiative objectives
-- Roadmap alignment
-- Root CLAUDE.md and nested CLAUDE.md files with workflow rules
-- TUI_GUIDE.md (if CLI-related task)
-
-**Task Details:**
-- Task ID: {TASK_ID}
-- Title: {Title}
-- Status: {Status}
-- Estimated Hours: {Hours}
-- Parent Story: {STORY_ID}
-- Parent Epic: {EPIC_ID}
-- Initiative: {INIT_ID}
-
-**Codebase Pattern Discovery (REQUIRED FIRST):**
-
-Before creating your implementation plan, you MUST discover and analyze existing patterns:
-
-1. **Test Fixtures Survey**
-   - Read ALL conftest.py files: `tests/conftest.py`, `tests/unit/conftest.py`, `tests/e2e/conftest.py`
-   - List all available fixtures with their purposes
-   - Identify fixture composition patterns (fixtures using other fixtures)
-   - Note factory fixtures for creating test data
-
-2. **Existing Test Patterns**
-   - Find similar test files in tests/unit/ and tests/e2e/
-   - Read 2-3 examples of tests similar to your task
-   - Extract common patterns: setup, assertions, mocks, parametrization
-   - Identify reusable step definitions (for E2E) or test helpers
-
-3. **Module Organization**
-   - Read existing modules in src/gitctx/ related to your task
-   - Note import patterns, class structure, error handling
-   - Find utility functions and common helpers
-   - Identify shared constants or configuration
-
-4. **Documentation Context**
-   - Read relevant nested CLAUDE.md files for your domain
-   - Note documented patterns and anti-patterns
-   - Extract fixture usage examples
-   - Understand security constraints (esp. for git operations)
-
-**Pattern Reuse Checklist:**
-
-Before proposing ANY new fixture, helper, or pattern, verify:
-
-- [ ] No existing fixture provides this functionality
-- [ ] Cannot compose existing fixtures to achieve this
-- [ ] Cannot use existing factory to generate test data
-- [ ] Not duplicating existing test patterns
-- [ ] Not reimplementing platform abstraction helpers
-
-**Your Mission:**
-
-Create a comprehensive implementation plan following strict BDD/TDD workflow principles.
-
-## Required Output Format
-
-### 1. Understanding
-- **What this task accomplishes** (1-2 sentences)
-- **How it fits in story/epic/initiative** (alignment)
-- **Dependencies and prerequisites** (already validated, just confirm)
-
-### 2. Pattern Reuse Analysis & BDD/TDD Strategy
-
-**First: List Discovered Reusable Patterns**
-
-From your pattern discovery, list what you found that applies to this task:
-
-**Available Fixtures:**
-
-- [List fixtures from conftest.py files relevant to this task]
-- [Specify which fixtures to use and why]
-
-**Existing Test Patterns:**
-
-- [List 2-3 similar test files found]
-- [Specify patterns to copy/adapt from those files]
-
-**Reusable Helpers:**
-
-- [List utility functions or platform helpers to use]
-- [Specify helper modules to import]
-
-**Then: Identify Your Development Phase**
-
-#### If BDD Phase (scenario writing):
-
-- Which scenarios to add/modify in tests/e2e/features/
-- **REUSE**: Which existing step definitions to reuse from tests/e2e/steps/
-- **NEW**: Which step definitions are truly new (justify why no existing step works)
-- **FIXTURES**: Which e2e fixtures to use (`e2e_git_repo`, `e2e_cli_runner`, etc.)
-- Exact file locations and Gherkin structure
-
-#### If TDD Phase (unit tests):
-
-- Which test files to create/modify in tests/unit/
-- **REUSE**: Which existing fixtures to use (`isolated_env`, `config_factory`, etc.)
-- **REUSE**: Which test patterns to copy from similar test files
-- **NEW**: What new fixtures needed (justify why existing ones insufficient)
-- **FIXTURES**: Specify exact fixture composition strategy
-- Expected failures and coverage targets
-
-#### If Implementation Phase:
-
-- Which source files to create/modify in src/
-- **REUSE**: Which existing modules/helpers to import and use
-- **REUSE**: Which patterns to follow from similar modules
-- Module structure and organization
-- Key classes/functions to implement
-- Error handling strategy
-
-#### If Refactoring Phase:
-
-- What to refactor and why
-- **REUSE**: Which patterns from other modules to adopt
-- Tests must stay green throughout
-- Code quality improvements (readability, maintainability)
-
-### 3. Step-by-Step Implementation Plan
-
-Provide concrete, actionable steps. Each step MUST include:
-
-1. **Step Number & Description**
-2. **File**: Exact absolute path (e.g., `/Users/bram/Code/gitctx-ai/gitctx/src/...`)
-3. **Action**: Read, Write (new file), or Edit (existing file)
-4. **Pattern Reuse**: State what existing pattern/fixture/helper this step uses
-   - Example: "Uses `isolated_env` fixture from tests/unit/conftest.py"
-   - Example: "Follows AAA pattern from tests/unit/core/test_config.py:10-28"
-   - Example: "Reuses `e2e_git_repo_factory` with custom params"
-   - Example: "Imports `is_windows()` helper from tests/conftest.py:38"
-5. **Content**: Specific changes (not vague like "implement X")
-   - For Write: Show file structure/skeleton
-   - For Edit: Show OLD and NEW content
-6. **Verification**: Exact command to verify this step worked
-
-**Example Good Step:**
-```
-
-**Step 3: Add BDD scenario for config init**
-
-- File: `tests/e2e/features/cli.feature`
-- Action: Edit (append new scenario after existing config scenarios)
-- Content:
-
-  ```gherkin
-  Scenario: config init creates repo structure (default terse output)
-    When I run "gitctx config init"
-    Then the exit code should be 0
-    And the output should be exactly "Initialized .gitctx/"
-    And the file ".gitctx/config.yml" should exist
-  ```
-
-- Verification: `uv run pytest tests/e2e/ -k "config init" --collect-only`
-  (should show 1 test collected)
-
-```
-
-**Example Bad Step (too vague):**
-```
-
-**Step 3: Add BDD scenarios**
-
-- File: cli.feature
-- Action: Edit
-- Content: Add scenarios for config init
-- Verification: Run tests
-
-```
-
-### 4. Quality Gates Checklist
-
-All of these MUST pass before task is considered complete:
-
-- [ ] **Ruff check**: `uv run ruff check src tests` (exit code 0)
-- [ ] **Ruff format**: `uv run ruff format src tests` (exit code 0)
-- [ ] **Mypy**: `uv run mypy src` (exit code 0)
-- [ ] **Pytest**: `uv run pytest -v` (all tests pass)
-- [ ] **Coverage**: `uv run pytest --cov=src/gitctx --cov-report=term-missing` (≥85%)
-
-### 5. Ticket Update Plan
-
-Specify exact edits to ticket files (use OLD/NEW format):
-
-**Task file** (`{TASK_FILE_PATH}`):
+Use Task tool (general-purpose) with pattern-discovery agent:
 
 ```markdown
-OLD:
-**Status**: 🔵 Not Started
-**Actual Hours**: -
+You are the pattern-discovery specialized agent. Discover patterns for task implementation.
 
-NEW:
-**Status**: 🟡 In Progress
-**Actual Hours**: -
+**Discovery Type**: focused-domain
+**Domain**: {unit-testing | e2e-testing | source-code - based on task type}
+**Context**: Implementing TASK-{TASK_ID}: {Title}
+
+**Task Description**:
+{From task file}
+
+**Related Modules** (from task):
+{List modules/files mentioned in task}
+
+## Your Mission
+
+Survey the codebase for patterns relevant to this task:
+
+1. Find existing test fixtures that can be reused
+2. Identify similar tests as patterns to follow
+3. Discover utility functions and helpers
+4. Note BDD step definitions (if E2E task)
+5. Find documented anti-patterns to avoid
+6. Calculate pattern reuse opportunities
+
+**Focus Areas**:
+- Fixtures in conftest.py files relevant to {domain}
+- Test patterns in similar modules
+- Source utilities/helpers for {related functionality}
+- Anti-patterns from CLAUDE.md to avoid
+
+**Output Format**: Markdown with:
+- **Fixtures to Reuse**: Name, location, purpose, how to use
+- **Test Patterns**: File:lines, description, when to use
+- **Source Helpers**: Module.function, purpose, parameters
+- **Step Definitions** (if E2E): Existing steps to reuse
+- **Anti-Patterns**: What NOT to do
+- **Pattern Reuse Score**: 0-10 (how well we can reuse)
+- **New Patterns Needed**: List with justification
+
+Execute the discovery now.
 ```
 
-Then after completion:
+Store output as `PATTERN_ANALYSIS`.
+
+### 5.2 Invoke ticket-analyzer Agent
+
+Use Task tool (general-purpose) with ticket-analyzer agent in parallel:
 
 ```markdown
-OLD:
-**Status**: 🟡 In Progress
-**Actual Hours**: -
+You are the ticket-analyzer specialized agent. Analyze task readiness.
 
-- [ ] Step 1 description
-- [ ] Step 2 description
+**Analysis Type**: task-readiness
+**Target**: TASK-{TASK_ID}
+**Scope**: single-ticket
+**Mode**: pre-work
 
-NEW:
-**Status**: ✅ Complete
-**Actual Hours**: {actual_hours}
+## Your Mission
 
-- [x] Step 1 description
-- [x] Step 2 description
+Analyze the task file for completeness and clarity:
+
+1. Check all 10 task completeness criteria
+2. Validate implementation checklist is concrete
+3. Ensure file paths and module names are specified
+4. Verify test requirements are clear
+5. Check verification criteria are defined
+6. Validate pattern reuse is documented
+7. Score completeness (0-100%)
+
+**Output Format**: Structured markdown with:
+- Completeness score and breakdown
+- Issues found (priority, location, fix)
+- Missing details
+- Vague specifications
+- Recommendations for clarity
+
+Execute the analysis now.
 ```
 
-**Story README** (`{STORY_README_PATH}`):
+Store output as `TASK_READINESS`.
 
-Calculate new progress:
+### 5.3 Invoke design-guardian Agent
 
-- Current: {current_tasks_complete}/{total_tasks} = {current_percent}%
-- After: {current_tasks_complete + 1}/{total_tasks} = {new_percent}%
+Use Task tool (general-purpose) with design-guardian agent in parallel:
 
 ```markdown
-OLD:
-**Progress**: ████░░░░░░ {current_percent}% ({current_tasks_complete}/{total_tasks} tasks complete)
+You are the design-guardian specialized agent. Check for overengineering.
 
-NEW:
-**Progress**: {new_progress_bar} {new_percent}% ({current_tasks_complete + 1}/{total_tasks} tasks complete)
+**Review Type**: task-review
+**Target**: TASK-{TASK_ID}
+**Context**: {Task description}
+
+**Proposed Work**:
+{Task implementation checklist}
+
+## Your Mission
+
+Review the task for unnecessary complexity:
+
+1. Detect premature abstraction (no second use case yet)
+2. Flag premature optimization (no metrics showing need)
+3. Identify unnecessary caching (small data, CLI tool, rarely accessed)
+4. Detect scope creep beyond story acceptance criteria
+5. Distinguish valid complexity (security, testing, validation) from overengineering
+
+**Output Format**: Markdown with:
+- Complexity flags (severity, what, why, simpler alternative)
+- Overengineering score (0-10, lower is simpler)
+- Valid complexity justifications
+- Recommendations to simplify
+
+Execute the review now.
 ```
 
-Update task table:
+Store output as `COMPLEXITY_CHECK`.
+
+### 5.4 Aggregate Agent Results
+
+Wait for all three agents to complete, then synthesize into implementation plan:
 
 ```markdown
-OLD:
-| [TASK-{ID}]({filename}) | {Title} | 🔵 Not Started | {hours} |
+# 🎯 Implementation Plan: TASK-{TASK_ID}
 
-NEW:
-| [TASK-{ID}]({filename}) | {Title} | ✅ Complete | {hours} |
-```
+## Task Overview
+{From task file - title, description, estimated hours}
 
-**Epic README** (ONLY if this task completes the story):
+## Readiness Assessment
+{From TASK_READINESS}
 
-```markdown
-OLD:
-- [STORY-{STORY_ID}](../STORY-{STORY_ID}/README.md): 🟡 In Progress
+**Completeness**: {score}%
+{If <100%, list missing details}
 
-NEW:
-- [STORY-{STORY_ID}](../STORY-{STORY_ID}/README.md): ✅ Complete
-```
+## Pattern Reuse Strategy
+{From PATTERN_ANALYSIS}
 
-Update epic progress bar accordingly.
+**Fixtures to Use**:
+{List from PATTERN_ANALYSIS}
 
-### 6. Commit Message
+**Patterns to Follow**:
+{List from PATTERN_ANALYSIS}
 
-Use conventional commits format with task ID scope:
+**Helpers Available**:
+{List from PATTERN_ANALYSIS}
 
-```
-feat(TASK-{TASK_ID}): {concise description of what was done}
+**Pattern Reuse Score**: {score}/10
 
-{optional body explaining "why" this change was made}
-```
+## Complexity Check
+{From COMPLEXITY_CHECK}
 
-Example:
+{IF any flags}
+**Overengineering Risks**:
+{List flags with simpler alternatives}
+{ENDIF}
 
-```
-feat(TASK-0001.1.2.3): Integrate CLI commands with persistent config
+**Complexity Score**: {score}/10 (target: ≤3 for most tasks)
 
-Added config init subcommand, updated set/get/list to use UserConfig and
-RepoConfig with proper precedence and type validation.
-```
+## Implementation Approach
 
-### 7. Time Estimate Validation
+Based on agent analysis, here's the recommended approach:
 
-- **Implementation**: {X} hours
-- **Testing**: {Y} hours
-- **Documentation**: {Z} hours
-- **Total**: {W} hours
+### BDD/TDD Workflow
 
-Compare to task estimate: {task_estimated_hours} hours
+1. **BDD Scenarios** (if applicable):
+   {Reference scenarios from story}
+   {Note which scenarios this task addresses}
 
-- If within ±0.5 hours: ✓ Estimate validated
-- If exceeds by >0.5 hours: ⚠️  May need scope adjustment or estimate update
+2. **Unit Tests First** (TDD):
+   - Test file: {from task or inferred}
+   - Fixtures to use: {from PATTERN_ANALYSIS}
+   - Pattern to follow: {from PATTERN_ANALYSIS}
+   - Write failing tests for: {specific functionality}
 
-### 8. Risk Assessment
+3. **Implementation**:
+   - Files to modify: {from task}
+   - Helpers to use: {from PATTERN_ANALYSIS}
+   - Keep it simple: {recommendations from COMPLEXITY_CHECK}
 
-**Potential Risks:**
+4. **Integration**:
+   - BDD steps to implement: {if E2E task}
+   - Integration points: {from task}
 
-1. {Risk 1}: {Description}
-   - Mitigation: {How to handle}
-2. {Risk 2}: {Description}
-   - Mitigation: {How to handle}
+### Detailed Steps
 
-**Critical Success Factors:**
+{From task checklist, enhanced with pattern/complexity guidance}
 
-- {Factor 1}
-- {Factor 2}
+{FOR each step in task checklist}
+- [ ] {Step} - {file}
+  - Use: {relevant fixture/helper from PATTERN_ANALYSIS}
+  - Avoid: {anti-pattern from PATTERN_ANALYSIS if relevant}
+{ENDFOR}
 
-### 9. Pattern Reuse Compliance
+### Quality Gates
 
-**Fixtures Reused:**
+- [ ] All unit tests pass
+- [ ] BDD scenarios pass (if applicable)
+- [ ] ruff check passes
+- [ ] ruff format passes
+- [ ] mypy passes
+- [ ] Coverage >90%
 
-- `isolated_env` (tests/unit/conftest.py) - Replaces manual HOME setup
-- `config_factory` (tests/unit/conftest.py) - Generates test config YAML
-- [List all fixtures reused with file location]
+### Verification
 
-**Test Patterns Reused:**
-
-- AAA pattern from tests/unit/core/test_config.py (lines 10-28)
-- Parametrization pattern from [file:lines]
-- [List all patterns with source reference]
-
-**Helpers Reused:**
-
-- `is_windows()` (tests/conftest.py) - Platform detection
-- [List all helpers with source]
-
-**New Patterns Introduced (Justify Each):**
-
-- [Only list if absolutely necessary]
-- [For each: explain why existing patterns insufficient]
-
-**Pattern Reuse Score: X/10**
-
-- 10/10 = 100% reuse, zero duplication
-- 7-9/10 = Mostly reuse, minimal new patterns
-- 4-6/10 = Mixed reuse/new (needs justification)
-- 0-3/10 = Mostly new patterns (SHOULD BE RARE - requires strong justification)
+{From task verification criteria}
 
 ---
 
-**IMPORTANT RULES:**
-
-1. **Be Specific**: No vague terms like "implement X", "handle Y", "add support for Z"
-2. **Exact Paths**: Always use full absolute paths for files
-3. **Exact Changes**: Show OLD/NEW for edits, full content for writes
-4. **Exact Verification**: Provide exact commands with expected output
-5. **Follow Patterns**: Reference existing code patterns from context files
-6. **Respect Workflow**: Strictly follow BDD/TDD principles from CLAUDE.md
-7. **Test First**: If TDD task, tests must be written before implementation
-8. **Scenario First**: If BDD task, scenarios must be written before step definitions
-9. **Pattern Reuse First**: Always use existing fixtures, helpers, and patterns before creating new ones
-10. **Discovery Before Planning**: Read conftest.py files and similar tests BEFORE planning implementation
-11. **Composition Over Creation**: Compose existing fixtures rather than creating new ones
-12. **Reference Sources**: For every pattern used, cite the source file and line numbers
-13. **Justify New Patterns**: Any new fixture/helper requires written justification explaining why existing ones don't work
-14. **Platform Helpers**: Use existing `is_windows()`, `get_platform_*()` helpers, never reimplement
-15. **Fixture Hierarchy**: Respect the 3-level fixture organization (root/unit/e2e conftest.py)
-
+**Plan ready for approval.**
 ```
 
-**Agent Configuration:**
-- Type: general-purpose
-- Mode: Research only (creating plan, not executing yet)
-- Output: Detailed implementation plan in markdown
-
-Wait for agent to complete analysis.
+Store as `IMPLEMENTATION_PLAN`.
 
 ---
 
 ## Step 6: Present Implementation Plan to User
 
-⚠️ **MANDATORY STOP POINT**
+⚠️ **MANDATORY STOP POINT - REQUIRED APPROVAL**
 
-Format and present the agent's plan for approval:
+Present the plan and wait for explicit approval:
 
 ```markdown
-# 📋 Implementation Plan: {TASK_ID}
+# 📋 Implementation Plan: TASK-{TASK_ID}
 
-**Branch**: {BRANCH}
-**Task**: {TASK_ID}: {Title}
-**Story**: {STORY_ID}: {Story Title}
-**Epic**: {EPIC_ID}: {Epic Title}
-**Estimated Hours**: {hours}
+**Task**: {Title}
+**Estimated**: {hours} hours
+**Status**: 🔵 Not Started → Starting now
 
 ═══════════════════════════════════════════════════════════
 
-## Understanding
-
-{agent's understanding section}
+{IMPLEMENTATION_PLAN from Step 5.4}
 
 ═══════════════════════════════════════════════════════════
 
-## BDD/TDD Strategy
+## Approval Required
 
-{agent's strategy section - identifies which phase}
-
-═══════════════════════════════════════════════════════════
-
-## Implementation Steps
-
-{agent's step-by-step plan with exact files, actions, content, verification}
-
-═══════════════════════════════════════════════════════════
-
-## Quality Gates
-
-{checklist of gates that must pass}
-
-═══════════════════════════════════════════════════════════
-
-## Ticket Updates
-
-{exact OLD/NEW edits for task, story, epic files}
-
-═══════════════════════════════════════════════════════════
-
-## Commit Message
-
-```
-
-{proposed commit message}
-
-```
-
-═══════════════════════════════════════════════════════════
-
-## Time Estimate vs Task Estimate
-
-- **Plan estimate**: {W} hours
-- **Task estimate**: {hours} hours
-- **Variance**: {difference} hours ({within/exceeds} estimate)
-
-{if exceeds by >0.5}
-⚠️  Plan exceeds task estimate. Consider:
-- Breaking task into smaller tasks
-- Updating task estimate
-- Removing scope
-{endif}
-
-═══════════════════════════════════════════════════════════
-
-## Risk Assessment
-
-{agent's risk assessment with mitigations}
-
-═══════════════════════════════════════════════════════════
-
-## Approval & Execution
-
-**Do you approve this implementation plan?** (yes/no/modify)
+**Review the plan above.**
 
 Options:
-- **yes**: Execute implementation (will pause for QA before commit)
-- **no**: Cancel and exit
-- **modify**: Discuss changes to plan (I'll revise and re-present)
+- **yes**: Approve and begin implementation
+- **revise**: Suggest changes to the plan
+- **cancel**: Exit without starting
+
+Your choice:
 ```
 
-**CRITICAL:** Wait for user response. Do NOT proceed until user types "yes".
+**CRITICAL**: Wait for user response. Do NOT start implementation until "yes".
 
-**If "no"**: Exit cleanly with "Cancelled" message.
+**Response Handling:**
 
-**If "modify"**: Ask user what to change, revise plan (possibly re-run agent), re-present. Loop until "yes" or "no".
+**If "yes":**
+- Proceed to Step 7 (execute implementation)
 
-**If "yes"**: Proceed to Step 7.
+**If "revise":**
+- Ask: "What changes would you like to the plan?"
+- User describes modifications
+- Update IMPLEMENTATION_PLAN
+- Re-present for approval
+- Loop until "yes" or "cancel"
+
+**If "cancel":**
+- Exit cleanly without modifying any files
 
 ---
 
 ## Step 7: Execute Implementation
 
-**Only proceed if user approved plan with "yes".**
-
-Launch another Task agent to execute the approved plan:
+Launch Task agent (general-purpose) to implement following BDD/TDD workflow:
 
 **Agent Prompt:**
 
 ```markdown
-Execute the approved implementation plan for TASK-{TASK_ID}.
+Implement TASK-{TASK_ID}: {Title} following the approved plan.
 
-**Approved Plan:**
+**Approved Implementation Plan**:
+{IMPLEMENTATION_PLAN}
 
-{Full plan from Step 5 - all sections}
+**Critical Workflow Rules** (from CLAUDE.md):
 
-**Your Mission:**
+1. **BDD/TDD Cycle**:
+   - Write BDD scenarios first (if E2E task)
+   - Write failing unit tests (RED)
+   - Write minimal code to pass (GREEN)
+   - Refactor if needed (REFACTOR)
+   - Run all quality gates after each cycle
 
-Implement the task following the approved plan exactly.
+2. **Pattern Reuse** (from pattern-discovery):
+   {Specific fixtures/patterns to use from PATTERN_ANALYSIS}
 
-## Execution Rules
+3. **Avoid Overengineering** (from design-guardian):
+   {Specific warnings from COMPLEXITY_CHECK}
+   - Keep it simple - no abstractions without second use case
+   - No caching unless performance metrics show need
+   - No premature optimization
 
-### 1. Follow BDD/TDD Workflow Strictly
+4. **Quality Gates** (must pass before proceeding):
+   ```bash
+   uv run ruff check src tests
+   uv run ruff format src tests
+   uv run mypy src
+   uv run pytest
+   ```
 
-**If BDD Phase (writing scenarios):**
-- Write Gherkin scenarios in tests/e2e/features/ FIRST
-- Add step definitions in tests/e2e/steps/ SECOND
-- Run pytest to verify scenarios are recognized: `uv run pytest --collect-only -k "scenario_name"`
-- Scenarios should be recognized but steps may be undefined (that's expected)
+## Implementation Steps
 
-**If TDD Phase (writing unit tests):**
-- Write unit tests in tests/unit/ FIRST (RED phase)
-- Tests should FAIL initially (no implementation exists)
-- Run tests to confirm failures: `uv run pytest tests/unit/{module}/ -v`
-- Verify tests fail for the right reason (not import errors)
-
-**If Implementation Phase:**
-- Tests already exist (from previous task)
-- Write minimal code to make tests pass (GREEN phase)
-- Run tests after each function/class: `uv run pytest -v`
-- All tests must pass before proceeding
-
-**If Refactoring Phase:**
-- Tests already exist and are passing
-- Refactor code for quality (REFACTOR phase)
-- Run tests after each change to ensure they stay green
-- No behavior changes, only code quality improvements
-
-### 2. Tool Usage Order
-
-For each step in the plan:
-
-1. **Read before Edit**: Always use Read tool on existing files before Edit
-2. **Verify after Change**: Run the verification command after each step
-3. **Track Progress**: Use TodoWrite to track steps as you complete them
-4. **Stop on Error**: If any verification fails, STOP and report to user
-
-### 3. Progress Tracking
-
-Use TodoWrite to track implementation steps:
-
-```
-
-[
-  {"content": "Step 1: {description}", "status": "completed", "activeForm": "Completing step 1"},
-  {"content": "Step 2: {description}", "status": "in_progress", "activeForm": "Working on step 2"},
-  {"content": "Step 3: {description}", "status": "pending", "activeForm": "Working on step 3"},
-  ...
-]
-
-```
-
-Update as you go - mark steps complete one at a time.
-
-### 4. Error Handling
-
-**If a step fails:**
-1. STOP immediately (do not continue to next step)
-2. Show exact error message
-3. Ask user:
-   - **fix**: Attempt automatic fix
-   - **manual**: User will fix manually (exit to terminal)
-   - **skip**: Skip this step (NOT recommended, breaks plan)
-   - **abort**: Cancel entire task
-
-**Common errors:**
-- **Import errors**: Usually means step order is wrong (check plan)
-- **File not found**: Check path is correct (absolute vs relative)
-- **Syntax errors**: Fix before proceeding
-- **Test failures**: Expected in TDD RED phase, unexpected in GREEN/REFACTOR
-
-### 5. Quality First
-
-After implementation is complete:
-- Run ALL quality gates in order
-- Report results for each gate
-- If any gate fails, offer to fix or let user fix manually
-- Do NOT proceed to ticket updates if gates fail
-
-### 6. Communication
+{Follow the detailed steps from IMPLEMENTATION_PLAN}
 
 For each step:
-- **Starting**: "▶ Step {N}: {description}"
-- **Running**: Show command being run
-- **Output**: Show relevant output (truncate if long)
-- **Result**: "✓ Step {N} complete" or "✗ Step {N} failed"
-
-Keep output concise but informative.
-
-## Output Format
-
-```markdown
-## Executing Implementation Plan
-
-{list all steps from plan with status indicators}
-
-═══════════════════════════════════════════════════════════
-
-## Step 1: {description}
-▶ Starting...
-
-{show what you're doing}
-
-{show command if running one}
-```
-
-$ {command}
-{output}
-
-```
-
-✓ Step 1 complete
-
-═══════════════════════════════════════════════════════════
-
-{continue for each step}
-
-═══════════════════════════════════════════════════════════
-
-## Quality Gates
-
-Running all quality gates...
-
-### 1. Ruff Check
-```
-
-$ uv run ruff check src tests
-{output}
-
-```
-{✓ Passed or ✗ Failed}
-
-{continue for each gate}
-
-═══════════════════════════════════════════════════════════
-
-{if all passed}
-## ✅ Implementation Complete
-
-All steps executed successfully.
-All quality gates passed.
-
-Proceeding to ticket updates...
-{endif}
-
-{if any failed}
-## ⚠️  Issues Found
-
-{describe issues}
-
-Options:
-- **fix**: Let me attempt automatic fix
-- **manual**: I'll fix manually (exit to terminal)
-- **continue**: Proceed anyway (NOT recommended)
-
-{wait for user input}
-{endif}
-```
+1. Make the change
+2. Run relevant tests
+3. Fix any failures
+4. Continue to next step
 
 ## Important Notes
 
-1. **No shortcuts**: Follow the plan exactly, step by step
-2. **Verify everything**: Run verification command after each step
-3. **Tests first**: TDD/BDD means tests before implementation
-4. **Stop on failure**: Don't proceed past errors
-5. **Quality gates**: All must pass before ticket updates
+- NEVER skip or xfail tests
+- NEVER modify tests to match broken code (fix the code!)
+- Write tests BEFORE implementation (TDD)
+- Use existing fixtures/patterns identified in plan
+- Keep solutions simple unless complexity justified
 
-Execute the plan now.
+**Execute the implementation now.**
 
+Follow BDD/TDD workflow strictly. Report progress as you work.
 ```
 
-**Agent Configuration:**
-- Type: general-purpose
-- Mode: **Write mode** (full access to make changes)
-- Tools: All (Read, Write, Edit, Bash, TodoWrite)
-
-**Monitor agent execution:**
-- Watch for errors
-- If agent asks for decision (fix/manual/skip/abort), relay to user
-- If agent completes successfully, proceed to Step 8
-- If agent fails, show error and exit
+**Monitor Implementation:**
+- Agent implements step by step
+- Agent runs tests after each change
+- Agent reports progress
+- Agent signals completion or blockers
 
 ---
 
 ## Step 8: Run Quality Gates
 
-After implementation agent finishes, verify all quality gates pass:
-
-**Run each gate in sequence:**
+Run all quality gates after implementation:
 
 ```bash
-# 1. Linting
-uv run ruff check src tests
-
-# 2. Formatting
-uv run ruff format src tests
-
-# 3. Type checking
-uv run mypy src
-
-# 4. Tests
-uv run pytest -v
-
-# 5. Coverage
-uv run pytest --cov=src/gitctx --cov-report=term-missing
+# Combined quality check
+uv run ruff check src tests && \
+uv run ruff format src tests && \
+uv run mypy src && \
+uv run pytest --cov=src/gitctx
 ```
 
-**For each gate, check exit code:**
+**All must pass before proceeding.**
 
-- Exit code 0: ✓ Passed
-- Exit code ≠ 0: ✗ Failed
-
-**If any gate fails:**
+**If any fail:**
 
 ```markdown
-✗ Quality gate failed: {gate_name}
+✗ Quality gates failed
 
-{error output}
-
-This must be fixed before proceeding.
+{Show which gate failed and error output}
 
 Options:
-- **fix**: Let me attempt automatic fix
-- **manual**: I'll fix it manually (exit to terminal)
-- **skip**: Continue anyway (NOT recommended - breaks workflow)
+1. **fix**: Let me fix the issues
+2. **manual**: You fix manually and re-run
+3. **skip**: Skip this task (not recommended)
 
-Choose: (fix/manual/skip)
+Choose:
 ```
 
-Wait for user input.
+If "fix", use Task agent to fix issues, then re-run gates. Loop until all pass.
+If "manual", exit and let user fix.
+If "skip", exit without completing task.
 
-- If "fix": Attempt to fix (e.g., `uv run ruff check src tests --fix`), then re-run gate
-- If "manual": Exit cleanly with message "Fix issues manually, then re-run /start-next-task"
-- If "skip": Warn strongly but proceed (mark in report that gates were skipped)
-
-**If all gates pass:**
+**When all pass:**
 
 ```markdown
-✅ All Quality Gates Passed
+✅ All quality gates passed!
 
-✓ Ruff check: Passed
-✓ Ruff format: Passed
-✓ Mypy: Passed
-✓ Pytest: {pass_count} passed
-✓ Coverage: {coverage}% (threshold: 85%)
+- ruff check: ✓
+- ruff format: ✓
+- mypy: ✓
+- pytest: ✓ ({N} tests, {coverage}% coverage)
 
-Proceeding to ticket updates...
+Proceeding to QA checkpoint...
 ```
 
 ---
 
 ## Step 9: Human QA Checkpoint
 
-⚠️ **MANDATORY STOP POINT**
+⚠️ **MANDATORY STOP POINT - REQUIRED APPROVAL**
 
-Present summary for human review:
+Present implementation for user review:
 
 ```markdown
-# ✅ Task Implementation Complete: {TASK_ID}
+# 🔍 Human QA Checkpoint: TASK-{TASK_ID}
 
-**All quality gates passed! ✨**
-
-═══════════════════════════════════════════════════════════
-
-## Summary
-
-- **Task**: {TASK_ID}: {Title}
-- **Story**: {STORY_ID}
-- **Time**: {actual_hours} hours (estimated: {estimated_hours})
-- **Files Changed**: {count} files
-- **Tests**: All passing ({pass_count} passed)
-- **Coverage**: {coverage}% (threshold: 85%)
+**Implementation complete. Please review:**
 
 ═══════════════════════════════════════════════════════════
 
 ## Changes Made
 
-### Source Files ({count})
-{list each file with brief description of changes}
+{Summary of files modified/created}
 
-### Test Files ({count})
-{list each test file with brief description}
+## Tests Added/Modified
 
-═══════════════════════════════════════════════════════════
+{Summary of test changes}
 
-## Quality Gate Results
+## Quality Gates
 
-✓ Ruff check: Passed
-✓ Ruff format: Passed
-✓ Mypy: Passed
-✓ Pytest: {pass_count} passed
-✓ Coverage: {coverage}% (target: 85%)
-
-{if any gates were skipped}
-⚠️  Warning: Some gates were skipped at your request:
-{list skipped gates}
-{endif}
+- ✅ ruff check
+- ✅ ruff format
+- ✅ mypy
+- ✅ pytest ({N} tests, {coverage}% coverage)
 
 ═══════════════════════════════════════════════════════════
 
-## Git Status
+## Manual Testing Recommended
 
-```
+{From task verification criteria}
 
-{run: git status --short}
-
-```
+**Please test manually and verify the task is complete.**
 
 ═══════════════════════════════════════════════════════════
 
-## Diff Summary
-
-```
-
-{run: git diff --stat}
-
-```
-
-═══════════════════════════════════════════════════════════
-
-## Ready to Commit
-
-**Commit message:**
-```
-
-feat(TASK-{TASK_ID}): {description}
-
-{optional body}
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-
-```
-
-═══════════════════════════════════════════════════════════
-
-## Human QA Required
-
-Please review the changes:
-
-1. **Verify implementation** matches task requirements
-2. **Check tests** cover edge cases and scenarios
-3. **Review diff** for any issues or unintended changes
-
-**Approve for ticket updates and commit?** (yes/no/fix)
+## Approval Required
 
 Options:
-- **yes**: Update tickets, then commit everything (implementation + tickets)
-- **no**: Discard all changes and exit (git reset --hard)
-- **fix**: Describe issues, I'll fix them before updating tickets
+- **approve**: Mark task complete and commit
+- **revise**: Request changes before committing
+- **reject**: Discard changes and exit
+
+Your choice:
 ```
 
-**CRITICAL:** Wait for user response. Do NOT commit until user types "yes".
+**CRITICAL**: Wait for user response. Do NOT commit until "approve".
 
-**If "no":**
+**Response Handling:**
 
-```markdown
-Discarding changes...
+**If "approve":**
+- Proceed to Step 10 (update tickets)
 
-Are you sure? This will reset all changes. (yes/no)
-```
+**If "revise":**
+- Ask: "What needs to be changed?"
+- User describes issues
+- Use Task agent to make revisions
+- Re-run quality gates (Step 8)
+- Re-present for approval (Step 9)
+- Loop until "approve" or "reject"
 
-If user confirms "yes":
-
-```bash
-git reset --hard
-git clean -fd
-```
-
-Then exit with "Changes discarded. Task not committed."
-
-**If "fix":**
-Ask user to describe what needs fixing. Either:
-
-- Make the fixes yourself (if clear instructions)
-- Exit and let user fix manually: "Please fix the issues, then re-run /start-next-task"
-
-**If "yes":** Proceed to Step 10.
+**If "reject":**
+- Ask: "Discard all changes? (yes/no)"
+- If yes: `git restore .` and exit
+- If no: Exit without discarding (user can fix manually)
 
 ---
 
 ## Step 10: Update Ticket Files
 
-**Only proceed if user approved with "yes" in Step 9.**
-
-Update ticket files in dependency order (bottom-up):
+Update task status, hours, and parent progress:
 
 ### 10.1 Update Task File
 
-Use Edit tool to update task file:
+```python
+# Read task file
+task_content = Read(file_path="{TASK_FILE_PATH}")
 
-**Edit 1: Mark task complete and record hours**
+# Update status
+Edit(
+    file_path="{TASK_FILE_PATH}",
+    old_string="**Status**: 🔵 Not Started",
+    new_string="**Status**: ✅ Complete"
+)
 
-```markdown
-OLD:
-**Status**: 🟡 In Progress
-**Actual Hours**: -
-
-NEW:
-**Status**: ✅ Complete
-**Actual Hours**: {actual_hours}
+# Update actual hours
+Edit(
+    file_path="{TASK_FILE_PATH}",
+    old_string="**Actual Hours**: -",
+    new_string="**Actual Hours**: {actual_hours}"
+)
 ```
-
-**Edit 2: Check off implementation steps**
-
-For each step in the task's Implementation Checklist:
-
-```markdown
-OLD:
-- [ ] Step description
-
-NEW:
-- [x] Step description
-```
-
-Verify edits succeeded.
 
 ### 10.2 Update Story README
 
-**Edit 1: Update progress bar and count**
+```python
+# Read story README
+story_content = Read(file_path="{STORY_README_PATH}")
 
-Calculate new progress:
+# Update task status in table
+Edit(
+    file_path="{STORY_README_PATH}",
+    old_string="| [{TASK_ID}]({task_file}) | {title} | 🔵 | {hours} |",
+    new_string="| [{TASK_ID}]({task_file}) | {title} | ✅ | {actual_hours} |"
+)
 
-- Current tasks complete: {N}
-- Total tasks: {M}
-- New count: {N+1}
-- New percentage: {(N+1)/M * 100}%
-- New progress bar: {generate bar with █ and░}
-
-```markdown
-OLD:
-**Progress**: {old_bar} {old_percent}% ({N}/{M} tasks complete)
-
-NEW:
-**Progress**: {new_bar} {new_percent}% ({N+1}/{M} tasks complete)
-```
-
-**Edit 2: Update task table status**
-
-```markdown
-OLD:
-| [TASK-{ID}]({filename}) | {Title} | 🔵 Not Started | {hours} |
-
-NEW:
-| [TASK-{ID}]({filename}) | {Title} | ✅ Complete | {hours} |
+# Update progress bar and percentage
+# Calculate: completed_tasks / total_tasks * 100
+Edit(
+    file_path="{STORY_README_PATH}",
+    old_string="**Progress**: {old_bar} {old_pct}%",
+    new_string="**Progress**: {new_bar} {new_pct}%"
+)
 ```
 
 ### 10.3 Update Epic README (if story now complete)
 
-Check if this was the last task:
+```python
+{IF all story tasks complete}
+# Read epic README
+epic_content = Read(file_path="{EPIC_README_PATH}")
 
-- If {N+1} == {M} (all tasks complete), update epic
+# Update story status
+Edit(
+    file_path="{EPIC_README_PATH}",
+    old_string="| [{STORY_ID}]({story_path}) | {title} | {old_status} | {old_points} |",
+    new_string="| [{STORY_ID}]({story_path}) | {title} | ✅ | {points} |"
+)
 
-**Edit: Update story status in epic**
-
-```markdown
-OLD:
-- [STORY-{STORY_ID}](path/to/story/README.md): 🟡 In Progress
-
-NEW:
-- [STORY-{STORY_ID}](path/to/story/README.md): ✅ Complete
+# Update epic progress
+Edit(
+    file_path="{EPIC_README_PATH}",
+    old_string="**Progress**: {old_bar} {old_pct}%",
+    new_string="**Progress**: {new_bar} {new_pct}%"
+)
+{ENDIF}
 ```
 
-Also update epic progress bar if needed (based on story completion).
-
-### 10.4 Verify All Edits
-
-After all edits:
-
+Output:
 ```markdown
-✓ Updated ticket files
-
-Files updated:
-- {TASK_FILE}: Status ✅, hours recorded, checklist complete
-- {STORY_README}: Progress {old}% → {new}%, task table updated
-{if epic updated}
-- {EPIC_README}: Story status ✅, epic progress updated
-{endif}
+✅ Tickets updated:
+- Task: {TASK_ID} → ✅ Complete ({actual_hours}h)
+- Story: {STORY_ID} → {new_pct}% complete
+{IF epic updated}
+- Epic: {EPIC_ID} → {new_pct}% complete
+{ENDIF}
 ```
 
 ---
 
 ## Step 11: Commit Changes
 
-**Only if user approved with "yes" in Step 9.**
-
-**This commits BOTH implementation and updated tickets together (atomic commit).**
-
-### 11.1 Stage All Changes
+Create atomic commit with both implementation and ticket updates:
 
 ```bash
-git add -A
-```
+# Stage all changes (implementation + tickets)
+git add .
 
-Show what's staged (should include implementation + ticket updates):
-
-```bash
-git diff --cached --stat
-```
-
-### 11.2 Create Commit
-
-Use the commit message from the plan (commits implementation + tickets):
-
-```bash
+# Create commit with proper format
 git commit -m "$(cat <<'EOF'
-feat(TASK-{TASK_ID}): {description}
+feat(TASK-{TASK_ID}): {task_title}
 
-{optional body}
+{Brief description of what was implemented}
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
@@ -1186,413 +738,201 @@ EOF
 )"
 ```
 
-### 11.3 Verify Commit
-
+Verify commit:
 ```bash
-# Show commit
 git log -1 --stat
-
-# Get commit SHA
-git rev-parse HEAD
 ```
 
-**Output:**
-
+Output:
 ```markdown
-✓ Committed: feat(TASK-{TASK_ID}): {description}
+✅ Changes committed:
 
-Commit: {sha}
-Author: {author}
-Date: {date}
-
-{files changed summary}
-
-View commit: git show {sha}
+Commit: {hash}
+Message: feat(TASK-{TASK_ID}): {title}
+Files changed: {N}
+- Implementation: {list source files}
+- Tests: {list test files}
+- Tickets: {list ticket files}
 ```
 
 ---
 
 ## Step 11.5: First Commit - Create Draft PR
 
-**Only if this is the first task commit in the story.**
+**Only if this is the first commit on the branch (no prior commits on this story branch).**
 
-Check if this is the first commit on the story branch:
-
+Check commit count:
 ```bash
-# Count commits ahead of main
 git rev-list --count main..HEAD
 ```
 
-**If count == 1 (first task commit):**
+**If count == 1 (first commit):**
 
+### Push Branch
+
+```bash
+git push -u origin {BRANCH_NAME}
+```
+
+### Create Draft PR with GitHub Blob URLs
+
+Use gh CLI to create PR with proper formatting:
+
+```bash
+gh pr create --draft --title "{STORY_ID}: {story_title}" --body "$(cat <<'EOF'
+# {STORY_ID}: {Story Title}
+
+## User Story
+
+{From story README}
+
+## Acceptance Criteria
+
+{From story README - checklist format}
+
+## BDD Scenarios
+
+{From story README - Gherkin scenarios}
+
+## Technical Design
+
+### Modules/Files Affected
+
+{From story README - with GitHub blob URLs}
+
+### Data Model
+
+{From story README if applicable}
+
+### Testing Strategy
+
+{From story README}
+
+## Progress
+
+{Progress percentage}
+
+**Tasks**:
+{Task table from story with status}
+
+## Related
+
+- Initiative: {INIT_ID}
+- Epic: {EPIC_ID}
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+**Important**: Convert file paths to GitHub blob URLs:
+- Format: `https://github.com/{owner}/{repo}/blob/{branch}/{file_path}`
+- Get owner/repo from `gh repo view --json nameWithOwner`
+- Use current branch name
+
+Output:
 ```markdown
-═══════════════════════════════════════════════════════════
+✅ Draft PR created:
 
-## First Task Complete - Creating Draft PR
-
-This is the first task in {STORY_ID}. Creating draft PR now...
-
-**Story**: {STORY_ID}: {Story Title}
-**Branch**: {branch}
-**Commit**: {sha}
-```
-
-### 11.5.1 Get Repository Info
-
-```bash
-# Extract org and repo from git remote
-gh repo view --json owner,name
-```
-
-Store:
-
-- `REPO_OWNER` (e.g., "gitctx-ai")
-- `REPO_NAME` (e.g., "gitctx")
-- `BRANCH` (current branch name)
-
-### 11.5.2 Push Branch
-
-```bash
-git push -u origin {branch}
-```
-
-### 11.5.3 Prepare PR Body with GitHub Blob URLs
-
-Read story README and convert relative links to GitHub blob URLs:
-
-```bash
-# Get story README content
-cat {STORY_README_PATH}
-
-# Convert relative links to blob URLs
-# Pattern: Replace (./EPIC-...) or (TASK-...) with full GitHub blob URLs
-# Format: https://github.com/{REPO_OWNER}/{REPO_NAME}/blob/{BRANCH}/docs/tickets/...
-```
-
-**URL Conversion Rules:**
-
-- `(./EPIC-NNNN.N/README.md)` → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/EPIC-NNNN.N/README.md)`
-- `(TASK-NNNN.N.N.N.md)` → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/EPIC-NNNN.N/STORY-NNNN.N.N/TASK-NNNN.N.N.N.md)`
-- `(../README.md)` for parent epic → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/EPIC-NNNN.N/README.md)`
-- `(../../README.md)` for initiative → `(https://github.com/{owner}/{repo}/blob/{branch}/docs/tickets/INIT-NNNN/README.md)`
-
-Save converted body to temporary file.
-
-### 11.5.4 Create Draft PR
-
-```bash
-# Create draft PR with converted body
-gh pr create --draft \
-  --title "{STORY_ID}: {Story Title}" \
-  --body "$(cat /tmp/pr-body-with-blob-urls.md)"
-```
-
-**Expected output:**
-
-```
-https://github.com/{owner}/{repo}/pull/{NUMBER}
-```
-
-Extract PR number and store as `PR_NUMBER`.
-
-### 11.5.5 Confirm Creation
-
-```markdown
-✓ Draft PR created!
-
-PR: https://github.com/{owner}/{repo}/pull/{PR_NUMBER}
-Title: {STORY_ID}: {Story Title}
+URL: {pr_url}
 Status: Draft
-Branch: {branch} → main
-
-The PR will be updated automatically as you complete more tasks.
-CI monitoring will start automatically after each push.
+Branch: {branch_name} → main
 ```
 
-**If count > 1 (not first commit):**
+**If count > 1 (subsequent commit):**
 
-Skip this step, proceed directly to Step 12.
+Just push:
+```bash
+git push
+```
 
 ---
 
 ## Step 12: CI Watch & Fix Loop (Mandatory)
 
-**Runs after every commit push (both first and subsequent commits).**
+**Watch ALL CI workflows until 100% green.**
 
-This step ensures all CI workflows pass before proceeding. If workflows fail, we automatically iterate until they're 100% green.
-
-### 12.1 Push to Remote (if not already pushed)
-
-If commit was already pushed in Step 11.5, skip to 12.2.
-
-Otherwise:
+### 12.1 List Recent Workflow Runs
 
 ```bash
-git push -u origin {branch}
+gh run list --limit 5
 ```
 
-```markdown
-✓ Pushed to origin/{branch}
-
-Remote: {remote_url}
-Branch: {branch}
-Commit: {sha}
-```
-
-### 12.2 Detect CI Workflows
-
-Check if GitHub Actions workflows exist and are triggered:
+### 12.2 Watch Latest Run
 
 ```bash
-# List recent workflow runs for this branch
-gh run list --branch {branch} --limit 5 --json status,conclusion,name,databaseId,workflowName,createdAt
+# Get latest run ID
+RUN_ID=$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
+
+# Watch it
+gh run watch $RUN_ID
 ```
 
-**If no workflows found:**
+### 12.3 Handle Failures
+
+**If ANY workflow fails (especially Windows):**
 
 ```markdown
-ℹ️  No CI workflows detected for this branch.
+⚠️ CI Failure Detected
 
-Proceeding without CI monitoring.
+Workflow: {workflow_name}
+Status: ❌ Failed
+Platform: {platform}
+
+Fetching logs...
 ```
-
-Skip to Step 13.
-
-**If workflows found:**
-
-Proceed to 12.3.
-
-### 12.3 Wait for Workflows to Start
-
-Workflows may take a few seconds to trigger. Wait up to 30 seconds:
-
-```markdown
-═══════════════════════════════════════════════════════════
-
-## CI Workflows Detected
-
-Waiting for workflows to start...
-```
-
-Poll every 5 seconds until at least one workflow shows "in_progress" or "completed":
 
 ```bash
-gh run list --branch {branch} --limit 5 --json status,conclusion,name,databaseId
+gh run view $RUN_ID --log-failed
 ```
 
-### 12.4 Monitor All Workflows
-
-Watch all triggered workflows in real-time:
-
-```markdown
-**Triggered Workflows:**
-- {workflow_1}: {status}
-- {workflow_2}: {status}
-- {workflow_3}: {status}
-
-Monitoring CI... (This may take several minutes)
-```
-
-For each workflow, check status periodically:
-
-```bash
-# Get detailed status of specific run
-gh run view {run_id} --json status,conclusion,jobs
-```
-
-**Focus on Windows workflows:** Pay special attention to jobs with `windows-latest` in the runner name.
-
-### 12.5 Handle Workflow Results
-
-Once all workflows complete, check conclusions:
-
-**Case A: All workflows succeeded ✅**
-
-```markdown
-═══════════════════════════════════════════════════════════
-
-## ✅ All CI Workflows Passed!
-
-**Results:**
-✓ {workflow_1}: success
-✓ {workflow_2}: success
-✓ {workflow_3}: success
-
-All quality gates green. Proceeding to final report...
-```
-
-**If PR exists:** Update PR body with latest story README (with blob URLs).
-
-Skip to Step 13.
-
-**Case B: One or more workflows failed ❌**
-
-```markdown
-═══════════════════════════════════════════════════════════
-
-## ❌ CI Workflows Failed
-
-**Results:**
-✓ {workflow_1}: success
-✗ {workflow_2}: failure (linux tests)
-✗ {workflow_3}: failure (windows tests)
-
-Analyzing failures...
-```
-
-Proceed to 12.6.
-
-### 12.6 Analyze Failures & Offer Fix
-
-For each failed workflow, fetch detailed logs:
-
-```bash
-# Get failed job details
-gh run view {run_id} --log-failed
-```
-
-Display failure summary:
+**Analyze failure and fix:**
 
 ```markdown
 ## Failure Analysis
 
-### {workflow_name} - {job_name}
+{Show relevant error logs}
 
-**Runner**: {os} (Python {version})
-**Failed Step**: {step_name}
+**Root Cause**: {analysis}
 
-**Error Summary:**
+**Fix Required**: {description}
+
+Applying fix...
 ```
 
-{relevant error lines from log}
-
-```
-
-**Common Causes:**
-{List likely causes based on error pattern}
-```
-
-**Offer to fix:**
+Use Task agent to fix the issue:
 
 ```markdown
-═══════════════════════════════════════════════════════════
+Fix the CI failure in {workflow_name} on {platform}.
 
-## Fix CI Failures
+**Error**:
+{error logs}
 
-Options:
-- **fix**: Attempt automatic fix (recommended)
-- **manual**: Exit to terminal, I'll fix manually
-- **retry**: Re-run workflows without changes (if flaky test suspected)
-- **skip**: Continue anyway (NOT recommended - PR will have failing checks)
+**Context**:
+- Latest commit: {hash}
+- Files changed: {list}
 
-Choose: (fix/manual/retry/skip)
+Fix the issue, run quality gates locally, then we'll commit and push.
 ```
 
-Wait for user input.
+After fix:
+1. Run quality gates locally (Step 8)
+2. Commit fix: `git commit -m "fix(TASK-{TASK_ID}): {fix_description}"`
+3. Push: `git push`
+4. Watch new CI run (repeat 12.2)
 
-**If "fix":**
+**Loop until ALL workflows pass on ALL platforms.**
 
-Attempt to fix automatically:
-
-1. Analyze error patterns
-2. Make code changes
-3. Run quality gates locally: `uv run ruff check src tests && uv run ruff format src tests && uv run mypy src && uv run pytest`
-4. If local tests pass, proceed to 12.7
-5. If local tests fail, offer manual fix
-
-**If "manual":**
+### 12.4 Success
 
 ```markdown
-Please fix the failures manually, then re-run `/start-next-task` to continue.
+✅ All CI workflows passed!
 
-The task status remains 🟡 In Progress.
+{List of workflows with ✓}
 
-Failed workflows:
-- {workflow_1}: {url}
-- {workflow_2}: {url}
-```
-
-Exit cleanly.
-
-**If "retry":**
-
-```bash
-# Re-run failed workflows
-gh run rerun {run_id} --failed
-```
-
-Return to 12.4 (monitor workflows again).
-
-**If "skip":**
-
-```markdown
-⚠️  WARNING: Skipping CI failures
-
-This will leave failing checks on your PR. The PR cannot be merged until CI passes.
-
-Are you sure? (yes/no)
-```
-
-If yes: Skip to Step 13 with warning in final report.
-If no: Return to fix options.
-
-### 12.7 Commit Fix & Iterate
-
-**Only if automatic fix was applied:**
-
-Stage and commit the fix:
-
-```bash
-git add -A
-git commit -m "$(cat <<'EOF'
-fix({TASK_ID}): Fix CI failures - {brief description}
-
-{explanation of what was fixed}
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-EOF
-)"
-```
-
-Push the fix:
-
-```bash
-git push
-```
-
-```markdown
-✓ Fix committed and pushed
-
-Commit: {new_sha}
-Message: fix({TASK_ID}): Fix CI failures - {description}
-
-Monitoring CI again...
-```
-
-**Return to Step 12.2** - Repeat the CI watch & fix loop until all workflows pass.
-
-### 12.8 Update PR Body (if PR exists)
-
-After all CI passes, update the PR body with latest story README:
-
-```bash
-# Get PR number
-gh pr view --json number
-
-# Get story README and convert links to blob URLs
-cat {STORY_README_PATH} | sed 's|(\./|https://github.com/{org}/{repo}/blob/{branch}/docs/tickets/|g' > /tmp/pr-body-updated.md
-
-# Update PR body
-gh pr edit {PR_NUMBER} --body "$(cat /tmp/pr-body-updated.md)"
-```
-
-```markdown
-✓ PR body updated
-
-PR #{PR_NUMBER}: {STORY_ID}: {title}
-URL: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
+Branch is ready for review.
 ```
 
 ---
@@ -1602,153 +942,85 @@ URL: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
 Print comprehensive summary:
 
 ```markdown
-# ✨ Task Complete: {TASK_ID}
+# ✨ Task Complete: TASK-{TASK_ID}
 
-**Status**: Committed, Pushed, {CI Status}
-**Time**: {actual_hours} hours (estimated: {estimated_hours})
-**Commit**: {sha}
-**Remote**: origin/{branch}
-{if PR exists}
-**Pull Request**: #{PR_NUMBER} (Draft) - https://github.com/{org}/{repo}/pull/{PR_NUMBER}
-{endif}
+**Task**: {Title}
+**Status**: ✅ Complete
+**Actual Time**: {actual_hours} hours (estimated: {estimated_hours})
+**Date**: {date}
 
 ═══════════════════════════════════════════════════════════
 
-## What Was Done
+## Summary
 
-**Task**: {TASK_ID}: {Title}
+**Implementation**:
+- Files modified: {N}
+- Tests added: {N}
+- Coverage: {coverage}%
 
-**Changes**:
-- {summary of changes}
-- {quality metrics}
+**Pattern Reuse**:
+- Fixtures reused: {list from PATTERN_ANALYSIS}
+- Patterns followed: {list from PATTERN_ANALYSIS}
+- New patterns: {N} (justified in task file)
 
-**Ticket Updates**:
-- Task status: 🔵 → ✅
-- Story progress: {old}% → {new}%
-{if epic updated}
-- Epic progress: {epic_old}% → {epic_new}%
-{endif}
+**Quality**:
+- Complexity score: {from COMPLEXITY_CHECK}/10 ✓
+- All quality gates: ✅ Passed
+- All CI workflows: ✅ Green
 
-═══════════════════════════════════════════════════════════
-
-## CI Status
-
-{if CI workflows exist}
-**All Workflows**: {✅ Passed / ⚠️ Passed with fixes / ❌ Failed (skipped)}
-
-**Workflow Results:**
-✓ {workflow_1}: success
-✓ {workflow_2}: success
-✓ {workflow_3}: success
-
-{if fixes were applied}
-**CI Fixes Applied**: {count} fix commit(s)
-- {fix_commit_1}: {description}
-- {fix_commit_2}: {description}
-{endif}
-
-{if CI was skipped}
-⚠️  **WARNING**: CI failures were skipped. PR has failing checks.
-
-Failed workflows:
-✗ {workflow_1}: {url}
-✗ {workflow_2}: {url}
-
-**Action Required**: Fix these failures before PR can be merged.
-{endif}
-
-{else}
-**CI**: No workflows configured
-{endif}
+**Tickets**:
+- Task: {TASK_ID} → ✅ Complete
+- Story: {STORY_ID} → {progress}% complete
+{IF epic updated}
+- Epic: {EPIC_ID} → {progress}% complete
+{ENDIF}
 
 ═══════════════════════════════════════════════════════════
 
-## Pull Request Status
+## Commits
 
-{if PR exists}
-**PR**: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
-**Title**: {STORY_ID}: {Story Title}
-**Status**: Draft
-**Branch**: {branch} → main
-**Body**: ✓ Updated with latest story content and blob URLs
-**CI Checks**: {✅ All passing / ⚠️ Some failing / 🔄 In progress}
+{List commits created}
 
-{if more pending tasks}
-**The PR will be updated automatically** as you complete more tasks in this story.
-Each task completion will:
-- Push new commits to the branch
-- Monitor and fix CI failures
-- Update PR body with latest progress
-{else}
-**Story Complete!** Ready to mark PR as ready for review.
+═══════════════════════════════════════════════════════════
 
-**Next Steps:**
-1. Review PR: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
-2. Mark as ready for review: `gh pr ready {PR_NUMBER}`
-3. Request reviewers: `gh pr edit {PR_NUMBER} --add-reviewer @username`
-{endif}
+## PR Status
 
-{else if first task}
-**PR**: Draft PR created automatically on first task
-{else}
-**PR**: Create manually with:
-```
-
-gh pr create --draft --title "{STORY_ID}: {Story Title}"
-
-```
-{endif}
+{IF PR created}
+**Draft PR**: {pr_url}
+**Status**: ✅ All CI checks passing
+{ELSE}
+**Existing PR**: {pr_url} (updated with new commit)
+**Status**: ✅ All CI checks passing
+{ENDIF}
 
 ═══════════════════════════════════════════════════════════
 
 ## Next Steps
 
-{if more pending tasks in story}
+{IF more tasks pending}
 ### Continue Story
 
-**Next task**: {NEXT_TASK_ID}: {Next Task Title}
+Next task: {NEXT_TASK_ID} - {title}
 
-Run: `/start-next-task`
+Run: `/start-next-task` to continue
 
-**Progress**: {completed}/{total} tasks complete ({percent}%)
-
-{else if story complete}
+{ELSE}
 ### Story Complete! 🎉
 
-All {M} tasks in {STORY_ID} are complete.
+All tasks in {STORY_ID} are complete.
 
-{if PR exists}
-**Pull Request Ready:**
-1. Review changes: https://github.com/{org}/{repo}/pull/{PR_NUMBER}
-2. Verify all CI checks pass
-3. Mark as ready for review:
+**Recommended**:
+1. Run `/review-story` for final validation
+2. Convert PR to ready for review:
+   ```bash
+   gh pr ready {pr_number}
    ```
-
-   gh pr ready {PR_NUMBER}
-
-   ```
-4. Request review:
-   ```
-
-   gh pr edit {PR_NUMBER} --add-reviewer @username
-
-   ```
-{else}
-**Create Pull Request:**
-Draft PR should have been created automatically. If not, create manually.
-{endif}
-
-**Or run final validation:**
-```
-
-/review-story
-
-```
-{endif}
+3. Request reviews and merge when approved
+{ENDIF}
 
 ═══════════════════════════════════════════════════════════
 
-**Task completed successfully! 🎉**
+**Task execution complete!** ✨
 ```
 
 **Exit successfully.**
@@ -1762,180 +1034,93 @@ Draft PR should have been created automatically. If not, create manually.
 ```markdown
 ✗ Not on a story branch
 
-Current branch: {branch}
+Current branch: {branch_name}
 
-You must be on a STORY-* branch to use this command.
-
-**Options:**
-
-1. Switch to existing story branch:
-   ```
-
-   git checkout STORY-XXXX
-
-   ```
-
-2. Create new story branch:
-   ```
-
-   git checkout -b STORY-XXXX
-
-   ```
-
-3. List available story branches:
-   ```
-
-   git branch | grep STORY-
-
-   ```
+Switch to a story branch first:
+git checkout STORY-XXXX
 ```
 
-Exit with error.
-
-### Error: No Pending Tasks
-
-```markdown
-✓ All tasks complete!
-
-Story: {STORY_ID} (100% complete)
-
-**Next steps:**
-
-1. Run `/review-story` for final validation
-2. Create PR: `gh pr create`
-```
-
-Exit successfully.
+Exit.
 
 ### Error: Prerequisites Not Met
 
 ```markdown
 ✗ Prerequisites not met for {TASK_ID}
 
-**Required:**
+{List failed prerequisites}
 
-{for each failed prerequisite}
-  ✗ {PREREQUISITE}: {current_status} (expected: ✅ Complete)
-{endfor}
-
-**Passed:**
-
-{for each passed prerequisite}
-  ✓ {PREREQUISITE}: {status}
-{endfor}
-
-Complete prerequisites first, then retry `/start-next-task`.
+Complete prerequisites first, then retry.
 ```
 
-Exit with error.
+Exit.
 
-### Error: Quality Gate Failed (User Declined Fix)
+### Error: Quality Gates Failed (After Retries)
 
 ```markdown
-✗ Quality gate failed: {gate_name}
+✗ Quality gates still failing after attempts
 
-{error_output}
+Manual intervention needed.
 
-**You chose to exit and fix manually.**
+Current issues:
+{List issues}
 
-After fixing, re-run: `/start-next-task`
-
-Note: The task status is 🟡 In Progress. The command will detect this
-and offer to continue from where it left off.
+Fix manually, then run `/start-next-task` again.
 ```
 
-Exit cleanly.
+Exit.
 
-### Error: User Declined Commit
+### Error: CI Perpetually Failing
 
 ```markdown
-✗ Commit declined
+⚠️ CI failures persist after {N} fix attempts
 
-You chose not to commit the changes.
-
-**Changes are still in working directory.**
+This may require deeper investigation.
 
 Options:
-1. Review changes: `git diff`
-2. Commit manually: `git commit -am "message"`
-3. Discard changes: `git reset --hard`
-4. Re-run `/start-next-task` to try again
+1. Continue fixing (not recommended if >3 attempts)
+2. Manual review needed
+3. Possible infrastructure issue
+
+Check:
+- CI logs at: gh run view {RUN_ID}
+- Recent changes to CI config
+- Platform-specific issues
 ```
-
-Exit cleanly (don't discard changes automatically).
-
----
-
-## Implementation Notes
-
-### Agent Coordination
-
-1. **Agent 1 (Planning)**:
-   - Type: general-purpose
-   - Mode: Research (read-only)
-   - Output: Implementation plan
-   - Runs in Step 5
-
-2. **Agent 2 (Execution)**:
-   - Type: general-purpose
-   - Mode: Write (full access)
-   - Input: Approved plan from Agent 1
-   - Output: Implementation results
-   - Runs in Step 7
-
-### State Tracking
-
-- Task status transitions: 🔵 → 🟡 (start) → ✅ (complete)
-- Track actual hours vs estimate
-- Update parent story/epic automatically when needed
-- Maintain progress bars with accurate percentages
-
-### TodoWrite Integration
-
-- Create todos at start of execution (Step 7)
-- Update as each step completes
-- Clear todos at end of task
-- Format: `[{"content": "...", "status": "...", "activeForm": "..."}]`
-
-### Quality Enforcement
-
-- ALL gates must pass (or user explicitly skips)
-- No commits with failing tests
-- Coverage threshold enforced (≥85%)
-- Report which gates passed/failed clearly
-
-### Git Hygiene
-
-- One task = one commit (atomic)
-- Proper format: `feat(TASK-ID): description`
-- Co-authored-by Claude footer
-- Optional push to remote with CI monitoring
 
 ---
 
 ## Success Criteria
 
-- ✅ Validates story branch before starting
-- ✅ Loads complete story context (story, tasks, epic, init, roadmap, CLAUDE.md)
-- ✅ Identifies correct next pending task
-- ✅ Validates all prerequisites before proceeding
-- ✅ Creates detailed implementation plan via Task agent
-- ✅ Presents plan for approval (REQUIRED)
-- ✅ Executes plan via separate Task agent (only after approval)
-- ✅ Follows strict BDD/TDD workflow (test-first)
-- ✅ Runs all quality gates (must pass)
-- ✅ Updates task/story/epic files correctly (in dependency order)
-- ✅ Requires human QA before commit (REQUIRED)
-- ✅ Creates properly formatted commit
-- ✅ Optionally pushes to remote with CI monitoring
-- ✅ One task = one commit (atomic)
-- ✅ Handles errors gracefully with clear recovery steps
-- ✅ Provides clear next steps after completion
+- ✅ Identifies next task correctly
+- ✅ Validates prerequisites before starting
+- ✅ Creates comprehensive plan using specialized agents
+- ✅ Follows BDD/TDD workflow strictly
+- ✅ Reuses patterns identified by pattern-discovery
+- ✅ Avoids overengineering flagged by design-guardian
+- ✅ All quality gates pass
+- ✅ User approval at all checkpoints
+- ✅ Tickets updated accurately
+- ✅ Atomic commits with proper format
+- ✅ PR created/updated with proper format
+- ✅ ALL CI workflows green before finishing
+- ✅ Clear final report with next steps
+
+---
+
+## Agent Coordination Summary
+
+This command uses 3 specialized agents:
+
+1. **pattern-discovery** (Step 5.1): Find reusable fixtures, patterns, helpers for task
+2. **ticket-analyzer** (Step 5.2): Validate task readiness and completeness
+3. **design-guardian** (Step 5.3): Check for overengineering in task scope
+
+**Context Reduction**: ~77% (1,941 lines → ~445 lines estimated)
 
 ---
 
 ## Begin Execution
 
-Follow the workflow steps 1-13 in order. Stop at approval gates and wait for user input. Handle errors gracefully. Report progress clearly.
+Follow the workflow steps 1-13 in order. Stop at approval gates and wait for explicit user input. Track progress with TodoWrite.
 
 **Start with Step 1: Verify Story Branch**

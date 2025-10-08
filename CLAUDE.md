@@ -11,6 +11,7 @@ When working in gitctx, read the appropriate nested CLAUDE.md based on your task
 - **Documentation** → Read `docs/CLAUDE.md` and subdirectories
 - **Architecture** → Read `docs/architecture/CLAUDE.md`
 - **Ticket Workflow** → Read `docs/tickets/CLAUDE.md`
+- **Specialized Agents** → Read `.claude/agents/README.md` for agent composition patterns
 
 ## Core Development Workflow
 
