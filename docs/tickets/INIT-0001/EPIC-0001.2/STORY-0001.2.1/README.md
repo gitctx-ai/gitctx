@@ -13,22 +13,22 @@ So that downstream components can chunk, embed, and store with complete git cont
 
 ## Acceptance Criteria
 
-- [ ] Deduplicates blobs by SHA (same content indexed once)
-- [ ] Deduplicates commits when walking multiple refs
-- [ ] Tracks all locations where each blob appears (commit, path, is_head)
-- [ ] Detects merge commits including octopus merges (is_merge flag)
-- [ ] Filters binary files (null byte detection)
-- [ ] Detects and skips Git LFS pointer files with warning logged to WalkStats.errors (error type: "lfs_pointer")
-- [ ] Respects .gitignore rules (from HEAD)
-- [ ] Skips oversized blobs (>5MB default, configurable)
-- [ ] Supports multiple refs (branches, tags, HEAD)
-- [ ] Handles bare repositories (is_head always False)
-- [ ] Detects partial clones and errors with helpful message
-- [ ] Detects shallow clones and errors asking for unshallow
-- [ ] Reports progress during walk (callback with metrics)
-- [ ] Handles non-fatal errors gracefully (oversized blobs, LFS pointers, invalid encoding logged to WalkStats.errors)
-- [ ] Fatal errors (partial clone, shallow clone, missing refs) raise specific exceptions with helpful messages
-- [ ] Can resume from partial index (skip already-indexed blobs)
+- [x] Deduplicates blobs by SHA (same content indexed once)
+- [x] Deduplicates commits when walking multiple refs
+- [x] Tracks all locations where each blob appears (commit, path, is_head)
+- [x] Detects merge commits including octopus merges (is_merge flag)
+- [x] Filters binary files (null byte detection)
+- [x] Detects and skips Git LFS pointer files with warning logged to WalkStats.errors (error type: "lfs_pointer")
+- [x] Respects .gitignore rules (from HEAD)
+- [x] Skips oversized blobs (>5MB default, configurable)
+- [x] Supports multiple refs (branches, tags, HEAD)
+- [x] Handles bare repositories (is_head always False)
+- [x] Detects partial clones and errors with helpful message
+- [x] Detects shallow clones and errors asking for unshallow
+- [x] Reports progress during walk (callback with metrics)
+- [x] Handles non-fatal errors gracefully (oversized blobs, LFS pointers, invalid encoding logged to WalkStats.errors)
+- [x] Fatal errors (partial clone, shallow clone, missing refs) raise specific exceptions with helpful messages
+- [x] Can resume from partial index (skip already-indexed blobs)
 
 ## BDD Scenarios
 
