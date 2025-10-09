@@ -158,15 +158,16 @@ class TestEmbedWithCache:
         Then: Correct language is passed to chunker
         """
         # Test data: file extension → expected language
+        # (language codes match language_detection.py)
         test_cases = [
             ("main.py", "python"),
-            ("app.js", "javascript"),
-            ("app.jsx", "javascript"),
-            ("types.ts", "javascript"),
-            ("component.tsx", "javascript"),
+            ("app.js", "js"),
+            ("app.jsx", "js"),
+            ("types.ts", "ts"),
+            ("component.tsx", "ts"),
             ("server.go", "go"),
             ("lib.rs", "rust"),
-            ("README.md", "unknown"),  # Not in mapping
+            ("README.md", "markdown"),  # Falls back to markdown
         ]
 
         cache = EmbeddingCache(cache_dir=tmp_path, model="text-embedding-3-large")

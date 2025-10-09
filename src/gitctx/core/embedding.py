@@ -12,6 +12,7 @@ Design:
 import logging
 
 from gitctx.core.embedding_cache import EmbeddingCache
+from gitctx.core.language_detection import detect_language_from_extension
 from gitctx.core.models import BlobRecord
 from gitctx.core.protocols import ChunkerProtocol, EmbedderProtocol, Embedding
 
@@ -67,19 +68,10 @@ async def embed_with_cache(
     content = blob_record.content.decode("utf-8", errors="replace")
 
     # Detect language from first location (if any)
-    language = "unknown"
+    language = "markdown"  # Default fallback
     if blob_record.locations:
         file_path = blob_record.locations[0].file_path
-        # Simple extension-based detection
-        if file_path.endswith(".py"):
-            language = "python"
-        elif file_path.endswith((".js", ".jsx", ".ts", ".tsx")):
-            language = "javascript"
-        elif file_path.endswith((".go",)):
-            language = "go"
-        elif file_path.endswith((".rs",)):
-            language = "rust"
-        # Add more as needed
+        language = detect_language_from_extension(file_path)
 
     # Chunk the content
     chunks = chunker.chunk_file(content, language)

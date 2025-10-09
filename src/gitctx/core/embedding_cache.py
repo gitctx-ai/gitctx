@@ -1,5 +1,6 @@
 """Embedding cache using safetensors for persistent storage."""
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -7,6 +8,8 @@ from safetensors import safe_open
 from safetensors.numpy import save_file
 
 from gitctx.core.protocols import Embedding
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingCache:
@@ -76,8 +79,9 @@ class EmbeddingCache:
                     )
 
                 return embeddings
-        except Exception:
-            # Corrupted file - return None
+        except Exception as e:
+            # Corrupted file - log and return None
+            logger.warning(f"Failed to load cache for {blob_sha[:8]}: {e}")
             return None
 
     def set(self, blob_sha: str, embeddings: list[Embedding]) -> None:
