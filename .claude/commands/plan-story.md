@@ -67,7 +67,7 @@ def load_story(story_id: str) -> dict:
 **Target:** {STORY-ID}
 **Mode:** pre-planning
 
-Execute comprehensive gap discovery and return structured JSON output per AGENT_CONTRACT.md.
+Execute comprehensive gap discovery and return structured JSON output per [AGENT_CONTRACT.md](../agents/AGENT_CONTRACT.md).
 ```
 
 Expected output:

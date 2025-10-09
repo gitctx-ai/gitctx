@@ -241,7 +241,7 @@ def load_initiative(init_id: str) -> dict:
 **Target:** {INIT-ID}
 **Mode:** pre-planning
 
-Execute comprehensive gap discovery and return structured JSON output per AGENT_CONTRACT.md.
+Execute comprehensive gap discovery and return structured JSON output per [AGENT_CONTRACT.md](../agents/AGENT_CONTRACT.md).
 ```
 
 Expected output:

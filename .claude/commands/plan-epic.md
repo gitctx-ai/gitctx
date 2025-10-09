@@ -66,7 +66,7 @@ def load_epic(epic_id: str) -> dict:
 **Target:** {EPIC-ID}
 **Mode:** pre-planning
 
-Execute comprehensive gap discovery and return structured JSON output per AGENT_CONTRACT.md.
+Execute comprehensive gap discovery and return structured JSON output per [AGENT_CONTRACT.md](../agents/AGENT_CONTRACT.md).
 ```
 
 Expected output from orchestrator:

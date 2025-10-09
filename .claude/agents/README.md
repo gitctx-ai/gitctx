@@ -303,7 +303,6 @@ AGENT_TIMEOUTS = {
     "git-state-analyzer": 60,              # 1 minute - git commands are fast
     "design-guardian": 90,                 # 1.5 minutes - complexity analysis
     "pattern-discovery": 180,              # 3 minutes - scans codebase
-    "requirements-interviewer": 300,       # 5 minutes - interactive, longer
 }
 
 DEFAULT_AGENT_TIMEOUT = 120  # 2 minutes for unknown agents
