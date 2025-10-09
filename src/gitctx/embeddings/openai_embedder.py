@@ -100,7 +100,19 @@ class OpenAIEmbedder:
             return []
 
         contents = [chunk.content for chunk in chunks]
-        vectors = await self._embeddings.aembed_documents(contents)
+
+        # Call OpenAI API directly to get usage data
+        response = await self._embeddings.async_client.create(
+            input=contents,
+            model=self.MODEL,
+            dimensions=self.DIMENSIONS,
+        )
+
+        # Extract vectors and usage data
+        response_dict = response.model_dump() if not isinstance(response, dict) else response
+
+        vectors = [item["embedding"] for item in response_dict["data"]]
+        api_token_count = response_dict.get("usage", {}).get("total_tokens")
 
         # Validate dimensions
         for vector in vectors:
@@ -112,14 +124,22 @@ class OpenAIEmbedder:
         # Build Embeddings with metadata
         embeddings = []
         for idx, (chunk, vector) in enumerate(zip(chunks, vectors, strict=False)):
+            # Use API token count if available, otherwise fall back to tiktoken estimate
+            cost = (
+                self.estimate_cost(api_token_count)
+                if api_token_count is not None
+                else self.estimate_cost(chunk.token_count)
+            )
+
             embeddings.append(
                 Embedding(
                     vector=vector,
                     token_count=chunk.token_count,
                     model=self.MODEL,
-                    cost_usd=self.estimate_cost(chunk.token_count),
+                    cost_usd=cost,
                     blob_sha=blob_sha,
                     chunk_index=idx,
+                    api_token_count=api_token_count,
                 )
             )
 

@@ -172,14 +172,13 @@ class Embedding:
 
     Attributes:
         vector: Embedding vector (3072 dimensions for text-embedding-3-large)
-        token_count: Number of tokens in source chunk
+        token_count: Number of tokens in source chunk (from tiktoken)
         model: Model name (e.g., "text-embedding-3-large")
-        cost_usd: Cost in USD for generating this embedding
-                  TODO(TASK-0001.2.3.3): MUST use actual token count from OpenAI API response,
-                  not tiktoken estimates. Required accuracy: ±1% vs OpenAI billing.
-                  Verify LangChain exposes API usage data or use direct OpenAI SDK.
+        cost_usd: Cost in USD for generating this embedding (calculated from api_token_count
+                  if available, otherwise from token_count estimate)
         blob_sha: Git blob SHA this embedding represents
         chunk_index: Index of chunk within blob's chunks
+        api_token_count: Actual token count from OpenAI API response (None if not available)
     """
 
     vector: list[float]
@@ -188,6 +187,7 @@ class Embedding:
     cost_usd: float
     blob_sha: str
     chunk_index: int
+    api_token_count: int | None = None
 
 
 class EmbedderProtocol(Protocol):

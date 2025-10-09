@@ -57,7 +57,9 @@ def api_key_configured(embedding_context: dict[str, Any]) -> None:
     import os
 
     # Use real API key from environment if available, otherwise use test key for mocking
-    embedding_context["api_key"] = os.getenv("OPENAI_API_KEY", "sk-test-key-for-mocked-bdd-tests")
+    embedding_context["api_key"] = os.getenv(
+        "OPENAI_API_KEY", "sk-test-key-for-mocked-bdd-tests"
+    )  # pragma: allowlist secret
 
 
 @when("I generate an embedding for the chunk")
