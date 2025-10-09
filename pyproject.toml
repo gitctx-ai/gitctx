@@ -25,7 +25,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "langchain-text-splitters>=0.3.0,<1.0",
+    "langchain-core>=1.0.0a0",
+    "langchain-openai>=1.0.0a0",
+    "langchain-text-splitters>=1.0.0a0",
     "numpy>=1.24.0",
     "pathspec>=0.11.0",
     "pydantic>=2.11.0",
@@ -41,6 +43,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "ipython>=9.6.0",
     "pytest>=8.0.0",
     "pytest-bdd>=7.0.0",
     "pytest-cov>=4.1.0",
@@ -126,6 +129,16 @@ follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "tiktoken.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "langchain_openai.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "langchain_core.*"
 ignore_missing_imports = true
 follow_imports = "skip"
 

@@ -10,6 +10,12 @@ import pytest
 
 
 @pytest.fixture
+def anyio_backend():
+    """Configure pytest-anyio to use only asyncio backend (no trio)."""
+    return "asyncio"
+
+
+@pytest.fixture
 def isolated_env(temp_home: Path, monkeypatch):
     """
     Complete environment isolation for unit tests.
