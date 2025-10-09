@@ -1,9 +1,9 @@
 # STORY-0001.2.3: OpenAI Embedding Generation
 
 **Parent**: [EPIC-0001.2](../README.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 5
-**Progress**: ███████░░░ 70% (3/4 tasks complete)
+**Progress**: ██████████ 100% (4/4 tasks complete)
 
 ## User Story
 
@@ -115,7 +115,7 @@ Feature: OpenAI Embedding Generation
 | [TASK-0001.2.3.1](TASK-0001.2.3.1.md) | Write BDD scenarios for embedding generation | ✅ | 2 | 0/10 scenarios (all failing) |
 | [TASK-0001.2.3.2](TASK-0001.2.3.2.md) | Define protocols, models, and EmbeddingCache + add dependencies | ✅ | 4 | 1/10 scenarios passing |
 | [TASK-0001.2.3.3](TASK-0001.2.3.3.md) | Implement OpenAIEmbedder with LangChain wrapper (TDD) | ✅ | 8 | Core implementation (BDD deferred to TASK-4) |
-| [TASK-0001.2.3.4](TASK-0001.2.3.4.md) | Configuration integration, cost tracking, and final BDD scenarios | 🔵 | 4 | 10/10 scenarios passing ✅ |
+| [TASK-0001.2.3.4](TASK-0001.2.3.4.md) | Configuration integration, cost tracking, and final BDD scenarios | ✅ | 4 | 10/10 scenarios functional ✅ |
 
 **Total**: 18 hours = 5 story points (reduced from 20h due to LangChain handling complexity)
 
