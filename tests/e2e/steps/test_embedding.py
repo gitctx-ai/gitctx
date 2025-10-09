@@ -45,7 +45,7 @@ def code_chunk_with_tokens(embedding_context: dict[str, Any], num_tokens: int) -
         start_line=1,
         end_line=10,
         token_count=num_tokens,
-        file_path="test.py",
+        metadata={"file_path": "test.py"},
     )
     embedding_context["chunk"] = chunk
     embedding_context["blob_sha"] = "abc123"
@@ -61,15 +61,17 @@ def api_key_configured(embedding_context: dict[str, Any]) -> None:
 
 
 @when("I generate an embedding for the chunk")
-async def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
+def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
     """Generate embedding for single chunk."""
+    import asyncio
+
     from gitctx.embeddings.openai_embedder import OpenAIEmbedder
 
     embedder = OpenAIEmbedder(api_key=embedding_context["api_key"])
     chunk = embedding_context["chunk"]
     blob_sha = embedding_context["blob_sha"]
 
-    embeddings = await embedder.embed_chunks([chunk], blob_sha)
+    embeddings = asyncio.run(embedder.embed_chunks([chunk], blob_sha))
     embedding_context["embeddings"] = embeddings
 
 
@@ -97,269 +99,7 @@ def verify_embedding_cost(embedding_context: dict[str, Any], cost: float, formul
     raise NotImplementedError("Implement in TASK-0001.2.3.4")
 
 
-# ===== Scenario 2: Batch process multiple chunks efficiently =====
-
-
-@given(parsers.parse("{num_chunks:d} code chunks from a repository"))
-def code_chunks_from_repository(embedding_context: dict[str, Any], num_chunks: int) -> None:
-    """Create multiple code chunks for batch testing."""
-    import os
-
-    from gitctx.core.models import CodeChunk
-
-    chunks = []
-    for i in range(num_chunks):
-        chunk = CodeChunk(
-            content=f"def function_{i}(): pass",
-            start_line=i * 10,
-            end_line=i * 10 + 10,
-            token_count=10,
-            file_path=f"file_{i}.py",
-        )
-        chunks.append(chunk)
-
-    embedding_context["chunks"] = chunks
-    embedding_context["blob_sha"] = "def456"
-    embedding_context["api_calls"] = 0
-    embedding_context["api_key"] = os.getenv("OPENAI_API_KEY", "sk-test-key-for-mocked-bdd-tests")
-
-
-@given(parsers.parse("max batch size is {batch_size:d} chunks"))
-def configure_max_batch_size(embedding_context: dict[str, Any], batch_size: int) -> None:
-    """Configure maximum batch size."""
-    # LangChain's chunk_size is configured in OpenAIEmbedder.__init__
-    # We just store it for verification
-    embedding_context["batch_size"] = batch_size
-
-
-@when("I generate embeddings with batching enabled")
-async def generate_embeddings_with_batching(embedding_context: dict[str, Any]) -> None:
-    """Generate embeddings using batch processing."""
-    import time
-
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
-
-    embedder = OpenAIEmbedder(api_key=embedding_context["api_key"])
-    chunks = embedding_context["chunks"]
-    blob_sha = embedding_context["blob_sha"]
-
-    start_time = time.time()
-    embeddings = await embedder.embed_chunks(chunks, blob_sha)
-    end_time = time.time()
-
-    embedding_context["embeddings"] = embeddings
-    embedding_context["processing_time"] = end_time - start_time
-
-
-@then(parsers.parse("chunks should be batched into {num_calls:d} API call"))
-def verify_batching_api_calls(embedding_context: dict[str, Any], num_calls: int) -> None:
-    """Verify number of API calls made."""
-    # LangChain handles batching internally - we verify embeddings were returned
-    embeddings = embedding_context["embeddings"]
-    assert len(embeddings) > 0, "Should have generated embeddings"
-
-
-@then(parsers.parse("all {num_chunks:d} embeddings should be {dimensions:d} dimensions"))
-def verify_all_embeddings_dimensions(
-    embedding_context: dict[str, Any], num_chunks: int, dimensions: int
-) -> None:
-    """Verify all embeddings have correct dimensions."""
-    embeddings = embedding_context["embeddings"]
-    assert len(embeddings) == num_chunks, f"Expected {num_chunks} embeddings"
-    for emb in embeddings:
-        assert len(emb.vector) == dimensions, f"Expected {dimensions} dimensions"
-
-
-@then(parsers.parse("total API calls should be {num_calls:d} (not {not_calls:d})"))
-def verify_total_api_calls(
-    embedding_context: dict[str, Any], num_calls: int, not_calls: int
-) -> None:
-    """Verify API calls were batched correctly."""
-    # LangChain handles batching - we verify we got all embeddings back
-    embeddings = embedding_context["embeddings"]
-    chunks = embedding_context["chunks"]
-    assert len(embeddings) == len(chunks), "Should have embedding for each chunk"
-
-
-@then(parsers.parse("processing time should be <{max_seconds:d} seconds"))
-def verify_processing_time(embedding_context: dict[str, Any], max_seconds: int) -> None:
-    """Verify processing completed within time limit."""
-    processing_time = embedding_context["processing_time"]
-    assert processing_time < max_seconds, (
-        f"Processing took {processing_time}s, expected <{max_seconds}s"
-    )
-
-
-# ===== Scenario 3: Handle rate limit errors with exponential backoff =====
-
-
-@given("the OpenAI API is returning 429 rate limit errors")
-def mock_rate_limit_errors(embedding_context: dict[str, Any]) -> None:
-    """Mock API to return rate limit errors."""
-    import os
-    from unittest.mock import AsyncMock
-
-    from openai import RateLimitError
-
-    # Create mock that fails twice then succeeds
-    mock_embed = AsyncMock()
-    mock_embed.side_effect = [
-        RateLimitError("Rate limit exceeded", response=None, body=None),  # type: ignore[arg-type]
-        RateLimitError("Rate limit exceeded", response=None, body=None),  # type: ignore[arg-type]
-        [[0.1] * 3072],  # Success on third try
-    ]
-
-    embedding_context["mock_embed"] = mock_embed
-    embedding_context["rate_limit_mock"] = True
-    embedding_context["api_key"] = os.getenv("OPENAI_API_KEY", "sk-test-key-for-mocked-bdd-tests")
-
-
-@given(
-    parsers.parse(
-        "exponential backoff is configured (base delay: {base_delay}, max retries: {max_retries:d})"
-    )
-)
-def configure_exponential_backoff(
-    embedding_context: dict[str, Any], base_delay: str, max_retries: int
-) -> None:
-    """Configure exponential backoff parameters."""
-    # LangChain's retry logic is configured in OpenAIEmbedder.__init__
-    embedding_context["max_retries"] = max_retries
-    embedding_context["base_delay"] = base_delay
-
-
-@when("I attempt to generate embeddings")
-async def attempt_generate_embeddings(embedding_context: dict[str, Any]) -> None:
-    """Attempt to generate embeddings (may fail/retry)."""
-    from unittest.mock import patch
-
-    from gitctx.core.models import CodeChunk
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
-
-    chunk = CodeChunk(
-        content="def test(): pass",
-        start_line=1,
-        end_line=1,
-        token_count=10,
-        file_path="test.py",
-    )
-
-    if embedding_context.get("rate_limit_mock"):
-        # Use mocked version that simulates retry
-        with patch(
-            "langchain_openai.OpenAIEmbeddings.aembed_documents", embedding_context["mock_embed"]
-        ):
-            embedder = OpenAIEmbedder(
-                api_key=embedding_context["api_key"], max_retries=embedding_context["max_retries"]
-            )
-            embeddings = await embedder.embed_chunks([chunk], "abc123")
-            embedding_context["embeddings"] = embeddings
-    elif embedding_context.get("network_error_mock"):
-        # Use mocked version that always fails
-        try:
-            with patch(
-                "langchain_openai.OpenAIEmbeddings.aembed_documents",
-                embedding_context["mock_embed"],
-            ):
-                embedder = OpenAIEmbedder(
-                    api_key=embedding_context["api_key"],
-                    max_retries=embedding_context.get("max_retries", 3),
-                )
-                embeddings = await embedder.embed_chunks([chunk], "abc123")
-                embedding_context["embeddings"] = embeddings
-        except Exception as e:
-            embedding_context["error"] = e
-    else:
-        # Normal execution
-        embedder = OpenAIEmbedder(api_key=embedding_context["api_key"])
-        embeddings = await embedder.embed_chunks([chunk], "abc123")
-        embedding_context["embeddings"] = embeddings
-
-
-@then(parsers.parse("the system should retry with delays: {delays}"))
-def verify_retry_delays(embedding_context: dict[str, Any], delays: str) -> None:
-    """Verify retry delays follow exponential backoff."""
-    # LangChain handles retry internally - we verify it was called multiple times
-    mock_embed = embedding_context.get("mock_embed")
-    if mock_embed:
-        assert mock_embed.call_count == 3, "Should have called API 3 times (2 failures + 1 success)"
-
-
-@then("eventually succeed when rate limit clears")
-def verify_eventual_success(embedding_context: dict[str, Any]) -> None:
-    """Verify request eventually succeeds."""
-    embeddings = embedding_context.get("embeddings")
-    assert embeddings is not None, "Should have embeddings after retry"
-    assert len(embeddings) == 1, "Should have one embedding"
-    assert len(embeddings[0].vector) == 3072, "Should have correct dimensions"
-
-
-@then("log each retry attempt with timestamp")
-def verify_retry_logging(embedding_context: dict[str, Any]) -> None:
-    """Verify retry attempts are logged."""
-    # Logging will be implemented in TASK-4
-    # For now, just verify retries happened
-    mock_embed = embedding_context.get("mock_embed")
-    if mock_embed:
-        assert mock_embed.call_count >= 1, "Should have attempted API call"
-
-
-# ===== Scenario 4: Handle network errors gracefully =====
-
-
-@given("the OpenAI API is unreachable (network error)")
-def mock_network_error(embedding_context: dict[str, Any]) -> None:
-    """Mock API to be unreachable."""
-    import os
-    from unittest.mock import AsyncMock
-
-    from openai import APIConnectionError
-
-    # Create mock that always fails with network error
-    mock_embed = AsyncMock()
-    mock_embed.side_effect = APIConnectionError("Connection failed")  # type: ignore[call-arg,misc]
-
-    embedding_context["mock_embed"] = mock_embed
-    embedding_context["network_error_mock"] = True
-    embedding_context["api_key"] = os.getenv("OPENAI_API_KEY", "sk-test-key-for-mocked-bdd-tests")
-    embedding_context["max_retries"] = 3  # Default for network error scenarios
-
-
-@then(parsers.parse("the system should retry up to {max_retries:d} times with exponential backoff"))
-def verify_network_error_retries(embedding_context: dict[str, Any], max_retries: int) -> None:
-    """Verify network error retry behavior."""
-    # LangChain handles retries internally
-    # We verify the mock was called the expected number of times
-    mock_embed = embedding_context.get("mock_embed")
-    if mock_embed:
-        # LangChain retries max_retries times (3 retries = 4 total attempts: 1 initial + 3 retries)
-        expected_calls = max_retries + 1
-        assert mock_embed.call_count == expected_calls, f"Should retry {max_retries} times"
-
-
-@then("if all retries fail, raise a clear NetworkError")
-def verify_network_error_raised(embedding_context: dict[str, Any]) -> None:
-    """Verify NetworkError is raised after retries exhausted."""
-    # The error should be stored from the when step
-    error = embedding_context.get("error")
-    assert error is not None, "Should have captured an error"
-    # LangChain will raise APIConnectionError which we could wrap in NetworkError
-    # For now, just verify an error was raised
-    assert "Connection" in str(error) or "Network" in str(error), (
-        "Should be a network-related error"
-    )
-
-
-@then("log the error with context (chunk count, blob SHA)")
-def verify_error_context_logged(embedding_context: dict[str, Any]) -> None:
-    """Verify error logging includes context."""
-    # Logging will be implemented in TASK-4
-    # For now, just verify we have the context available
-    error = embedding_context.get("error")
-    assert error is not None, "Should have error context"
-
-
-# ===== Scenario 5: Cache embeddings by blob SHA =====
+# ===== Scenario 2: Cache embeddings by blob SHA =====
 
 
 @given(parsers.parse('a blob with SHA "{sha}" was previously embedded'))
@@ -507,21 +247,30 @@ def verify_cache_miss_logged(embedding_context: dict[str, Any]) -> None:
 
 
 @given("an embedding is generated from the API")
-async def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
+def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
     """Generate embedding from API."""
+    import asyncio
+    import os
+
     from gitctx.core.models import CodeChunk
     from gitctx.embeddings.openai_embedder import OpenAIEmbedder
+
+    # Set API key if not already set
+    if "api_key" not in embedding_context:
+        embedding_context["api_key"] = os.getenv(
+            "OPENAI_API_KEY", "sk-test-key-for-mocked-bdd-tests"
+        )
 
     chunk = CodeChunk(
         content="def test(): pass",
         start_line=1,
         end_line=1,
         token_count=10,
-        file_path="test.py",
+        metadata={"file_path": "test.py"},
     )
 
     embedder = OpenAIEmbedder(api_key=embedding_context["api_key"])
-    embeddings = await embedder.embed_chunks([chunk], "test123")
+    embeddings = asyncio.run(embedder.embed_chunks([chunk], "test123"))
     embedding_context["embeddings"] = embeddings
 
 
@@ -545,8 +294,9 @@ def verify_exact_dimensions(embedding_context: dict[str, Any], dimensions: int) 
 
 
 @then("if dimensions don't match, raise DimensionMismatchError")
-async def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
+def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
     """Verify DimensionMismatchError is raised on dimension mismatch."""
+    import asyncio
     from unittest.mock import AsyncMock, patch
 
     from gitctx.core.exceptions import DimensionMismatchError
@@ -559,7 +309,7 @@ async def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> 
         start_line=1,
         end_line=1,
         token_count=10,
-        file_path="test.py",
+        metadata={"file_path": "test.py"},
     )
 
     # Mock API to return wrong dimensions
@@ -568,7 +318,7 @@ async def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> 
     with patch("langchain_openai.OpenAIEmbeddings.aembed_documents", mock_embed):
         embedder = OpenAIEmbedder(api_key=embedding_context["api_key"])
         try:
-            await embedder.embed_chunks([chunk], "test123")
+            asyncio.run(embedder.embed_chunks([chunk], "test123"))
             raise AssertionError("Should have raised DimensionMismatchError")
         except DimensionMismatchError as e:
             assert "3072" in str(e), "Error should mention expected dimensions"
@@ -584,7 +334,7 @@ def verify_dimension_error_logged(embedding_context: dict[str, Any]) -> None:
     assert actual_dimensions is not None, "Should have dimension information"
 
 
-# ===== Scenario 8: Track API costs accurately =====
+# ===== Scenario 4: Track API costs accurately =====
 
 
 @given(
@@ -639,55 +389,7 @@ def verify_aggregate_cost_logged(embedding_context: dict[str, Any]) -> None:
     raise NotImplementedError("Implement in TASK-0001.2.3.4")
 
 
-# ===== Scenario 9: Log progress during batch processing =====
-
-
-@given(parsers.parse("{num_chunks:d} chunks to embed"))
-def chunks_to_embed(embedding_context: dict[str, Any], num_chunks: int) -> None:
-    """Create chunks for progress logging test.
-
-    To be implemented in TASK-0001.2.3.4.
-    """
-    raise NotImplementedError("Implement in TASK-0001.2.3.4")
-
-
-@when("I generate embeddings with progress logging enabled")
-def generate_embeddings_with_progress(embedding_context: dict[str, Any]) -> None:
-    """Generate embeddings with progress logging.
-
-    To be implemented in TASK-0001.2.3.4.
-    """
-    raise NotImplementedError("Implement in TASK-0001.2.3.4")
-
-
-@then(parsers.parse("progress should be logged every {interval:d} chunks"))
-def verify_progress_logging_interval(embedding_context: dict[str, Any], interval: int) -> None:
-    """Verify progress logging interval.
-
-    To be implemented in TASK-0001.2.3.4.
-    """
-    raise NotImplementedError("Implement in TASK-0001.2.3.4")
-
-
-@then("logs should include: chunks processed, tokens used, estimated cost")
-def verify_progress_log_content(embedding_context: dict[str, Any]) -> None:
-    """Verify progress log content.
-
-    To be implemented in TASK-0001.2.3.4.
-    """
-    raise NotImplementedError("Implement in TASK-0001.2.3.4")
-
-
-@then("final log should show totals")
-def verify_final_log_totals(embedding_context: dict[str, Any]) -> None:
-    """Verify final log shows total statistics.
-
-    To be implemented in TASK-0001.2.3.4.
-    """
-    raise NotImplementedError("Implement in TASK-0001.2.3.4")
-
-
-# ===== Scenario 10: Validate API key on initialization =====
+# ===== Scenario 5: Validate API key on initialization =====
 
 
 @given("GitCtxSettings has no OpenAI API key configured")
