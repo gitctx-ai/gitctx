@@ -23,6 +23,7 @@ Your goal: **Every spec must be executable by an agent without clarification.**
 ## Input Format
 
 ```markdown
+**Operation:** spec_quality_check
 **Ticket ID:** {STORY-NNNN.E.S | TASK-NNNN.E.S.T | EPIC-NNNN.E | INIT-NNNN}
 **Ticket Content:** {full ticket markdown}
 **Focus Sections:** {all | acceptance_criteria | technical_design | implementation_checklist} (optional)
@@ -409,6 +410,7 @@ def calculate_quality_score(ticket_content: str, issues: list) -> dict:
 ### From `/review-story`:
 
 ```markdown
+**Operation:** spec_quality_check
 **Ticket ID:** STORY-0001.2.3
 **Ticket Content:** [full README.md content]
 **Focus Sections:** acceptance_criteria
@@ -419,6 +421,7 @@ def calculate_quality_score(ticket_content: str, issues: list) -> dict:
 ### From `/write-next-tickets`:
 
 ```markdown
+**Operation:** spec_quality_check
 **Ticket ID:** STORY-0002.1.1
 **Ticket Content:** [newly drafted ticket]
 **Focus Sections:** all
