@@ -177,9 +177,33 @@ Analyze completeness of a single ticket (INIT, EPIC, STORY, or TASK).
 - No vague terms
 - Progress bar reflects reality
 
-**Story (14 criteria):** See `story-deep` above
+**Story (14 criteria):**
+- Clear user story statement (As a ... I want ... so that ...)
+- Acceptance criteria listed
+- BDD scenario(s) (≥1)
+- Linked to parent epic
+- Story point estimate
+- Technical notes or approach
+- Test cases or QA notes
+- Dependencies listed
+- No vague terms
+- Deliverables checklist
+- Progress bar reflects reality
+- Owner assigned
+- Status reflects reality
+- All referenced tasks exist
 
-**Task (10 criteria):** See `story-deep` above
+**Task (10 criteria):**
+- Clear description of work
+- Linked to parent story
+- Acceptance criteria or definition of done
+- Technical steps or checklist
+- No vague terms
+- Owner assigned
+- Status reflects reality
+- Estimate (time or points)
+- Dependencies listed
+- Progress bar reflects reality
 
 **Output Format:**
 
