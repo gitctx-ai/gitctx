@@ -32,6 +32,7 @@ os.environ["TERM"] = "dumb"  # Simple terminal type
 pytest_plugins = [
     "tests.e2e.steps.cli_steps",
     "tests.e2e.steps.test_chunking",
+    "tests.e2e.steps.test_embedding",
 ]
 
 

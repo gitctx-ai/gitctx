@@ -3,7 +3,7 @@
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🔵 Not Started
 **Story Points**: 5
-**Progress**: ░░░░░░░░░░ 0% (0/5 tasks complete)
+**Progress**: ██░░░░░░░░ 20% (1/5 tasks complete)
 
 ## User Story
 
@@ -112,7 +112,7 @@ Feature: OpenAI Embedding Generation
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.2.3.1](TASK-0001.2.3.1.md) | Write BDD scenarios for embedding generation | 🔵 | 2 | 0/10 scenarios (all failing) |
+| [TASK-0001.2.3.1](TASK-0001.2.3.1.md) | Write BDD scenarios for embedding generation | ✅ | 2 | 0/10 scenarios (all failing) |
 | [TASK-0001.2.3.2](TASK-0001.2.3.2.md) | Define protocols, models, and EmbeddingCache + add dependencies | 🔵 | 4 | 2/10 scenarios passing |
 | [TASK-0001.2.3.3](TASK-0001.2.3.3.md) | Implement OpenAIEmbedder with cache integration (TDD) and BDD | 🔵 | 8 | 8/10 scenarios passing |
 | [TASK-0001.2.3.4](TASK-0001.2.3.4.md) | Configuration integration, cost tracking, and final BDD scenarios | 🔵 | 4 | 10/10 scenarios passing ✅ |
