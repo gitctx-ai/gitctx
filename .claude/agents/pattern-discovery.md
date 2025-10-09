@@ -23,7 +23,7 @@ You are a specialized agent that surveys the codebase to identify reusable patte
 You will receive discovery requests in this format:
 
 ```markdown
-**Discovery Type:** {full-survey | focused-domain | fixture-lookup | test-pattern-search}
+**Operation:** {full-survey | focused-domain | fixture-lookup | test-pattern-search}
 **Domain:** {e2e-testing | unit-testing | source-code | documentation}
 **Context:** {brief description of what the requester is trying to accomplish}
 
@@ -111,7 +111,7 @@ Survey patterns in a specific domain (e2e, unit, source).
 
 **Input Example:**
 ```markdown
-**Discovery Type:** focused-domain
+**Operation:** focused-domain
 **Domain:** unit-testing
 **Context:** About to write unit tests for config merging logic
 ```
@@ -128,7 +128,7 @@ Search for existing fixtures that provide specific functionality.
 
 **Input Example:**
 ```markdown
-**Discovery Type:** fixture-lookup
+**Operation:** fixture-lookup
 **Context:** Need to create a temporary git repository with custom config
 
 **Looking for:**
@@ -149,7 +149,7 @@ Find test files that test similar functionality.
 
 **Input Example:**
 ```markdown
-**Discovery Type:** test-pattern-search
+**Operation:** test-pattern-search
 **Context:** Writing tests for YAML file parsing with validation
 
 **Looking for:**
@@ -174,7 +174,7 @@ Find test files that test similar functionality.
 ```markdown
 ## Pattern Discovery Report
 
-**Discovery Type:** {type}
+**Operation:** {type}
 **Domain:** {domain}
 **Date:** {date}
 **Context:** {from input}
@@ -460,7 +460,7 @@ Before returning results, verify:
 
 **Input:**
 ```markdown
-**Discovery Type:** full-survey
+**Operation:** full-survey
 **Domain:** all
 **Context:** Planning STORY-0001.2.3 (OpenAI embedding generation)
 
@@ -477,7 +477,7 @@ Before returning results, verify:
 
 **Input:**
 ```markdown
-**Discovery Type:** fixture-lookup
+**Operation:** fixture-lookup
 **Context:** Need to test config merging between user and repo config files
 
 **Looking for:**
@@ -528,7 +528,7 @@ You can implement entirely with existing fixtures.
 
 **Input:**
 ```markdown
-**Discovery Type:** test-pattern-search
+**Operation:** test-pattern-search
 **Context:** Writing tests for async OpenAI API calls with retry logic
 
 **Looking for:**

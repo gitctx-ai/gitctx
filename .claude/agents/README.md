@@ -38,7 +38,7 @@ Aggregate results → Present to user → Execute actions
 
 **Input Format**:
 ```markdown
-**Analysis Type**: {story-deep | ticket-completeness | hierarchy-gaps | task-readiness}
+**Operation:** {story-deep | ticket-completeness | hierarchy-gaps | task-readiness}
 **Target**: {branch name | ticket ID | directory path}
 **Scope**: {single-ticket | story-and-tasks | epic-and-stories | full-hierarchy}
 **Mode**: {pre-work | in-progress}
@@ -62,7 +62,7 @@ Aggregate results → Present to user → Execute actions
 
 **Input Format**:
 ```markdown
-**Review Type**: {story-review | task-review | epic-review}
+**Operation:** {story-review | task-review | epic-review}
 **Target**: {ticket ID or path}
 **Context**: {brief description of what's being built}
 **Proposed Work**: {ticket content to analyze}
@@ -86,7 +86,7 @@ Aggregate results → Present to user → Execute actions
 
 **Input Format**:
 ```markdown
-**Analysis Type**: {commit-history | ticket-drift | progress-validation}
+**Operation:** {commit-history | ticket-drift | progress-validation}
 **Branch**: {branch name}
 **Ticket Context**: {story/epic ID and path}
 **Include uncommitted**: {true | false}
@@ -134,7 +134,7 @@ Aggregate results → Present to user → Execute actions
 
 **Input Format**:
 ```markdown
-**Discovery Type**: {full-survey | focused-domain | fixture-lookup | test-pattern-search}
+**Operation:** {full-survey | focused-domain | fixture-lookup | test-pattern-search}
 **Domain**: {e2e-testing | unit-testing | source-code | documentation}
 **Context**: {what you're trying to accomplish}
 **Related modules**: {list}
@@ -158,7 +158,7 @@ Aggregate results → Present to user → Execute actions
 
 **Input Format**:
 ```markdown
-**Interview Type**: {initiative | epic | story | task}
+**Operation:** {initiative | epic | story | task}
 **Ticket ID**: {TICKET-XXXX or "NEW"}
 **Parent Context**: {parent ticket ID and summary}
 **Gap Analysis**: {from ticket-analyzer}
@@ -288,6 +288,99 @@ Show aggregated analysis to user with:
 - ❌ Skip agent validation in commands
 - ❌ Ignore agent recommendations
 - ❌ Mix orchestration and analysis logic
+
+## Timeout Configuration
+
+Agent invocations should have appropriate timeouts to prevent slash commands from hanging indefinitely. Configure timeouts based on agent complexity and expected runtime.
+
+### Recommended Timeout Values
+
+```python
+AGENT_TIMEOUTS = {
+    "ticket-analyzer": 120,                # 2 minutes - reads multiple ticket files
+    "specification-quality-checker": 90,   # 1.5 minutes - text analysis
+    "git-state-analyzer": 60,              # 1 minute - git commands are fast
+    "design-guardian": 90,                 # 1.5 minutes - complexity analysis
+    "pattern-discovery": 180,              # 3 minutes - scans codebase
+    "requirements-interviewer": 300,       # 5 minutes - interactive, longer
+}
+
+DEFAULT_AGENT_TIMEOUT = 120  # 2 minutes for unknown agents
+```
+
+### Implementation Example
+
+```python
+def invoke_agent_with_timeout(
+    agent_name: str,
+    input_spec: str,
+    timeout: int | None = None
+) -> dict | None:
+    """
+    Invoke agent with configured timeout.
+
+    Args:
+        agent_name: Name of agent to invoke
+        input_spec: Agent input specification
+        timeout: Optional override timeout in seconds
+
+    Returns:
+        Parsed agent output or None if timeout/error
+    """
+    if timeout is None:
+        timeout = AGENT_TIMEOUTS.get(agent_name, DEFAULT_AGENT_TIMEOUT)
+
+    try:
+        # Use Task tool with timeout
+        output = task_tool(
+            description=f"{agent_name} analysis",
+            prompt=input_spec,
+            subagent_type="general-purpose",
+            timeout=timeout * 1000  # Convert to milliseconds
+        )
+        return json.loads(output)
+
+    except TimeoutError:
+        log.warning(f"{agent_name} timed out after {timeout}s")
+        show_user_warning(
+            f"⚠️  {agent_name} analysis timed out\n"
+            f"Continuing with reduced analysis..."
+        )
+        return None
+
+    except Exception as e:
+        log.error(f"{agent_name} failed: {e}")
+        return None
+```
+
+### Timeout Strategies
+
+**For Critical Agents (must complete):**
+- Set longer timeout (3-5 minutes)
+- Retry once on timeout with extended timeout
+- Fail command if agent doesn't complete
+
+**For Optional Agents (can skip):**
+- Set standard timeout (1-2 minutes)
+- Log warning and continue on timeout
+- Show user which analysis was skipped
+
+**For Interactive Agents:**
+- Set generous timeout (5-10 minutes)
+- Show progress indication to user
+- Allow user cancellation
+
+### Adjusting Timeouts
+
+**Increase timeout if:**
+- Agent frequently times out in normal use
+- Working with large codebases (>100K files)
+- Agent performs complex multi-step analysis
+
+**Decrease timeout if:**
+- Agent consistently completes quickly
+- Faster feedback loop is critical
+- Agent is optional in workflow
 
 ## Error Handling Strategy
 
@@ -591,6 +684,182 @@ def invoke_agent_with_retry(
 | **TOTAL** | **5,660 lines** | **3,139 lines** | **45% overall** |
 
 **Agent files**: 6 agents, ~3,500 lines total (reusable across commands)
+
+## Version Compatibility
+
+Agents and slash commands must maintain version compatibility to ensure reliable operation. Use version checking to detect and handle incompatibilities.
+
+### Version Format
+
+Agents follow semantic versioning: `MAJOR.MINOR.PATCH`
+
+- **MAJOR**: Breaking changes to input/output format
+- **MINOR**: New features, backward-compatible
+- **PATCH**: Bug fixes, backward-compatible
+
+### Compatibility Rules
+
+**Compatible versions:**
+- Same MAJOR version = compatible
+- Example: Agent v1.3 works with command expecting v1.0
+
+**Incompatible versions:**
+- Different MAJOR version = incompatible
+- Example: Agent v2.0 breaks command expecting v1.x
+
+### Implementation
+
+```python
+def validate_agent_version(
+    agent_data: dict,
+    expected_version: str = "1.0"
+) -> bool:
+    """
+    Validate agent version compatibility.
+
+    Args:
+        agent_data: Parsed agent output with 'version' field
+        expected_version: Version command was built for
+
+    Returns:
+        True if compatible
+
+    Raises:
+        ValueError: If versions are incompatible
+    """
+    agent_version = agent_data.get("version", "unknown")
+
+    if agent_version == "unknown":
+        log.warning("Agent didn't return version - assuming compatible")
+        return True
+
+    # Parse versions
+    try:
+        agent_major = int(agent_version.split(".")[0])
+        expected_major = int(expected_version.split(".")[0])
+    except (ValueError, IndexError):
+        raise ValueError(f"Invalid version format: {agent_version}")
+
+    # Check major version compatibility
+    if agent_major != expected_major:
+        raise ValueError(
+            f"Incompatible agent version: "
+            f"command requires v{expected_version}, "
+            f"agent returned v{agent_version}. "
+            f"Major version mismatch - update command or agent."
+        )
+
+    # Log if minor version differs (compatible but newer features available)
+    try:
+        agent_minor = int(agent_version.split(".")[1])
+        expected_minor = int(expected_version.split(".")[1])
+
+        if agent_minor > expected_minor:
+            log.info(
+                f"Agent v{agent_version} is newer than expected v{expected_version}. "
+                f"Consider updating command to use new features."
+            )
+    except (ValueError, IndexError):
+        pass  # Minor version check is optional
+
+    return True
+
+
+def invoke_agent_with_version_check(
+    agent_name: str,
+    input_spec: str,
+    expected_version: str = "1.0"
+) -> dict | None:
+    """
+    Invoke agent and validate version compatibility.
+
+    Args:
+        agent_name: Name of agent to invoke
+        input_spec: Agent input specification
+        expected_version: Expected agent version
+
+    Returns:
+        Validated agent output or None on error
+    """
+    try:
+        # Invoke agent
+        output = invoke_agent_safe(agent_name, input_spec)
+        if output is None:
+            return None
+
+        # Validate version
+        validate_agent_version(output, expected_version)
+
+        return output
+
+    except ValueError as e:
+        log.error(f"Version compatibility error: {e}")
+        show_user_error(
+            f"⚠️  Agent version mismatch\n\n"
+            f"{str(e)}\n\n"
+            f"**Resolution:**\n"
+            f"- Check .claude/agents/{agent_name}.md version\n"
+            f"- Update command or agent to matching major version"
+        )
+        return None
+```
+
+### Version Declaration
+
+**In agent files**, declare version at top:
+
+```markdown
+# Agent Name
+
+**Version:** 1.0
+
+...
+```
+
+**In agent output**, include version in JSON:
+
+```json
+{
+  "status": "success",
+  "agent": "ticket-analyzer",
+  "version": "1.0",
+  ...
+}
+```
+
+### Upgrading Agents
+
+**When making breaking changes:**
+
+1. Increment MAJOR version (e.g., 1.3 → 2.0)
+2. Document breaking changes in agent file
+3. Update all slash commands that use the agent
+4. Test all commands with new agent version
+
+**When adding features:**
+
+1. Increment MINOR version (e.g., 1.3 → 1.4)
+2. Maintain backward compatibility
+3. Document new features in agent file
+4. Commands can optionally use new features
+
+**When fixing bugs:**
+
+1. Increment PATCH version (e.g., 1.3.0 → 1.3.1)
+2. No changes needed in commands
+
+### Current Agent Versions
+
+| Agent | Version | Notes |
+|-------|---------|-------|
+| ticket-analyzer | 1.0 | Stable |
+| pattern-discovery | 1.0 | Stable |
+| git-state-analyzer | 1.0 | Stable |
+| design-guardian | 1.0 | Stable |
+| specification-quality-checker | 1.0 | Stable |
+| requirements-interviewer | 1.0 | Stable |
+
+All agents currently at v1.0, initial stable release.
 
 ## Troubleshooting
 

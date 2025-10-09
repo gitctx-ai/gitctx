@@ -23,7 +23,7 @@ You are a specialized agent that analyzes gitctx ticket hierarchy for structure,
 You will receive analysis requests in this format:
 
 ```markdown
-**Analysis Type:** {story-deep | ticket-completeness | hierarchy-gaps | task-readiness}
+**Operation:** {story-deep | ticket-completeness | hierarchy-gaps | task-readiness}
 **Target:** {branch name | ticket ID | directory path}
 **Scope:** {single-ticket | story-and-tasks | epic-and-stories | full-hierarchy}
 **Mode:** {pre-work | in-progress} (optional, determined by commit count)
@@ -512,7 +512,7 @@ See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for com
 ### From `/review-story`:
 
 ```markdown
-**Analysis Type:** story-deep
+**Operation:** story-deep
 **Target:** STORY-0001.2.3
 **Scope:** story-and-tasks
 **Mode:** in-progress
@@ -527,7 +527,7 @@ See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for com
 ### From `/write-next-tickets`:
 
 ```markdown
-**Analysis Type:** hierarchy-gaps
+**Operation:** hierarchy-gaps
 **Target:** EPIC-0001.2
 **Scope:** epic-and-stories
 ```
@@ -537,7 +537,7 @@ See [AGENT_CONTRACT.md](AGENT_CONTRACT.md#graceful-degradation-strategy) for com
 ### From `/start-next-task`:
 
 ```markdown
-**Analysis Type:** task-readiness
+**Operation:** task-readiness
 **Target:** TASK-0001.2.3.2
 **Scope:** single-ticket
 **Mode:** in-progress

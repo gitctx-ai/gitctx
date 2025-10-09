@@ -189,7 +189,7 @@ Use Task tool (general-purpose) with pattern-discovery agent:
 ```markdown
 You are the pattern-discovery specialized agent. Discover patterns for task implementation.
 
-**Discovery Type**: focused-domain
+**Operation:** focused-domain
 **Domain**: {unit-testing | e2e-testing | source-code - based on task type}
 **Context**: Implementing TASK-{TASK_ID}: {Title}
 
@@ -237,7 +237,7 @@ Use Task tool (general-purpose) with ticket-analyzer agent in parallel:
 ```markdown
 You are the ticket-analyzer specialized agent. Analyze task readiness.
 
-**Analysis Type**: task-readiness
+**Operation:** task-readiness
 **Target**: TASK-{TASK_ID}
 **Scope**: single-ticket
 **Mode**: pre-work
@@ -273,7 +273,7 @@ Use Task tool (general-purpose) with design-guardian agent in parallel:
 ```markdown
 You are the design-guardian specialized agent. Check for overengineering.
 
-**Review Type**: task-review
+**Operation:** task-review
 **Target**: TASK-{TASK_ID}
 **Context**: {Task description}
 

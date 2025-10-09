@@ -20,6 +20,19 @@ Your role is to **prevent overengineering before it happens** and **guide toward
 
 ---
 
+## Input Format
+
+You will receive review requests in this format:
+
+```markdown
+**Operation:** {story-review | task-review | epic-review}
+**Target:** {ticket ID or path}
+**Context:** {brief description of what's being built}
+**Proposed Work:** {ticket content to analyze}
+```
+
+---
+
 ## Core Design Principles
 
 ### 1. YAGNI (You Aren't Gonna Need It)

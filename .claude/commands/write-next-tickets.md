@@ -91,7 +91,7 @@ Use Task tool (general-purpose) with ticket-analyzer agent:
 ```markdown
 You are the ticket-analyzer specialized agent. Analyze the ticket hierarchy to identify gaps.
 
-**Analysis Type**: hierarchy-gaps
+**Operation:** hierarchy-gaps
 **Target**: {SCOPE == "full" ? "all" : FOCUS_AREA}
 **Scope**: {SCOPE == "full" ? "full-hierarchy" : "epic-and-stories" or "story-and-tasks" depending on FOCUS_AREA}
 **Mode**: pre-work
@@ -158,7 +158,7 @@ Use Task tool (general-purpose) with pattern-discovery agent in parallel:
 ```markdown
 You are the pattern-discovery specialized agent. Survey the codebase for reusable patterns.
 
-**Discovery Type**: full-survey
+**Operation:** full-survey
 **Domain**: all
 **Context**: Planning to write tickets for {FOCUS_AREA if focused, else "full project"}
 
@@ -224,7 +224,7 @@ Use Task tool (general-purpose) with design-guardian agent in parallel:
 ```markdown
 You are the design-guardian specialized agent. Check for overengineering in the ticket hierarchy.
 
-**Review Type**: epic-review (or story-review if focused on specific story)
+**Operation:** epic-review (or story-review if focused on specific story)
 **Target**: {FOCUS_AREA if focused, else "all incomplete tickets"}
 **Context**: Reviewing incomplete/draft tickets for unnecessary complexity
 
@@ -481,7 +481,7 @@ Launch requirements-interviewer agent for Q&A session:
 ```markdown
 You are the requirements-interviewer specialized agent. Conduct an interactive interview.
 
-**Interview Type**: {initiative | epic | story | task - based on gap type}
+**Operation:** {initiative | epic | story | task - based on gap type}
 **Ticket ID**: {ticket_id or "NEW"}
 **Parent Context**: {parent_id and description}
 **Current State**: {from TICKET_ANALYSIS}
@@ -548,7 +548,7 @@ Before drafting, validate the captured requirements for clarity:
 ```markdown
 You are the specification-quality-checker specialized agent. Validate requirement clarity.
 
-**Check Type**: full-ticket
+**Operation:** full-ticket
 **Target**: {TICKET-ID for gap}
 **Strictness**: strict
 

@@ -25,7 +25,7 @@ Your role is **maintaining ticket-git alignment** so documentation always reflec
 You will receive requests in this format:
 
 ```markdown
-**Analysis Type:** {branch-status | task-validation | drift-detection | commit-analysis}
+**Operation:** {branch-status | task-validation | drift-detection | commit-analysis}
 **Branch**: {branch_name}
 **Comparison Base**: {main | commit_sha} (default: main)
 **Story ID**: {STORY-NNNN.E.S}
@@ -546,7 +546,7 @@ If task file exists but not in story's task table:
 ### From `/review-story` (in-progress mode):
 
 ```markdown
-**Analysis Type:** drift-detection
+**Operation:** drift-detection
 **Branch**: STORY-0001.2.3
 **Comparison Base**: main
 **Story ID**: STORY-0001.2.3
@@ -564,7 +564,7 @@ If task file exists but not in story's task table:
 ### From `/start-next-task`:
 
 ```markdown
-**Analysis Type:** branch-status
+**Operation:** branch-status
 **Branch**: STORY-0001.2.3
 **Comparison Base**: main
 ```

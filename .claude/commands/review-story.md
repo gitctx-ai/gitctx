@@ -150,7 +150,7 @@ Use Task tool (general-purpose) with ticket-analyzer agent:
 ```markdown
 You are the ticket-analyzer specialized agent. Analyze story and task quality.
 
-**Analysis Type**: story-deep
+**Operation:** story-deep
 **Target**: {STORY_ID from branch}
 **Scope**: story-and-tasks
 **Mode**: {pre-work | in-progress from commit count}
@@ -195,7 +195,7 @@ Use Task tool (general-purpose) with specification-quality-checker agent in para
 ```markdown
 You are the specification-quality-checker specialized agent. Validate specification clarity.
 
-**Check Type**: full-ticket
+**Operation:** full-ticket
 **Target**: {STORY_ID}
 **Strictness**: strict
 
@@ -236,7 +236,7 @@ Use Task tool (general-purpose) with git-state-analyzer agent in parallel:
 ```markdown
 You are the git-state-analyzer specialized agent. Analyze git state and compare to tickets.
 
-**Analysis Type**: ticket-drift
+**Operation:** ticket-drift
 **Branch**: {current branch}
 **Ticket Context**: {STORY_ID and path}
 **Include uncommitted**: true
@@ -276,7 +276,7 @@ Use Task tool (general-purpose) with design-guardian agent in parallel:
 ```markdown
 You are the design-guardian specialized agent. Check for overengineering in the story.
 
-**Review Type**: story-review
+**Operation:** story-review
 **Target**: {STORY_ID}
 **Context**: {Story user story and description}
 

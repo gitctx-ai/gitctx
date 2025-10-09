@@ -285,6 +285,257 @@ Agents should continue with reduced functionality rather than fail completely wh
 
 ---
 
+## Input Sanitization Requirements
+
+All agents MUST validate and sanitize inputs before processing to prevent security issues and ensure robustness.
+
+### File Path Validation
+
+**Requirement:** Only accept file paths within allowed directories.
+
+```python
+ALLOWED_DIRECTORIES = [
+    "docs/tickets/",
+    "tests/",
+    "src/",
+    ".claude/",
+]
+
+def validate_file_path(path: str) -> bool:
+    """
+    Validate file path is within allowed directories.
+
+    Args:
+        path: File path to validate
+
+    Returns:
+        True if path is safe, False otherwise
+
+    Raises:
+        ValueError: If path contains directory traversal or invalid characters
+    """
+    # Reject directory traversal attempts
+    if ".." in path:
+        raise ValueError("Directory traversal not allowed")
+
+    # Reject absolute paths outside repo
+    if path.startswith("/") and not any(path.startswith(allowed) for allowed in ALLOWED_DIRECTORIES):
+        raise ValueError(f"Path outside allowed directories: {path}")
+
+    # Reject null bytes and other suspicious characters
+    if "\x00" in path or "\n" in path or "\r" in path:
+        raise ValueError("Invalid characters in path")
+
+    # Ensure path is within allowed directories (relative paths)
+    normalized = os.path.normpath(path)
+    if not any(normalized.startswith(allowed) for allowed in ALLOWED_DIRECTORIES):
+        raise ValueError(f"Path not in allowed directories: {normalized}")
+
+    return True
+```
+
+### Ticket ID Format Validation
+
+**Requirement:** Validate ticket IDs match expected patterns.
+
+```python
+import re
+
+TICKET_ID_PATTERNS = {
+    "initiative": r"^INIT-\d{4}$",
+    "epic": r"^EPIC-\d{4}\.\d+$",
+    "story": r"^STORY-\d{4}\.\d+\.\d+$",
+    "task": r"^TASK-\d{4}\.\d+\.\d+\.\d+$",
+    "bug": r"^BUG-\d{4}$",
+}
+
+def validate_ticket_id(ticket_id: str, ticket_type: str | None = None) -> str:
+    """
+    Validate ticket ID format.
+
+    Args:
+        ticket_id: Ticket ID to validate
+        ticket_type: Optional specific type to validate against
+
+    Returns:
+        Validated ticket ID
+
+    Raises:
+        ValueError: If ticket ID format is invalid
+    """
+    if not ticket_id:
+        raise ValueError("Ticket ID cannot be empty")
+
+    # Try to match against known patterns
+    matched_type = None
+    for t_type, pattern in TICKET_ID_PATTERNS.items():
+        if re.match(pattern, ticket_id):
+            matched_type = t_type
+            break
+
+    if matched_type is None:
+        raise ValueError(f"Invalid ticket ID format: {ticket_id}")
+
+    # If specific type requested, ensure it matches
+    if ticket_type and matched_type != ticket_type:
+        raise ValueError(
+            f"Ticket ID {ticket_id} is type {matched_type}, "
+            f"expected {ticket_type}"
+        )
+
+    return ticket_id
+```
+
+### Branch Name Validation
+
+**Requirement:** Validate branch names, reject directory traversal.
+
+```python
+def validate_branch_name(branch: str) -> str:
+    """
+    Validate git branch name.
+
+    Args:
+        branch: Branch name to validate
+
+    Returns:
+        Validated branch name
+
+    Raises:
+        ValueError: If branch name is invalid or suspicious
+    """
+    if not branch:
+        raise ValueError("Branch name cannot be empty")
+
+    # Reject directory traversal
+    if ".." in branch:
+        raise ValueError("Directory traversal in branch name")
+
+    # Reject absolute paths
+    if branch.startswith("/"):
+        raise ValueError("Absolute paths not allowed in branch names")
+
+    # Reject null bytes and control characters
+    if any(ord(c) < 32 for c in branch):
+        raise ValueError("Control characters not allowed in branch names")
+
+    # Validate against common branch patterns
+    # Allow: STORY-0001.2.3, plan/STORY-0001.2.3, feature/*, etc.
+    valid_patterns = [
+        r"^[A-Z]+-\d+(\.\d+)*$",  # STORY-0001.2.3
+        r"^[a-z]+/[A-Z]+-\d+(\.\d+)*$",  # plan/STORY-0001.2.3
+        r"^[a-z]+/[a-z-]+$",  # feature/my-feature
+    ]
+
+    if not any(re.match(pattern, branch) for pattern in valid_patterns):
+        raise ValueError(f"Branch name doesn't match expected patterns: {branch}")
+
+    return branch
+```
+
+### User Content Escaping
+
+**Requirement:** Escape user-provided content when presenting in markdown/reports.
+
+```python
+def escape_markdown(text: str) -> str:
+    """
+    Escape special markdown characters in user content.
+
+    Args:
+        text: User-provided text
+
+    Returns:
+        Escaped text safe for markdown
+    """
+    # Escape markdown special characters
+    special_chars = ["\\", "`", "*", "_", "{", "}", "[", "]", "(", ")", "#", "+", "-", ".", "!"]
+    for char in special_chars:
+        text = text.replace(char, f"\\{char}")
+
+    return text
+
+
+def sanitize_user_input(content: str, max_length: int = 10000) -> str:
+    """
+    Sanitize user input for safe processing.
+
+    Args:
+        content: User-provided content
+        max_length: Maximum allowed length
+
+    Returns:
+        Sanitized content
+
+    Raises:
+        ValueError: If content is too long or contains unsafe data
+    """
+    if len(content) > max_length:
+        raise ValueError(f"Content exceeds maximum length ({max_length})")
+
+    # Remove null bytes
+    content = content.replace("\x00", "")
+
+    # Normalize line endings
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+
+    return content
+```
+
+### Operation Name Validation
+
+**Requirement:** Validate operation names match agent's supported operations.
+
+```python
+def validate_operation(agent_name: str, operation: str) -> str:
+    """
+    Validate operation name for agent.
+
+    Args:
+        agent_name: Name of agent
+        operation: Requested operation
+
+    Returns:
+        Validated operation
+
+    Raises:
+        ValueError: If operation not supported by agent
+    """
+    AGENT_OPERATIONS = {
+        "ticket-analyzer": ["story-deep", "ticket-completeness", "hierarchy-gaps", "task-readiness"],
+        "pattern-discovery": ["full-survey", "focused-domain", "fixture-lookup", "test-pattern-search"],
+        "git-state-analyzer": ["branch-status", "task-validation", "drift-detection", "commit-analysis"],
+        "design-guardian": ["story-review", "task-review", "epic-review"],
+        "specification-quality-checker": ["full-ticket", "acceptance-criteria", "technical-design", "task-steps"],
+        "requirements-interviewer": ["initiative", "epic", "story", "task"],
+    }
+
+    if agent_name not in AGENT_OPERATIONS:
+        raise ValueError(f"Unknown agent: {agent_name}")
+
+    valid_ops = AGENT_OPERATIONS[agent_name]
+    if operation not in valid_ops:
+        raise ValueError(
+            f"Invalid operation '{operation}' for {agent_name}. "
+            f"Supported: {', '.join(valid_ops)}"
+        )
+
+    return operation
+```
+
+### Summary
+
+**All agents must:**
+1. Validate file paths before reading
+2. Validate ticket IDs before processing
+3. Validate branch names before git operations
+4. Escape user content before presenting
+5. Validate operation names match supported set
+
+**Security principle:** Never trust input. Always validate.
+
+---
+
 ## Agent-Specific Output Schemas
 
 Each agent defines its own `result` schema in its individual documentation. The standard wrapper (status, agent, version, etc.) is always the same.

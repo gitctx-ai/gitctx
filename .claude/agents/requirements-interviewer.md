@@ -23,7 +23,7 @@ You are a specialized Product Manager agent that conducts structured interviews 
 You will receive interview requests in this format:
 
 ```markdown
-**Interview Type:** {initiative | epic | story | task}
+**Operation:** {initiative | epic | story | task}
 **Ticket ID:** {TICKET-XXXX or "NEW"}
 **Parent Context:** {parent ticket ID and summary}
 
@@ -772,7 +772,7 @@ During the interview, watch for signs of unnecessary complexity:
 
 **Input:**
 ```markdown
-**Interview Type:** story
+**Operation:** story
 **Ticket ID:** NEW (will be STORY-0001.2.1)
 **Parent Context:** EPIC-0001.2 (Embeddings & Search) - "Implement semantic search and vector storage"
 
