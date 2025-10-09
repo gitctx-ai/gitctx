@@ -118,7 +118,7 @@ Use Task tool to invoke discovery-orchestrator agent:
 **Target:** {target}
 **Mode:** pre-planning
 
-Execute comprehensive gap discovery and return structured JSON output per AGENT_CONTRACT.md.
+Execute comprehensive gap discovery and return structured JSON output per [AGENT_CONTRACT.md](../agents/AGENT_CONTRACT.md).
 ```
 
 ### 4. Parse & Validate Output

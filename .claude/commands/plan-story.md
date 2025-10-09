@@ -18,6 +18,8 @@
 - `/start-next-task STORY-ID` - Begin implementation after tasks defined
 - `/review-ticket STORY-ID` - Quality check story before task planning
 
+**Interview Reference:** See [INTERVIEW_GUIDE.md](../INTERVIEW_GUIDE.md) for question templates and best practices
+
 ---
 
 ## Workflow

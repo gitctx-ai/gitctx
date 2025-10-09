@@ -20,6 +20,8 @@
 - `/plan-epic EPIC-ID` - Create stories after epics are defined
 - `/review-ticket INIT-ID` - Quality check initiative after epic planning
 
+**Interview Reference:** See [INTERVIEW_GUIDE.md](../INTERVIEW_GUIDE.md) for question templates and best practices
+
 ---
 
 ## Mode 1: Genesis - Create Initiative from Scratch

@@ -26,7 +26,33 @@ Aggregate results → Present to user → Execute actions
 
 ## Available Agents
 
-### 1. ticket-analyzer.md
+### 1. discovery-orchestrator.md
+
+**Purpose**: Coordinate multi-agent discovery analysis for gap detection across all ticket levels.
+
+**Use Cases**:
+- Discover missing epics in an initiative
+- Find incomplete stories in an epic
+- Identify missing tasks in a story
+- Validate strategic scope (genesis mode)
+
+**Input Format**:
+```markdown
+**Operation**: {initiative-gaps | epic-gaps | story-gaps | task-gaps}
+**Target**: {TICKET-ID or "NONE" for genesis}
+**Mode**: {pre-planning | quality-review}
+**Context**: {Brief description of what's being planned}
+```
+
+**Output**: Structured gap analysis with pattern suggestions, hierarchy validation, and quality assessment.
+
+**Used By**: `/plan-initiative`, `/plan-epic`, `/plan-story`, `/discover`, `/review-ticket`
+
+**Key Feature**: Eliminates 200+ lines of duplicated discovery logic (32% reduction) by providing reusable orchestration.
+
+---
+
+### 2. ticket-analyzer.md
 
 **Purpose**: Deep analysis of ticket structure, hierarchy, completeness, and state accuracy.
 
@@ -142,34 +168,9 @@ Aggregate results → Present to user → Execute actions
 
 **Output**: Fixture inventory, test patterns, source patterns, anti-patterns, reuse score.
 
-**Used By**: `/start-next-task`, `/write-next-tickets`
+**Used By**: `/start-next-task`, `/plan-story`, `/plan-epic`
 
----
-
-### 6. requirements-interviewer.md
-
-**Purpose**: Conduct interactive requirement capture to transform vague ideas into concrete specs.
-
-**Use Cases**:
-- Gather complete requirements for new tickets
-- Ask progressive questions (high-level → details)
-- Probe vague responses until concrete
-- Challenge overengineering proposals
-
-**Input Format**:
-```markdown
-**Operation:** {initiative | epic | story | task}
-**Ticket ID**: {TICKET-XXXX or "NEW"}
-**Parent Context**: {parent ticket ID and summary}
-**Gap Analysis**: {from ticket-analyzer}
-**Pattern Context**: {from pattern-discovery}
-**Missing Details**: {list}
-**Interview Goal**: {target completeness %}
-```
-
-**Output**: Captured requirements in structured markdown, completeness analysis.
-
-**Used By**: `/write-next-tickets`
+**Note**: Interview knowledge extracted to [INTERVIEW_GUIDE.md](../INTERVIEW_GUIDE.md) for use by all planning commands.
 
 ---
 
@@ -180,9 +181,9 @@ Aggregate results → Present to user → Execute actions
 Use when each agent needs output from the previous one:
 
 ```text
-1. ticket-analyzer → identifies gaps
-2. requirements-interviewer → fills gaps (using gap analysis)
-3. specification-quality-checker → validates clarity (using captured requirements)
+1. discovery-orchestrator → coordinates gap analysis across multiple agents
+2. Interactive interview → fills gaps (using INTERVIEW_GUIDE.md templates)
+3. specification-quality-checker → validates clarity
 4. Draft ticket with validated requirements
 ```
 
@@ -852,14 +853,16 @@ def invoke_agent_with_version_check(
 
 | Agent | Version | Notes |
 |-------|---------|-------|
+| discovery-orchestrator | 1.0 | Stable - coordinates gap analysis |
 | ticket-analyzer | 1.0 | Stable |
 | pattern-discovery | 1.0 | Stable |
 | git-state-analyzer | 1.0 | Stable |
 | design-guardian | 1.0 | Stable |
 | specification-quality-checker | 1.0 | Stable |
-| requirements-interviewer | 1.0 | Stable |
 
 All agents currently at v1.0, initial stable release.
+
+**Note**: requirements-interviewer.md was replaced with INTERVIEW_GUIDE.md (static reference) to reduce complexity.
 
 ## Troubleshooting
 

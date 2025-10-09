@@ -18,6 +18,8 @@
 - `/plan-story STORY-ID` - Create tasks after stories are defined
 - `/review-ticket EPIC-ID` - Quality check epic before story planning
 
+**Interview Reference:** See [INTERVIEW_GUIDE.md](../INTERVIEW_GUIDE.md) for question templates and best practices
+
 ---
 
 ## Workflow

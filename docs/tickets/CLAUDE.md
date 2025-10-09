@@ -370,6 +370,30 @@ def test_[functionality]():
 
 ### Creating Tickets
 
+Tickets are created through focused planning commands or manually:
+
+#### Planning Commands
+
+**Discovery & Planning:**
+- `/discover TARGET-ID` - Analyze gaps without creating tickets (read-only)
+- `/plan-initiative [--genesis]` - Create initiative from scratch or define epics
+- `/plan-epic EPIC-ID` - Define stories for an epic
+- `/plan-story STORY-ID` - Define tasks for a story
+
+**Quality & Review:**
+- `/review-ticket TICKET-ID [--focus="..."]` - Quality review at any level
+- `/start-next-task STORY-ID` - Start next pending task (3x faster, explicit ID required)
+
+**Interview Guidance:**
+All planning commands reference [INTERVIEW_GUIDE.md](../../.claude/INTERVIEW_GUIDE.md) for question templates and best practices.
+
+**Progressive Quality Thresholds:**
+- Epics: 70% quality minimum (high-level scope)
+- Stories: 85% quality minimum (detailed requirements)
+- Tasks: 95% quality minimum (implementation-ready)
+
+#### Manual Creation
+
 1. **Initiative**: Created during quarterly planning
 2. **Epic**: Created when initiative is approved
 3. **Story**: Created during epic breakdown
