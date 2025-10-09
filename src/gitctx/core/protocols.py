@@ -9,6 +9,7 @@ All protocols use primitive types for FFI compatibility.
 """
 
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from gitctx.core.models import BlobRecord, CodeChunk, WalkProgress, WalkStats
@@ -158,3 +159,78 @@ def create_walker(
     from gitctx.core.commit_walker import CommitWalker
 
     return CommitWalker(repo_path, config, already_indexed)
+
+
+@dataclass(frozen=True)
+class Embedding:
+    """Embedding vector with metadata.
+
+    Design notes:
+    - Frozen dataclass for immutability and thread-safety
+    - All fields use primitive types (FFI-compatible for future Rust optimization)
+    - No numpy arrays or Path objects (breaks FFI)
+
+    Attributes:
+        vector: Embedding vector (3072 dimensions for text-embedding-3-large)
+        token_count: Number of tokens in source chunk
+        model: Model name (e.g., "text-embedding-3-large")
+        cost_usd: Cost in USD for generating this embedding
+                  TODO(TASK-0001.2.3.3): MUST use actual token count from OpenAI API response,
+                  not tiktoken estimates. Required accuracy: ±1% vs OpenAI billing.
+                  Verify LangChain exposes API usage data or use direct OpenAI SDK.
+        blob_sha: Git blob SHA this embedding represents
+        chunk_index: Index of chunk within blob's chunks
+    """
+
+    vector: list[float]
+    token_count: int
+    model: str
+    cost_usd: float
+    blob_sha: str
+    chunk_index: int
+
+
+class EmbedderProtocol(Protocol):
+    """Protocol for embedding generation - provider-agnostic interface.
+
+    This protocol enables multiple embedding providers (OpenAI, Anthropic, Cohere, etc.)
+    while maintaining type safety and enabling future Rust optimization.
+
+    Example:
+        >>> embedder = OpenAIEmbedder(api_key="sk-...")
+        >>> chunks = [CodeChunk(...), CodeChunk(...)]
+        >>> embeddings = await embedder.embed_chunks(chunks, "abc123")
+        >>> cost = embedder.estimate_cost(1000)  # $0.00013
+    """
+
+    async def embed_chunks(self, chunks: list[CodeChunk], blob_sha: str) -> list[Embedding]:
+        """Generate embeddings for code chunks.
+
+        Args:
+            chunks: List of code chunks to embed
+            blob_sha: Git blob SHA for metadata tracking
+
+        Returns:
+            List of Embedding objects with vectors and metadata
+
+        Raises:
+            NetworkError: If API is unreachable after retries
+            RateLimitError: If rate limit exceeded after retries
+            ConfigurationError: If API key is invalid
+        """
+        ...
+
+    def estimate_cost(self, token_count: int) -> float:
+        """Estimate API cost for embedding token_count tokens.
+
+        Args:
+            token_count: Number of tokens to embed
+
+        Returns:
+            Estimated cost in USD
+
+        Example:
+            >>> embedder.estimate_cost(1_000_000)
+            0.13  # $0.13 for 1M tokens with text-embedding-3-large
+        """
+        ...
