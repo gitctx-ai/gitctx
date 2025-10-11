@@ -1,9 +1,9 @@
 # STORY-0001.2.5: Progress Tracking and Cost Estimation
 
 **Parent**: [EPIC-0001.2](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Story Points**: 2
-**Progress**: ░░░░░░░░░░ 0% (0/4 tasks complete)
+**Progress**: ██▓░░░░░░░ 25% (1/4 tasks complete)
 
 ## User Story
 
@@ -112,7 +112,7 @@ Feature: Progress Tracking and Cost Estimation
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.2.5.1](TASK-0001.2.5.1.md) | Write BDD Scenarios for Progress + Cost | 🔵 Not Started | 2 | 0/5 (all stubbed) |
+| [TASK-0001.2.5.1](TASK-0001.2.5.1.md) | Write BDD Scenarios for Progress + Cost | ✅ Complete | 2 | 0/5 (all stubbed) |
 | [TASK-0001.2.5.2](TASK-0001.2.5.2.md) | ProgressReporter with Terse/Verbose Modes | 🔵 Not Started | 3 | 2/5 passing |
 | [TASK-0001.2.5.3](TASK-0001.2.5.3.md) | CostEstimator + BDD for Scenario 3 | 🔵 Not Started | 2 | 3/5 passing |
 | [TASK-0001.2.5.4](TASK-0001.2.5.4.md) | Pipeline Integration + Final BDD | 🔵 Not Started | 1 | 5/5 passing ✅ |
