@@ -226,7 +226,6 @@ def test_add_chunks_batch_denormalizes_blob_location(
         blob_sha_2: [mock_blob_location(file_path="src/utils.py")],
     }
 
-    # This test will FAIL until we implement add_chunks_batch
     store.add_chunks_batch(embeddings=embeddings, blob_locations=blob_locations)
 
     # Query back and verify denormalized fields
@@ -419,7 +418,6 @@ def test_optimize_creates_ivf_pq_index_at_256_vectors(
     store.add_chunks_batch(embeddings, blob_locations)
     assert store.count() == 256
 
-    # This test will FAIL until we implement optimize
     store.optimize()
 
     # Verify index was created (LanceDB stores index metadata in table stats)
@@ -656,7 +654,6 @@ def test_save_index_state_stores_metadata(
     }
     store.add_chunks_batch(embeddings, blob_locations)
 
-    # This test will FAIL until we implement save_index_state
     store.save_index_state(
         last_commit="abc123def456",  # pragma: allowlist secret
         indexed_blobs=["blob1", "blob2", "blob3"],
