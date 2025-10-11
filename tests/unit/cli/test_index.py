@@ -129,6 +129,122 @@ def test_index_short_flags(mock_git_repo):
     assert "→" in output or "Walking commit graph" in output
 
 
+def test_index_handles_config_error(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base):
+    """Test index command handles configuration errors gracefully."""
+    from gitctx.cli.symbols import SYMBOLS
+
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Create a minimal git repo so config loading can proceed
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Mock GitCtxSettings to raise an exception
+    with patch("gitctx.core.config.GitCtxSettings", side_effect=ValueError("Invalid config")):
+        result = isolated_cli_runner.invoke(app, ["index"])
+
+        # Exit code 1 for config error
+        assert result.exit_code == 1
+        output = result.stdout + (result.stderr or "")
+        assert f"{SYMBOLS['error']}" in output or "error" in output.lower()
+        assert "Configuration error" in output or "Invalid config" in output
+
+
+def test_index_handles_keyboard_interrupt(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """Test index command handles Ctrl+C gracefully."""
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Create git repo
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    mock_settings = Mock()
+    mock_settings.api_keys = Mock()
+    mock_settings.api_keys.openai = "sk-test"
+
+    async def mock_index_raises_interrupt(*args, **kwargs):
+        raise KeyboardInterrupt()
+
+    with (
+        patch("gitctx.core.config.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index_raises_interrupt),
+    ):
+        result = isolated_cli_runner.invoke(app, ["index"])
+
+        # KeyboardInterrupt should be caught and passed through silently
+        # The CLI catches it and passes, exit code 0
+        assert result.exit_code == 0
+
+
+def test_index_handles_generic_exception(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """Test index command handles unexpected errors gracefully."""
+    from gitctx.cli.symbols import SYMBOLS
+
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Create git repo
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    mock_settings = Mock()
+    mock_settings.api_keys = Mock()
+    mock_settings.api_keys.openai = "sk-test"
+
+    async def mock_index_raises_error(*args, **kwargs):
+        raise RuntimeError("Unexpected error during indexing")
+
+    with (
+        patch("gitctx.core.config.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index_raises_error),
+    ):
+        result = isolated_cli_runner.invoke(app, ["index"])
+
+        assert result.exit_code == 1
+        output = result.stdout + (result.stderr or "")
+        assert f"{SYMBOLS['error']}" in output or "error" in output.lower()
+        assert "Indexing failed" in output or "Unexpected error" in output
+
+
 def test_index_help_text(isolated_cli_runner):
     """Verify help text includes all options."""
     result = isolated_cli_runner.invoke(app, ["index", "--help"])
