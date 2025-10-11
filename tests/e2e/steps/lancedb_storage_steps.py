@@ -691,7 +691,8 @@ def verify_database_location(context: dict[str, Any]):
     db_path = context["db_path"]
     assert db_path.exists()
     assert db_path.is_dir()
-    assert str(db_path).endswith(".gitctx/lancedb")
+    # Use path parts to check path components (works on Windows and Unix)
+    assert db_path.parts[-2:] == (".gitctx", "lancedb")
 
 
 @then(".gitctx should be in .gitignore")

@@ -77,7 +77,8 @@ def test_lancedb_store_storage_location(tmp_path: Path, isolated_env):
 
     # Verify store's db_path attribute matches expected path
     assert store.db_path == db_path
-    assert str(store.db_path).endswith(".gitctx/lancedb")
+    # Use path parts to check path components (works on Windows and Unix)
+    assert store.db_path.parts[-2:] == (".gitctx", "lancedb")
 
 
 def test_dimension_validation_on_table_open(tmp_path: Path, isolated_env):
