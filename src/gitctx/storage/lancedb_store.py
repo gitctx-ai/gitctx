@@ -115,7 +115,14 @@ class LanceDBStore:
         """Validate that table dimensions match expected dimensions.
 
         Raises:
-            DimensionMismatchError: If dimensions don't match
+            DimensionMismatchError: If dimensions don't match.
+                The error message includes:
+                    - The actual dimensions of the existing table vectors
+                    - The expected dimensions produced by the current model
+                    - The name of the embedding model
+                    - A suggested action to delete the LanceDB directory and re-index
+                Example error message:
+                    "Dimension mismatch: existing table has {actual_dims}-dimensional vectors, but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. Action required: Delete .gitctx/lancedb/ and re-index with `gitctx index --force`"
         """
         # Get vector field from schema
         try:
