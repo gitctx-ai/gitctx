@@ -32,18 +32,18 @@ So that I can monitor operations and understand the financial impact of indexing
 
 **Error Handling**:
 - [ ] Handle cancellation on SIGINT (Ctrl+C):
-  - First SIGINT: Graceful shutdown, display "Cancelling...", flush progress within 2s
+  - Graceful shutdown within 5 seconds
   - Show partial stats: chunks processed, tokens used, cost incurred
-  - Exit with code 130 within 5 seconds
-  - Second SIGINT: Immediate termination with code 130, display "Force cancelled"
+  - Exit with code 130
 - [ ] Display error count in final summary: "Errors: N"
 - [ ] Log errors to stderr during indexing
-- [ ] Handle empty repository: display "No files to index", exit code 0
+- [ ] Handle empty repository (no indexable files): display "No files to index", exit code 0
+  - Indexable files: any file with supported extension (60+ extensions) or defaulted to markdown
 
 **Cost Estimation (--dry-run flag)**:
 - [ ] Analyze repository and show estimated tokens and cost
 - [ ] Display confidence range: "Range: $MIN - $MAX (±20%)"
-- [ ] Use 4 decimals for costs <$1.00 (e.g., "$0.0001"), 2 decimals for costs ≥$1.00
+- [ ] Always use 4 decimal places for all costs (e.g., "$0.0001", "$1.2345")
 
 ## BDD Scenarios
 
@@ -62,7 +62,14 @@ Feature: Progress Tracking and Cost Estimation
     Given a repository with 10 files to index
     When I run "gitctx index --verbose" with mocked embedder
     Then I should see phase markers: "→ Walking commit graph", "→ Generating embeddings"
-    And final summary should show detailed statistics table
+    And final summary should show statistics:
+      | Field        | Format          |
+      | Commits      | \d+             |
+      | Unique blobs | \d+             |
+      | Chunks       | \d+             |
+      | Tokens       | \d+,\d+         |
+      | Cost         | $\d+\.\d{4}     |
+      | Time         | \d+:\d+:\d+     |
 
   Scenario: Pre-indexing cost estimate with --dry-run
     Given a repository with 5 files totaling 2KB
@@ -79,17 +86,18 @@ Feature: Progress Tracking and Cost Estimation
     And exit code should be 130
 
   Scenario: Empty repository handling
-    Given an empty repository with no files
+    Given an empty repository with no indexable files
     When I run "gitctx index"
     Then I should see "No files to index"
     And exit code should be 0
+    # Note: "No indexable files" = zero files matching 60+ supported extensions
 ```
 
 **Unit Test Coverage** (not E2E):
 - Cost calculation accuracy (various token counts, formula validation)
 - Confidence range calculation (±20%)
-- Format validation (4 decimals for <$1, 2 decimals for ≥$1)
-- Empty repository handling
+- Format validation (always 4 decimal places)
+- Empty repository handling (no indexable files)
 - Large repository handling (2M+ tokens)
 - Zero division edge cases
 
@@ -159,9 +167,9 @@ class IndexingStats:
 class ProgressReporter:
     """Report indexing progress per TUI_GUIDE.md patterns.
 
-    Default mode: Terse single-line output (git-like)
+    Default mode: Terse single-line output (git-like) with spinner for >5s operations
     Verbose mode: Phase-by-phase progress with statistics
-    Spinner: Only for operations >5 seconds
+    Spinner: ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ (10 frames, updated every 0.1s)
     """
 
     def __init__(self, verbose: bool = False):
@@ -173,6 +181,8 @@ class ProgressReporter:
         self.verbose = verbose
         self.stats = IndexingStats()
         self.current_phase: str = ""
+        self.spinner_active: bool = False
+        self.spinner_frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
     def start(self):
         """Start progress tracking."""
@@ -180,6 +190,7 @@ class ProgressReporter:
         # In verbose mode, announce start
         if self.verbose:
             print("→ Starting indexing...\n", file=sys.stderr)
+        # In terse mode, show spinner after 5 seconds (handled in update loop)
 
     def phase(self, name: str):
         """Start a new phase (verbose mode only).
@@ -311,26 +322,57 @@ class CostEstimator:
     def _count_lines(self, repo_path: Path) -> int:
         """Count lines of code in working directory.
 
-        Walks working directory with pathlib, counts lines in text files.
+        Walks working directory with pathlib, counts lines in ALL text files.
+        gitctx supports 60+ extensions across 27 languages, defaulting
+        unknown types to markdown. Cost estimator counts everything.
+
         TASK-4 will integrate with CommitWalker for commit-aware counting.
         """
+        from gitctx.core.language_detection import EXTENSION_TO_LANGUAGE
+
         total_lines = 0
+        supported_extensions = set(EXTENSION_TO_LANGUAGE.keys())
+
         for file in repo_path.rglob("*"):
-            if file.is_file() and file.suffix in {".py", ".js", ".ts", ".go", ".rs"}:
-                if ".git" not in file.parts:
-                    try:
-                        total_lines += len(file.read_text().splitlines())
-                    except (UnicodeDecodeError, PermissionError):
-                        continue  # Skip binary/inaccessible files
+            if not file.is_file():
+                continue
+
+            # Exclude .git directory
+            if ".git" in file.parts:
+                continue
+
+            # Count all files with supported extensions + assume unknown are text (markdown fallback)
+            # This matches gitctx behavior: we process everything as text
+            if file.suffix.lower() in supported_extensions or file.suffix:
+                try:
+                    total_lines += len(file.read_text().splitlines())
+                except (UnicodeDecodeError, PermissionError, OSError):
+                    continue  # Skip binary/inaccessible files
+
         return total_lines
 
     def _count_files(self, repo_path: Path) -> int:
-        """Count text files in working directory."""
+        """Count indexable files in working directory.
+
+        Counts all text files (60+ extensions + unknown defaulting to markdown).
+        """
+        from gitctx.core.language_detection import EXTENSION_TO_LANGUAGE
+
         count = 0
+        supported_extensions = set(EXTENSION_TO_LANGUAGE.keys())
+
         for file in repo_path.rglob("*"):
-            if file.is_file() and file.suffix in {".py", ".js", ".ts", ".go", ".rs"}:
-                if ".git" not in file.parts:
-                    count += 1
+            if not file.is_file():
+                continue
+
+            # Exclude .git directory
+            if ".git" in file.parts:
+                continue
+
+            # Count all files with extensions (supported or assumed text)
+            if file.suffix.lower() in supported_extensions or file.suffix:
+                count += 1
+
         return count
 ```
 
