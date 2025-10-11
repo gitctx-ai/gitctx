@@ -1,7 +1,6 @@
 """Unit tests for cost estimation (TDD approach)."""
 
 
-
 class TestCostEstimatorConstants:
     """Test CostEstimator constants."""
 
