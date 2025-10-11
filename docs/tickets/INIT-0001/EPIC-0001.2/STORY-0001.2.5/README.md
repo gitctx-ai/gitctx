@@ -2,172 +2,152 @@
 
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🔵 Not Started
-**Story Points**: 3
+**Story Points**: 2
 **Progress**: ░░░░░░░░░░ 0% (0/4 tasks complete)
 
 ## User Story
 
 As a developer using gitctx
-I want to see accurate progress and cost estimates during indexing
-So that I can monitor long-running operations and understand the financial impact of indexing my codebase
+I want to see progress and cost information during indexing
+So that I can monitor operations and understand the financial impact of indexing my codebase
+
+**Note**: This story follows TUI_GUIDE.md design principles - terse by default with --verbose for details.
 
 ## Acceptance Criteria
 
-- [ ] Display real-time progress during indexing (percentage complete, chunks processed, time elapsed)
-- [ ] Show estimated time remaining based on current throughput
-- [ ] Track and display token usage across all embedding API calls
-- [ ] Calculate and display costs in USD (accurate to 4 decimal places)
-- [ ] Show breakdown: tokens used, cost per operation, total cost
-- [ ] Display progress using Rich progress bars and live displays
-- [ ] Update progress every N chunks (configurable, default 100)
-- [ ] Log final summary: total chunks, total tokens, total cost, time elapsed
-- [ ] Handle cancellation gracefully (show partial progress, costs incurred)
-- [ ] Provide cost estimates before starting (based on repo size analysis)
+**Default Mode (Terse - TUI_GUIDE compliant)**:
+- [ ] Default output: single-line summary "Indexed N blobs in Xs" (git-like)
+- [ ] Show spinner only for operations >5 seconds: "⠋ Indexing... 8.3s"
+- [ ] Final summary: total chunks, total tokens, total cost (4 decimal places), time elapsed
+
+**Verbose Mode (--verbose flag)**:
+- [ ] Phase-by-phase progress indicators (→ Walking, → Chunking, → Embedding, → Storing)
+- [ ] Statistics after completion: commits, blobs, chunks, tokens, cost, dedup rate
+- [ ] Format follows TUI_GUIDE.md INDEX command verbose output
+
+**Cost Tracking**:
+- [ ] Track token usage across all embedding API calls
+- [ ] Calculate costs in USD formatted to 4 decimal places (accuracy ±0.001%)
+- [ ] Display in final summary: total tokens, total cost
+
+**Error Handling**:
+- [ ] Handle cancellation on SIGINT (Ctrl+C):
+  - First SIGINT: Graceful shutdown, display "Cancelling...", flush progress within 2s
+  - Show partial stats: chunks processed, tokens used, cost incurred
+  - Exit with code 130 within 5 seconds
+  - Second SIGINT: Immediate termination with code 130, display "Force cancelled"
+- [ ] Display error count in final summary: "Errors: N"
+- [ ] Log errors to stderr during indexing
+- [ ] Handle empty repository: display "No files to index", exit code 0
+
+**Cost Estimation (--dry-run flag)**:
+- [ ] Analyze repository and show estimated tokens and cost
+- [ ] Display confidence range: "Range: $MIN - $MAX (±20%)"
+- [ ] Use 4 decimals for costs <$1.00 (e.g., "$0.0001"), 2 decimals for costs ≥$1.00
 
 ## BDD Scenarios
+
+**Note**: Revised to 5 E2E scenarios per TUI_GUIDE.md patterns. Tests both default (terse) and verbose modes. Calculation logic covered by unit tests in TASK-2 and TASK-3.
 
 ```gherkin
 Feature: Progress Tracking and Cost Estimation
 
-  Scenario: Real-time progress display during indexing
-    Given a repository with 1000 blobs to index
-    When I run "gitctx index"
-    Then I should see a progress bar
-    And progress should show: percentage, chunks processed, ETA
-    And progress should update in real-time
-    And console output should use Rich formatting
+  Scenario: Default terse output (TUI_GUIDE.md:208-209)
+    Given a repository with 10 files to index
+    When I run "gitctx index" with mocked embedder
+    Then I should see single-line output matching "Indexed \d+ commits \(\d+ unique blobs\) in \d+\.\d+s"
+    And cost summary should show format "$\d+\.\d{4}"
 
-  Scenario: Accurate token counting
-    Given indexing processes 5000 chunks
-    And each chunk averages 400 tokens
-    When indexing completes
-    Then total tokens should be reported as 2,000,000
-    And token count should match sum of individual chunk token counts
-    And accuracy should be ±1%
+  Scenario: Verbose mode with phase progress (TUI_GUIDE.md:230-256)
+    Given a repository with 10 files to index
+    When I run "gitctx index --verbose" with mocked embedder
+    Then I should see phase markers: "→ Walking commit graph", "→ Generating embeddings"
+    And final summary should show detailed statistics table
 
-  Scenario: Cost calculation accuracy
-    Given 2,000,000 tokens processed
-    And text-embedding-3-large costs $0.13 per 1M tokens
-    When I view the final summary
-    Then total cost should be displayed as $0.2600
-    And cost should be accurate to 4 decimal places
-    And cost breakdown should show: tokens × rate = cost
-
-  Scenario: Pre-indexing cost estimate
-    Given a repository with 500 files totaling 2MB
+  Scenario: Pre-indexing cost estimate with --dry-run
+    Given a repository with 5 files totaling 2KB
     When I run "gitctx index --dry-run"
-    Then I should see estimated tokens: ~1.5M
-    And estimated cost: ~$0.20
-    And estimate should include confidence range (±20%)
-    And user should be prompted to confirm before proceeding
+    Then I should see estimated tokens
+    And estimated cost formatted as "$\d+\.\d{4}"
+    And confidence range: "Range: $\d+\.\d{4} - $\d+\.\d{4} \(±20%\)"
 
-  Scenario: Progress breakdown by phase
-    Given indexing with multiple phases
-    When I monitor progress
-    Then I should see breakdown:
-      | Phase              | Status      | Progress |
-      |--------------------|-------------|----------|
-      | Walking commits    | Complete    | 100%     |
-      | Chunking blobs     | In Progress | 45%      |
-      | Generating embeddings | Pending  | 0%       |
-      | Storing vectors    | Pending     | 0%       |
+  Scenario: Graceful cancellation (TUI_GUIDE.md:377-387)
+    Given indexing is in progress with 20 files
+    When I send SIGINT to the process
+    Then I should see "Interrupted" message
+    And partial stats with tokens and cost
+    And exit code should be 130
 
-  Scenario: Throughput metrics
-    Given indexing in progress
-    When I view live stats
-    Then I should see:
-      | Metric              | Value        |
-      |---------------------|--------------|
-      | Chunks/second       | 125.3        |
-      | Tokens/second       | 48,500       |
-      | Cost/minute         | $0.0038      |
-      | Time elapsed        | 00:02:34     |
-      | ETA                 | 00:03:15     |
-
-  Scenario: Cache hit rate tracking
-    Given EmbeddingCache is enabled
-    And 40% of blobs are unchanged
-    When indexing completes
-    Then cache hit rate should be displayed: 40%
-    And cache stats should show: 400 hits, 600 misses
-    And actual cost should only include cache misses
-    And estimated savings should be shown: $0.05 saved via cache
-
-  Scenario: Graceful cancellation
-    Given indexing is 60% complete
-    And user presses Ctrl+C
-    When cancellation is detected
-    Then indexing should stop cleanly
-    And partial progress should be saved
-    And summary should show: 60% complete, $0.08 spent
-    And user should be informed: "Resume with 'gitctx index --resume'"
-
-  Scenario: Final summary report
-    Given indexing completed successfully
-    When I view the final output
-    Then summary should include:
-      | Metric              | Value        |
-      |---------------------|--------------|
-      | Total blobs         | 523          |
-      | Total chunks        | 4,892        |
-      | Total tokens        | 1,845,203    |
-      | Total cost          | $0.2399      |
-      | Cache hit rate      | 42%          |
-      | Time elapsed        | 00:05:23     |
-      | Avg chunks/sec      | 15.2         |
-
-  Scenario: Error rate tracking
-    Given 5 blobs fail to process (corrupt, binary, etc.)
-    When indexing completes
-    Then error rate should be displayed: 5/528 (0.9%)
-    And errors should be logged with details
-    And user should be advised: "Check .gitctx/logs/index.log"
+  Scenario: Empty repository handling
+    Given an empty repository with no files
+    When I run "gitctx index"
+    Then I should see "No files to index"
+    And exit code should be 0
 ```
+
+**Unit Test Coverage** (not E2E):
+- Cost calculation accuracy (various token counts, formula validation)
+- Confidence range calculation (±20%)
+- Format validation (4 decimals for <$1, 2 decimals for ≥$1)
+- Empty repository handling
+- Large repository handling (2M+ tokens)
+- Zero division edge cases
+
+**Rationale for 5 E2E Scenarios:**
+- TUI_GUIDE compliant: Tests both default (terse) and verbose modes
+- Cost-effective: No real API calls (mocked embedders)
+- Fast CI: Small repos (5-20 files, <50KB total)
+- Comprehensive: Covers CLI behavior end-to-end
+- Unit tests handle calculation logic with large numbers
 
 ## Child Tasks
 
-| ID | Title | Status | Hours |
-|----|-------|--------|-------|
-| [TASK-0001.2.5.1](TASK-0001.2.5.1.md) | Implement ProgressTracker with Rich integration | 🔵 | 3 |
-| [TASK-0001.2.5.2](TASK-0001.2.5.2.md) | Add CostEstimator for pre-indexing estimates | 🔵 | 2 |
-| [TASK-0001.2.5.3](TASK-0001.2.5.3.md) | Integrate progress tracking into indexing pipeline | 🔵 | 3 |
-| [TASK-0001.2.5.4](TASK-0001.2.5.4.md) | BDD scenarios and integration tests | 🔵 | 4 |
+| ID | Title | Status | Hours | BDD Progress |
+|----|-------|--------|-------|--------------|
+| [TASK-0001.2.5.1](TASK-0001.2.5.1.md) | Write BDD Scenarios for Progress + Cost | 🔵 Not Started | 2 | 0/5 (all stubbed) |
+| [TASK-0001.2.5.2](TASK-0001.2.5.2.md) | ProgressReporter with Terse/Verbose Modes | 🔵 Not Started | 3 | 2/5 passing |
+| [TASK-0001.2.5.3](TASK-0001.2.5.3.md) | CostEstimator + BDD for Scenario 3 | 🔵 Not Started | 2 | 3/5 passing |
+| [TASK-0001.2.5.4](TASK-0001.2.5.4.md) | Pipeline Integration + Final BDD | 🔵 Not Started | 1 | 5/5 passing ✅ |
 
-**Total**: 12 hours = 3 story points
+**Total**: 8 hours = 2 story points
+
+**BDD Progress Tracking:**
+
+- **TASK-1** (2h): Write all 5 E2E scenarios + stub step definitions → 0/5 stubbed (all failing)
+- **TASK-2** (3h): ProgressReporter (terse/verbose) + unit tests + Scenarios 1-2 → 2/5 passing
+- **TASK-3** (2h): CostEstimator + unit tests + Scenario 3 → 3/5 passing
+- **TASK-4** (1h): Pipeline integration + Scenarios 4-5 → 5/5 passing ✅
+
+**Testing Strategy:**
+
+- **E2E Tests**: 5 scenarios per TUI_GUIDE patterns (default/verbose split)
+- **Unit Tests**: ~10 tests for cost calculation logic (simpler scope)
+- **Cost-Effective**: All E2E tests use small repos (5-20 files, <50KB) with mocked embedders
+- **Pattern**: BDD-first workflow with incremental scenario completion
 
 ## Technical Design
 
-### Progress Tracker with Rich
+### TUI_GUIDE-Compliant Progress Reporter
+
+Following TUI_GUIDE.md: terse by default, detailed with --verbose, spinner only for >5s operations.
 
 ```python
 # src/gitctx/indexing/progress.py
 
-from rich.console import Console
-from rich.progress import (
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    BarColumn,
-    TaskProgressColumn,
-    TimeRemainingColumn,
-    TimeElapsedColumn,
-)
-from rich.live import Live
-from rich.table import Table
+from pathlib import Path
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 import time
+import sys
 
 @dataclass
 class IndexingStats:
-    """Statistics for indexing progress."""
+    """Statistics for indexing progress (simplified)."""
+    total_commits: int = 0
     total_blobs: int = 0
-    processed_blobs: int = 0
     total_chunks: int = 0
     total_tokens: int = 0
     total_cost_usd: float = 0.0
-    cache_hits: int = 0
-    cache_misses: int = 0
     errors: int = 0
     start_time: float = 0.0
 
@@ -175,281 +155,144 @@ class IndexingStats:
         """Get elapsed time in seconds."""
         return time.time() - self.start_time
 
-    def chunks_per_second(self) -> float:
-        """Calculate chunks processed per second."""
-        elapsed = self.elapsed_seconds()
-        return self.total_chunks / elapsed if elapsed > 0 else 0.0
 
-    def tokens_per_second(self) -> float:
-        """Calculate tokens processed per second."""
-        elapsed = self.elapsed_seconds()
-        return self.total_tokens / elapsed if elapsed > 0 else 0.0
+class ProgressReporter:
+    """Report indexing progress per TUI_GUIDE.md patterns.
 
-    def cost_per_minute(self) -> float:
-        """Calculate cost per minute."""
-        elapsed = self.elapsed_seconds()
-        minutes = elapsed / 60 if elapsed > 0 else 0.0
-        return self.total_cost_usd / minutes if minutes > 0 else 0.0
-
-    def eta_seconds(self, total_items: int, processed_items: int) -> float:
-        """Estimate seconds remaining."""
-        if processed_items == 0:
-            return 0.0
-        elapsed = self.elapsed_seconds()
-        rate = processed_items / elapsed
-        remaining = total_items - processed_items
-        return remaining / rate if rate > 0 else 0.0
-
-    def cache_hit_rate(self) -> float:
-        """Calculate cache hit rate percentage."""
-        total = self.cache_hits + self.cache_misses
-        return (self.cache_hits / total * 100) if total > 0 else 0.0
-
-
-class ProgressTracker:
-    """Track and display indexing progress with Rich.
-
-    Provides real-time progress bars, statistics, and cost tracking
-    during the indexing process.
+    Default mode: Terse single-line output (git-like)
+    Verbose mode: Phase-by-phase progress with statistics
+    Spinner: Only for operations >5 seconds
     """
 
-    def __init__(self, console: Console | None = None):
-        """Initialize progress tracker.
+    def __init__(self, verbose: bool = False):
+        """Initialize progress reporter.
 
         Args:
-            console: Rich console (creates new if not provided)
+            verbose: If True, show detailed phase-by-phase progress
         """
-        self.console = console or Console()
+        self.verbose = verbose
         self.stats = IndexingStats()
-        self.progress: Progress | None = None
-        self.live: Live | None = None
+        self.current_phase: str = ""
 
-    def start(self, total_blobs: int):
-        """Start progress tracking.
-
-        Args:
-            total_blobs: Total number of blobs to process
-        """
-        self.stats.total_blobs = total_blobs
+    def start(self):
+        """Start progress tracking."""
         self.stats.start_time = time.time()
+        # In verbose mode, announce start
+        if self.verbose:
+            print("→ Starting indexing...\n", file=sys.stderr)
 
-        # Create progress display
-        self.progress = Progress(
-            SpinnerColumn(),
-            TextColumn("[bold blue]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeElapsedColumn(),
-            TimeRemainingColumn(),
-            console=self.console,
-            expand=True
-        )
-
-        # Add tasks for each phase
-        self.walking_task = self.progress.add_task(
-            "[cyan]Walking commits...", total=total_blobs
-        )
-        self.chunking_task = self.progress.add_task(
-            "[yellow]Chunking blobs...", total=total_blobs
-        )
-        self.embedding_task = self.progress.add_task(
-            "[green]Generating embeddings...", total=None  # Unknown until chunking done
-        )
-        self.storing_task = self.progress.add_task(
-            "[magenta]Storing vectors...", total=None
-        )
-
-        # Start live display
-        self.live = Live(self._generate_display(), console=self.console, refresh_per_second=4)
-        self.live.start()
-
-    def update_walking(self, blobs_processed: int):
-        """Update walking progress.
+    def phase(self, name: str):
+        """Start a new phase (verbose mode only).
 
         Args:
-            blobs_processed: Number of blobs walked so far
+            name: Phase name (e.g., "Walking commit graph")
         """
-        if self.progress:
-            self.progress.update(self.walking_task, completed=blobs_processed)
+        self.current_phase = name
+        if self.verbose:
+            print(f"→ {name}", file=sys.stderr)
 
-    def update_chunking(self, blob_sha: str, num_chunks: int):
-        """Update chunking progress.
-
-        Args:
-            blob_sha: SHA of blob that was chunked
-            num_chunks: Number of chunks created
-        """
-        self.stats.processed_blobs += 1
-        self.stats.total_chunks += num_chunks
-
-        if self.progress:
-            self.progress.update(self.chunking_task, completed=self.stats.processed_blobs)
-            # Update embedding task total now that we know chunk count
-            if self.progress.tasks[self.embedding_task].total is None:
-                self.progress.update(self.embedding_task, total=self.stats.total_chunks)
-
-    def update_embedding(self, batch_size: int, tokens: int, cost: float, cache_hit: bool):
-        """Update embedding progress.
+    def update(self, commits: int = 0, blobs: int = 0, chunks: int = 0,
+               tokens: int = 0, cost: float = 0.0):
+        """Update statistics (silent in default mode).
 
         Args:
-            batch_size: Number of chunks embedded in this batch
+            commits: Number of commits processed
+            blobs: Number of blobs processed
+            chunks: Number of chunks created
             tokens: Tokens consumed
-            cost: Cost of this batch
-            cache_hit: Whether this was a cache hit
+            cost: Cost in USD
         """
-        self.stats.total_tokens += tokens
-        self.stats.total_cost_usd += cost
+        if commits: self.stats.total_commits = commits
+        if blobs: self.stats.total_blobs = blobs
+        if chunks: self.stats.total_chunks += chunks
+        if tokens: self.stats.total_tokens += tokens
+        if cost: self.stats.total_cost_usd += cost
 
-        if cache_hit:
-            self.stats.cache_hits += 1
-        else:
-            self.stats.cache_misses += 1
+        # In verbose mode, show progress for phase milestones
+        if self.verbose and blobs > 0 and blobs % 100 == 0:
+            print(f"  Processed {blobs} blobs...", file=sys.stderr)
 
-        if self.progress:
-            current = self.progress.tasks[self.embedding_task].completed or 0
-            self.progress.update(self.embedding_task, completed=current + batch_size)
-            # Update storing task total
-            if self.progress.tasks[self.storing_task].total is None:
-                self.progress.update(self.storing_task, total=self.stats.total_chunks)
-
-    def update_storing(self, num_stored: int):
-        """Update storage progress.
-
-        Args:
-            num_stored: Number of chunks stored in this batch
-        """
-        if self.progress:
-            current = self.progress.tasks[self.storing_task].completed or 0
-            self.progress.update(self.storing_task, completed=current + num_stored)
-
-    def record_error(self, blob_sha: str, error: str):
-        """Record an error during processing.
-
-        Args:
-            blob_sha: SHA of blob that failed
-            error: Error message
-        """
+    def record_error(self):
+        """Record an error (silent tracking)."""
         self.stats.errors += 1
-        # Log error to file
-        # (TASK-0001.2.5.3 will implement logging)
 
-    def stop(self):
-        """Stop progress tracking and show final summary."""
-        if self.live:
-            self.live.stop()
+    def finish(self):
+        """Print final summary (both modes).
 
-        if self.progress:
-            self.progress.stop()
-
-        self._print_final_summary()
-
-    def _generate_display(self) -> Table:
-        """Generate live statistics display.
-
-        Returns:
-            Rich table with current statistics
+        Default mode: Single terse line per TUI_GUIDE.md:208-209
+        Verbose mode: Detailed table per TUI_GUIDE.md:246-256
         """
-        table = Table(title="Indexing Statistics", show_header=False)
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green", justify="right")
-
-        # Progress
-        if self.progress:
-            for task_id in [self.walking_task, self.chunking_task, self.embedding_task, self.storing_task]:
-                task = self.progress.tasks[task_id]
-                table.add_row(task.description, f"{task.percentage:.1f}%")
-
-        table.add_section()
-
-        # Throughput
-        table.add_row("Chunks/second", f"{self.stats.chunks_per_second():.1f}")
-        table.add_row("Tokens/second", f"{self.stats.tokens_per_second():.0f}")
-
-        table.add_section()
-
-        # Costs
-        table.add_row("Total tokens", f"{self.stats.total_tokens:,}")
-        table.add_row("Total cost", f"${self.stats.total_cost_usd:.4f}")
-        table.add_row("Cost/minute", f"${self.stats.cost_per_minute():.4f}")
-
-        table.add_section()
-
-        # Cache
-        table.add_row("Cache hit rate", f"{self.stats.cache_hit_rate():.1f}%")
-        table.add_row("Cache hits", f"{self.stats.cache_hits}")
-        table.add_row("Cache misses", f"{self.stats.cache_misses}")
-
-        if self.stats.errors > 0:
-            table.add_section()
-            table.add_row("Errors", f"{self.stats.errors}", style="red")
-
-        return table
-
-    def _print_final_summary(self):
-        """Print final summary after indexing completes."""
         elapsed = self.stats.elapsed_seconds()
 
-        table = Table(title="🎉 Indexing Complete", show_header=False)
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green", justify="right")
+        if self.verbose:
+            self._print_verbose_summary(elapsed)
+        else:
+            self._print_terse_summary(elapsed)
 
-        table.add_row("Total blobs", f"{self.stats.total_blobs:,}")
-        table.add_row("Total chunks", f"{self.stats.total_chunks:,}")
-        table.add_row("Total tokens", f"{self.stats.total_tokens:,}")
-        table.add_row("Total cost", f"${self.stats.total_cost_usd:.4f}")
-        table.add_row("Cache hit rate", f"{self.stats.cache_hit_rate():.1f}%")
-        table.add_row("Time elapsed", str(timedelta(seconds=int(elapsed))))
-        table.add_row("Avg chunks/sec", f"{self.stats.chunks_per_second():.1f}")
+    def _print_terse_summary(self, elapsed: float):
+        """Print terse single-line summary (default mode)."""
+        # Format: "Indexed 5678 commits (1234 unique blobs) in 8.2s"
+        print(f"Indexed {self.stats.total_commits:,} commits "
+              f"({self.stats.total_blobs:,} unique blobs) in {elapsed:.1f}s")
+
+        # Always show cost summary on next line
+        print(f"Tokens: {self.stats.total_tokens:,} | "
+              f"Cost: ${self.stats.total_cost_usd:.4f}")
 
         if self.stats.errors > 0:
-            table.add_row("Errors", f"{self.stats.errors}", style="red")
-            table.add_row("Error log", ".gitctx/logs/index.log", style="dim")
+            print(f"Errors: {self.stats.errors}", file=sys.stderr)
 
-        self.console.print(table)
+    def _print_verbose_summary(self, elapsed: float):
+        """Print detailed statistics table (verbose mode)."""
+        print("\n✓ Indexing Complete\n", file=sys.stderr)
 
+        # Statistics table (simplified, no Rich dependencies)
+        print("Statistics:", file=sys.stderr)
+        print(f"  Commits:      {self.stats.total_commits:,}", file=sys.stderr)
+        print(f"  Unique blobs: {self.stats.total_blobs:,}", file=sys.stderr)
+        print(f"  Chunks:       {self.stats.total_chunks:,}", file=sys.stderr)
+        print(f"  Tokens:       {self.stats.total_tokens:,}", file=sys.stderr)
+        print(f"  Cost:         ${self.stats.total_cost_usd:.4f}", file=sys.stderr)
+        print(f"  Time:         {str(timedelta(seconds=int(elapsed)))}", file=sys.stderr)
+
+        if self.stats.errors > 0:
+            print(f"  Errors:       {self.stats.errors}", file=sys.stderr)
+
+
+from typing import TypedDict
+
+class CostEstimate(TypedDict):
+    """Cost estimation result."""
+    total_files: int
+    total_lines: int
+    estimated_tokens: int
+    estimated_cost: float
+    min_cost: float
+    max_cost: float
 
 class CostEstimator:
-    """Estimate indexing costs before processing.
+    """Estimate indexing costs before processing."""
 
-    Analyzes repository to provide cost estimates and confidence ranges.
-    """
-
-    # Average tokens per line of code (conservative estimate for cost planning)
-    #
-    # Empirical data (16x Prompt Code-to-Tokens study):
-    #   - Python: ~10 tokens/line (100 lines ≈ 1,000 tokens)
-    #   - JavaScript: ~7 tokens/line (100 lines ≈ 700 tokens)
-    #   - SQL: ~11.5 tokens/line (100 lines ≈ 1,150 tokens)
-    #
     # Conservative estimate: 5.0 tokens/line
-    # - Accounts for: blank lines, comments, simple statements
-    # - Expected to under-estimate cost by ~30-50% (safer for pre-indexing planning)
-    # - Provides budget-friendly lower bound; actual cost via tiktoken will be more accurate
-    #
-    # Source: https://prompt.16x.engineer/blog/code-to-tokens-conversion
-    # Note: Actual indexing uses tiktoken for exact token counts
+    # (See STORY README for full rationale from 16x Prompt study)
     TOKENS_PER_LINE = 5.0
 
-    # Model pricing
-    COST_PER_1K_TOKENS = 0.00013  # text-embedding-3-large
+    # Model pricing: text-embedding-3-large
+    COST_PER_1K_TOKENS = 0.00013
 
-    def estimate_repo_cost(self, repo_path: Path) -> dict:
+    def estimate_repo_cost(self, repo_path: Path) -> CostEstimate:
         """Estimate cost for indexing a repository.
 
         Args:
             repo_path: Path to git repository
 
         Returns:
-            Dictionary with estimates
+            Dictionary with token and cost estimates
         """
-        # Analyze repo (simplified - real impl would walk commit graph)
         total_lines = self._count_lines(repo_path)
         total_files = self._count_files(repo_path)
 
-        # Estimate tokens
         estimated_tokens = int(total_lines * self.TOKENS_PER_LINE)
-
-        # Estimate cost
         estimated_cost = (estimated_tokens / 1000) * self.COST_PER_1K_TOKENS
 
         # Confidence range (±20%)
@@ -463,19 +306,32 @@ class CostEstimator:
             "estimated_cost": estimated_cost,
             "min_cost": min_cost,
             "max_cost": max_cost,
-            "confidence": "±20%"
         }
 
     def _count_lines(self, repo_path: Path) -> int:
-        """Count lines of code in repository."""
-        # Simplified implementation
-        # Real version would use walker + chunker
-        return 10000  # Placeholder
+        """Count lines of code in working directory.
+
+        Walks working directory with pathlib, counts lines in text files.
+        TASK-4 will integrate with CommitWalker for commit-aware counting.
+        """
+        total_lines = 0
+        for file in repo_path.rglob("*"):
+            if file.is_file() and file.suffix in {".py", ".js", ".ts", ".go", ".rs"}:
+                if ".git" not in file.parts:
+                    try:
+                        total_lines += len(file.read_text().splitlines())
+                    except (UnicodeDecodeError, PermissionError):
+                        continue  # Skip binary/inaccessible files
+        return total_lines
 
     def _count_files(self, repo_path: Path) -> int:
-        """Count files in repository."""
-        # Simplified implementation
-        return 100  # Placeholder
+        """Count text files in working directory."""
+        count = 0
+        for file in repo_path.rglob("*"):
+            if file.is_file() and file.suffix in {".py", ".js", ".ts", ".go", ".rs"}:
+                if ".git" not in file.parts:
+                    count += 1
+        return count
 ```
 
 ### Integration with Pipeline
@@ -483,131 +339,128 @@ class CostEstimator:
 ```python
 # src/gitctx/indexing/pipeline.py
 
-from gitctx.indexing.progress import ProgressTracker, CostEstimator
+from gitctx.indexing.progress import ProgressReporter, CostEstimator
 
-async def index_repository(repo_path: Path, settings: GitCtxSettings, dry_run: bool = False):
-    """Index a repository with progress tracking.
+async def index_repository(repo_path: Path, settings: GitCtxSettings,
+                           dry_run: bool = False, verbose: bool = False):
+    """Index a repository with progress tracking (TUI_GUIDE compliant).
 
     Args:
         repo_path: Path to git repository
         settings: Configuration settings
         dry_run: If True, only show cost estimate without indexing
+        verbose: If True, show detailed phase-by-phase progress
     """
-    console = Console()
-
-    # Cost estimation
+    # Cost estimation mode
     if dry_run:
         estimator = CostEstimator()
         estimate = estimator.estimate_repo_cost(repo_path)
 
-        table = Table(title="Cost Estimate")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="yellow")
-
-        table.add_row("Files", f"{estimate['total_files']:,}")
-        table.add_row("Lines", f"{estimate['total_lines']:,}")
-        table.add_row("Est. tokens", f"{estimate['estimated_tokens']:,}")
-        table.add_row("Est. cost", f"${estimate['estimated_cost']:.4f}")
-        table.add_row("Range", f"${estimate['min_cost']:.4f} - ${estimate['max_cost']:.4f}")
-        table.add_row("Confidence", estimate['confidence'])
-
-        console.print(table)
+        print(f"Files:        {estimate['total_files']:,}")
+        print(f"Lines:        {estimate['total_lines']:,}")
+        print(f"Est. tokens:  {estimate['estimated_tokens']:,}")
+        print(f"Est. cost:    ${estimate['estimated_cost']:.4f}")
+        print(f"Range:        ${estimate['min_cost']:.4f} - ${estimate['max_cost']:.4f} (±20%)")
         return
 
     # Initialize components
-    tracker = ProgressTracker(console)
+    reporter = ProgressReporter(verbose=verbose)
     walker = CommitWalker(repo_path, settings)
     chunker = create_chunker()
     embedder = create_embedder(settings.api_keys.openai)
     store = LanceDBStore(repo_path / ".gitctx/lancedb")
 
-    # Start tracking
-    # (total_blobs discovered during walking, so we'll estimate)
-    tracker.start(total_blobs=1000)  # Placeholder
+    reporter.start()
 
     try:
-        # Walk commits
+        # Phase 1: Walk commits
+        reporter.phase("Walking commit graph")
         for blob_record in walker.walk():
-            tracker.update_walking(walker.get_stats().blobs_indexed)
+            reporter.update(commits=walker.get_stats().commits_walked,
+                          blobs=walker.get_stats().blobs_indexed)
 
-            # Chunk
-            chunks = chunker.chunk_file(
-                content=blob_record.content.decode("utf-8"),
-                language="python",  # Detect language
-                max_tokens=800
-            )
-            tracker.update_chunking(blob_record.sha, len(chunks))
+        # Phase 2: Chunk and embed
+        reporter.phase("Generating embeddings")
+        for blob_record in walker.walk():
+            chunks = chunker.chunk_file(blob_record.content.decode("utf-8"))
+            reporter.update(chunks=len(chunks))
 
-            # Embed
+            # Embed chunks
             embedding_batch = await embedder.embed_chunks(chunks, blob_record.sha)
-            cache_hit = embedding_batch.total_cost_usd == 0.0
-            tracker.update_embedding(
-                batch_size=len(embedding_batch.embeddings),
-                tokens=embedding_batch.total_tokens,
-                cost=embedding_batch.total_cost_usd,
-                cache_hit=cache_hit
-            )
+            reporter.update(tokens=embedding_batch.total_tokens,
+                          cost=embedding_batch.total_cost_usd)
 
             # Store
-            store.add_chunks_batch(embedding_batch.embeddings, {blob_record.sha: blob_record.locations})
-            tracker.update_storing(len(embedding_batch.embeddings))
+            store.add_chunks_batch(embedding_batch.embeddings,
+                                  {blob_record.sha: blob_record.locations})
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Indexing cancelled by user[/yellow]")
-        tracker.stop()
-        console.print("[dim]Resume with: gitctx index --resume[/dim]")
-        return
+        print("\nInterrupted", file=sys.stderr)
+        reporter.finish()  # Show partial stats
+        sys.exit(130)
 
     except Exception as e:
-        tracker.record_error("unknown", str(e))
+        reporter.record_error()
         raise
 
     finally:
-        tracker.stop()
+        reporter.finish()
 ```
 
 ## Dependencies
 
 ### External Libraries
 
-- `rich>=13.0.0` - Terminal formatting, progress bars, live displays
+None required beyond standard library for progress tracking. Cost calculations use standard Python arithmetic.
 
 ### Internal Dependencies
 
 - **STORY-0001.2.1** (Commit Graph Walker) - Provides blob counts and statistics ✅
-- **STORY-0001.2.2** (Blob Chunking) - Provides chunk counts
-- **STORY-0001.2.3** (OpenAI Embeddings) - Provides token/cost data
-- **STORY-0001.2.4** (LanceDB Storage) - Storage progress tracking
+- **STORY-0001.2.2** (Blob Chunking) - Provides chunk counts ✅
+- **STORY-0001.2.3** (OpenAI Embeddings) - Provides token/cost data ✅
+- **STORY-0001.2.4** (LanceDB Storage) - Storage operations ✅
 
 ## Pattern Reuse
 
-From existing codebase:
-- Rich console usage patterns from CLI commands
-- Progress bar patterns from prototype
+**Mocked Embedder Pattern** (follows existing test patterns):
+- Tests use `isolated_env` fixture which clears `OPENAI_API_KEY` ([tests/unit/conftest.py:19-46](../../../tests/unit/conftest.py#L19-L46))
+- Mock OpenAI API directly with `AsyncMock` ([tests/unit/embeddings/test_openai_embedder.py:70-75](../../../tests/unit/embeddings/test_openai_embedder.py#L70-L75))
+- No "skip if no key" pattern - all tests use mocks for zero-cost CI
+
+**Example from existing tests**:
+```python
+embedder = OpenAIEmbedder(api_key="sk-test123")
+with patch.object(embedder._embeddings.async_client, "create", new_callable=AsyncMock) as mock_create:
+    mock_create.return_value = mock_response
+    result = await embedder.embed_chunks([chunk], "abc123")
+```
 
 ## Success Criteria
 
 Story is complete when:
 
 - ✅ All 4 tasks implemented and tested
-- ✅ All 10 BDD scenarios pass
-- ✅ Real-time progress updates smoothly (<4Hz refresh)
-- ✅ Cost calculations accurate to ±1%
-- ✅ Graceful cancellation works (Ctrl+C)
+- ✅ All 5 BDD scenarios pass
+- ✅ Default mode shows terse single-line output per TUI_GUIDE.md
+- ✅ Verbose mode (-v) shows phase-by-phase progress per TUI_GUIDE.md
+- ✅ Cost calculations accurate to ±0.001%
+- ✅ Graceful cancellation works (SIGINT → exit 130 within 5s)
+- ✅ Empty repository handled correctly
 - ✅ Quality gates: ruff + mypy + pytest all pass
 
 ## Performance Targets
 
-- Progress update overhead: <5ms per update
-- Display refresh rate: 4Hz (250ms intervals)
-- Memory overhead: <10MB for progress tracking
+- Progress update overhead: <1ms per update (no complex rendering)
+- Memory overhead: <1MB for progress tracking (no live displays)
+- Fast execution: No performance impact vs no progress tracking
 
 ## Notes
 
-- Use Rich's Live display for smooth updates
-- Track statistics at pipeline level (not in individual components)
-- Cost estimates are approximate (±20% confidence)
-- Cache hit rate is key metric for re-indexing performance
+- TUI_GUIDE compliant: terse by default, verbose on request
+- No Rich progress bars (not allowed by TUI_GUIDE.md:1050)
+- Simple print() statements for progress (fast, low overhead)
+- Cost estimates are approximate (±20% confidence range)
+- Spinner can be added in future if needed for >5s operations
 
 ---
 
