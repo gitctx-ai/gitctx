@@ -326,7 +326,7 @@ class CostEstimator:
         gitctx supports 60+ extensions across 27 languages, defaulting
         unknown types to markdown. Cost estimator counts everything.
 
-        TASK-4 will integrate with CommitWalker for commit-aware counting.
+        TASK-0001.2.5.4 will integrate with CommitWalker for commit-aware counting.
         """
         from gitctx.core.language_detection import EXTENSION_TO_LANGUAGE
 
