@@ -12,6 +12,7 @@ import lancedb
 import pyarrow as pa
 
 from gitctx.core.exceptions import DimensionMismatchError
+from gitctx.core.models import BlobLocation, Embedding
 from gitctx.storage.schema import CHUNK_SCHEMA
 
 logger = logging.getLogger(__name__)
@@ -154,11 +155,14 @@ class LanceDBStore:
         Returns:
             Dict with keys: total_chunks, total_files, total_blobs, languages, index_size_mb
         """
+        from collections import Counter
+
         try:
             assert self.chunks_table is not None
-            df = self.chunks_table.to_pandas()
+            # Use PyArrow table for efficient columnar operations
+            arrow_table = self.chunks_table.to_arrow()
 
-            if len(df) == 0:
+            if arrow_table.num_rows == 0:
                 return {
                     "total_chunks": 0,
                     "total_files": 0,
@@ -167,11 +171,16 @@ class LanceDBStore:
                     "index_size_mb": self._get_db_size_mb(),
                 }
 
+            # Convert relevant columns to Python lists for aggregation
+            file_paths = arrow_table.column("file_path").to_pylist()
+            blob_shas = arrow_table.column("blob_sha").to_pylist()
+            languages = arrow_table.column("language").to_pylist()
+
             return {
-                "total_chunks": len(df),
-                "total_files": df["file_path"].nunique(),
-                "total_blobs": df["blob_sha"].nunique(),
-                "languages": df["language"].value_counts().to_dict(),
+                "total_chunks": arrow_table.num_rows,
+                "total_files": len(set(file_paths)),
+                "total_blobs": len(set(blob_shas)),
+                "languages": dict(Counter(languages)),
                 "index_size_mb": self._get_db_size_mb(),
             }
         except Exception:
@@ -193,7 +202,9 @@ class LanceDBStore:
         total = sum(f.stat().st_size for f in self.db_path.rglob("*") if f.is_file())
         return total / (1024 * 1024)
 
-    def add_chunks_batch(self, embeddings: list[Any], blob_locations: dict[str, list[Any]]) -> None:
+    def add_chunks_batch(
+        self, embeddings: list[Embedding], blob_locations: dict[str, list[BlobLocation]]
+    ) -> None:
         """Add chunks in batch with denormalized metadata.
 
         Args:
@@ -211,8 +222,8 @@ class LanceDBStore:
                 logger.warning(f"No location found for blob {emb.blob_sha[:8]}... - skipping chunk")
                 continue
 
-            # Use first location (denormalized schema duplicates this per chunk)
-            loc = locations[0]
+            # Use most recent location by commit_date (when blob appears in multiple commits)
+            loc = max(locations, key=lambda location: location.commit_date)
 
             record = {
                 "vector": emb.vector,
@@ -285,8 +296,8 @@ class LanceDBStore:
         if filter_head_only:
             query = query.where("is_head = true")
 
-        results = query.to_pandas()
-        return results.to_dict("records")
+        # Use native LanceDB to_list() for direct dict conversion (no pandas needed)
+        return query.to_list()
 
     def save_index_state(
         self, last_commit: str, indexed_blobs: list[str], embedding_model: str

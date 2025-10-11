@@ -118,16 +118,16 @@ def store_embeddings(context: dict[str, Any], tmp_path: Path):
 def verify_denormalized_storage(context: dict[str, Any]):
     """Verify vectors stored with denormalized metadata."""
     store = context["store"]
-    results = store.chunks_table.to_pandas()
-    assert len(results) == context["expected_count"]
+    arrow_table = store.chunks_table.to_arrow()
+    assert arrow_table.num_rows == context["expected_count"]
 
 
 @then("metadata should include: blob_sha, chunk_index, file_path, line range, commit info")
 def verify_metadata_fields(context: dict[str, Any]):
     """Verify all required metadata fields present."""
     store = context["store"]
-    results = store.chunks_table.to_pandas()
-    first_row = results.iloc[0]
+    arrow_table = store.chunks_table.to_arrow()
+    first_row = arrow_table.to_pylist()[0]
 
     # Verify all 19 fields present
     required_fields = [
@@ -145,7 +145,7 @@ def verify_metadata_fields(context: dict[str, Any]):
         "is_merge",
     ]
     for field in required_fields:
-        assert field in first_row.index, f"Missing field: {field}"
+        assert field in first_row, f"Missing field: {field}"
 
 
 @then("I should be able to query and get complete context in one operation")
@@ -347,9 +347,10 @@ def verify_total_chunks(count: int, context: dict[str, Any]):
 def verify_old_chunks_unchanged(context: dict[str, Any]):
     """Verify old chunks unchanged."""
     store = context["store"]
-    df = store.chunks_table.to_pandas()
+    arrow_table = store.chunks_table.to_arrow()
     # Verify old blob SHAs still present
-    existing_blobs = set(df["blob_sha"].unique())
+    blob_shas = arrow_table.column("blob_sha").to_pylist()
+    existing_blobs = set(blob_shas)
     for old_sha in context["initial_blob_shas"]:
         assert old_sha in existing_blobs, f"Old blob {old_sha} missing after update"
 
@@ -394,8 +395,9 @@ def save_index_metadata(context: dict[str, Any]):
 def verify_last_commit(commit_sha: str, context: dict[str, Any]):
     """Verify last_commit in metadata."""
     store = context["store"]
-    df = store.metadata_table.to_pandas()
-    state = df[df["key"] == "index_state"].iloc[0]
+    arrow_table = store.metadata_table.to_arrow()
+    records = arrow_table.to_pylist()
+    state = next(r for r in records if r["key"] == "index_state")
     assert state["last_commit"] == commit_sha
 
 
@@ -403,9 +405,10 @@ def verify_last_commit(commit_sha: str, context: dict[str, Any]):
 def verify_indexed_blobs_list(context: dict[str, Any]):
     """Verify indexed_blobs list in metadata."""
     store = context["store"]
-    df = store.metadata_table.to_pandas()
-    state = df[df["key"] == "index_state"].iloc[0]
-    assert "indexed_blobs" in state.index
+    arrow_table = store.metadata_table.to_arrow()
+    records = arrow_table.to_pylist()
+    state = next(r for r in records if r["key"] == "index_state")
+    assert "indexed_blobs" in state
     assert len(state["indexed_blobs"]) > 0  # JSON string
 
 
@@ -413,9 +416,10 @@ def verify_indexed_blobs_list(context: dict[str, Any]):
 def verify_last_indexed_timestamp(context: dict[str, Any]):
     """Verify last_indexed timestamp in metadata."""
     store = context["store"]
-    df = store.metadata_table.to_pandas()
-    state = df[df["key"] == "index_state"].iloc[0]
-    assert "last_indexed" in state.index
+    arrow_table = store.metadata_table.to_arrow()
+    records = arrow_table.to_pylist()
+    state = next(r for r in records if r["key"] == "index_state")
+    assert "last_indexed" in state
     assert len(state["last_indexed"]) > 0  # ISO timestamp
 
 
@@ -423,8 +427,9 @@ def verify_last_indexed_timestamp(context: dict[str, Any]):
 def verify_embedding_model_name(context: dict[str, Any]):
     """Verify embedding_model name in metadata."""
     store = context["store"]
-    df = store.metadata_table.to_pandas()
-    state = df[df["key"] == "index_state"].iloc[0]
+    arrow_table = store.metadata_table.to_arrow()
+    records = arrow_table.to_pylist()
+    state = next(r for r in records if r["key"] == "index_state")
     assert state["embedding_model"] == "text-embedding-3-large"
 
 

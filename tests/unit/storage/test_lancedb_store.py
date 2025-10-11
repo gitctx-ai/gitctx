@@ -162,36 +162,31 @@ def test_count_returns_zero_on_exception(tmp_path: Path, isolated_env):
         assert store.count() == 0
 
 
-def test_get_statistics_handles_empty_dataframe(tmp_path: Path, isolated_env):
-    """get_statistics() returns zeros for empty dataframe."""
+def test_get_statistics_handles_empty_table(tmp_path: Path, isolated_env):
+    """get_statistics() returns zeros for empty table."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
     db_path = tmp_path / ".gitctx" / "lancedb"
     store = LanceDBStore(db_path)
 
-    # Mock to_pandas to return empty dataframe
-    # Pandas is a dependency of LanceDB, so we can import it here
-    import pandas as pd
-
-    empty_df = pd.DataFrame()
-    with patch.object(store.chunks_table, "to_pandas", return_value=empty_df):
-        stats = store.get_statistics()
-        assert stats["total_chunks"] == 0
-        assert stats["total_files"] == 0
-        assert stats["total_blobs"] == 0
-        assert stats["languages"] == {}
-        assert stats["index_size_mb"] >= 0
+    # Empty table from initialization
+    stats = store.get_statistics()
+    assert stats["total_chunks"] == 0
+    assert stats["total_files"] == 0
+    assert stats["total_blobs"] == 0
+    assert stats["languages"] == {}
+    assert stats["index_size_mb"] >= 0
 
 
 def test_get_statistics_handles_exception(tmp_path: Path, isolated_env):
-    """get_statistics() returns zeros if to_pandas() raises exception."""
+    """get_statistics() returns zeros if to_arrow() raises exception."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
     db_path = tmp_path / ".gitctx" / "lancedb"
     store = LanceDBStore(db_path)
 
-    # Mock to_pandas to raise exception
-    with patch.object(store.chunks_table, "to_pandas", side_effect=Exception("Mock error")):
+    # Mock to_arrow to raise exception
+    with patch.object(store.chunks_table, "to_arrow", side_effect=Exception("Mock error")):
         stats = store.get_statistics()
         assert stats["total_chunks"] == 0
         assert stats["total_files"] == 0
@@ -234,8 +229,8 @@ def test_add_chunks_batch_denormalizes_blob_location(
     store.add_chunks_batch(embeddings=embeddings, blob_locations=blob_locations)
 
     # Query back and verify denormalized fields
-    results = store.chunks_table.to_pandas()
-    assert len(results) == 10
+    arrow_table = store.chunks_table.to_arrow()
+    assert arrow_table.num_rows == 10
 
     # Verify all 19 denormalized fields are present
     expected_fields = [
@@ -260,13 +255,14 @@ def test_add_chunks_batch_denormalizes_blob_location(
         "indexed_at",
     ]
     for field in expected_fields:
-        assert field in results.columns, f"Missing field: {field}"
+        assert field in arrow_table.schema.names, f"Missing field: {field}"
 
     # Verify metadata from first blob
-    first_blob_chunks = results[results["blob_sha"] == blob_sha_1]
+    records = arrow_table.to_pylist()
+    first_blob_chunks = [r for r in records if r["blob_sha"] == blob_sha_1]
     assert len(first_blob_chunks) == 5
-    assert first_blob_chunks.iloc[0]["author_name"] == "Test Author"
-    assert first_blob_chunks.iloc[0]["file_path"] == "src/main.py"
+    assert first_blob_chunks[0]["author_name"] == "Test Author"
+    assert first_blob_chunks[0]["file_path"] == "src/main.py"
 
 
 def test_add_chunks_batch_empty_blob_locations_warning(
@@ -290,6 +286,68 @@ def test_add_chunks_batch_empty_blob_locations_warning(
 
     # Verify no chunks were inserted
     assert store.count() == 0
+
+
+def test_add_chunks_batch_uses_most_recent_location(tmp_path: Path, isolated_env, mock_embedding):
+    """add_chunks_batch uses location with highest commit_date when blob has multiple locations."""
+    from gitctx.core.models import BlobLocation
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    blob_sha = "a" * 40
+
+    # Create 3 locations with different commit dates
+    locations = [
+        BlobLocation(
+            commit_sha="old_commit",
+            file_path="src/file.py",
+            author_name="Author Old",
+            author_email="old@example.com",
+            commit_date=1000000000,  # Oldest
+            commit_message="Old commit",
+            is_head=False,
+            is_merge=False,
+        ),
+        BlobLocation(
+            commit_sha="newest_commit",
+            file_path="src/file_renamed.py",
+            author_name="Author New",
+            author_email="new@example.com",
+            commit_date=1000000200,  # Newest
+            commit_message="Latest commit",
+            is_head=True,
+            is_merge=False,
+        ),
+        BlobLocation(
+            commit_sha="middle_commit",
+            file_path="src/file.py",
+            author_name="Author Middle",
+            author_email="middle@example.com",
+            commit_date=1000000100,  # Middle
+            commit_message="Middle commit",
+            is_head=False,
+            is_merge=False,
+        ),
+    ]
+
+    embeddings = [mock_embedding(blob_sha=blob_sha, chunk_index=0)]
+    blob_locations = {blob_sha: locations}
+
+    store.add_chunks_batch(embeddings=embeddings, blob_locations=blob_locations)
+
+    # Query back and verify the NEWEST location was used
+    arrow_table = store.chunks_table.to_arrow()
+    records = arrow_table.to_pylist()
+    assert len(records) == 1
+
+    chunk = records[0]
+    assert chunk["commit_sha"] == "newest_commit"
+    assert chunk["file_path"] == "src/file_renamed.py"
+    assert chunk["author_name"] == "Author New"
+    assert chunk["commit_date"] == 1000000200
+    assert chunk["is_head"] is True
 
 
 @pytest.mark.slow
@@ -551,8 +609,8 @@ def test_incremental_updates_preserve_existing_chunks(
     assert store.count() == 10
 
     # Get original data
-    original_data = store.chunks_table.to_pandas()
-    original_blob_shas = set(original_data["blob_sha"])
+    arrow_table = store.chunks_table.to_arrow()
+    original_blob_shas = set(arrow_table.column("blob_sha").to_pylist())
 
     # Insert 5 new chunks
     embeddings_2 = []
@@ -569,8 +627,8 @@ def test_incremental_updates_preserve_existing_chunks(
     assert store.count() == 15
 
     # Verify old chunks still exist
-    updated_data = store.chunks_table.to_pandas()
-    updated_blob_shas = set(updated_data["blob_sha"])
+    updated_arrow = store.chunks_table.to_arrow()
+    updated_blob_shas = set(updated_arrow.column("blob_sha").to_pylist())
 
     # All original blob_shas should still be present
     assert original_blob_shas.issubset(updated_blob_shas), "Some original chunks were lost"
@@ -605,8 +663,9 @@ def test_save_index_state_stores_metadata(
     )
 
     # Query metadata table
-    metadata_df = store.metadata_table.to_pandas()
-    state = metadata_df[metadata_df["key"] == "index_state"].iloc[0]
+    arrow_table = store.metadata_table.to_arrow()
+    records = arrow_table.to_pylist()
+    state = next(r for r in records if r["key"] == "index_state")
 
     assert state["last_commit"] == "abc123def456"  # pragma: allowlist secret
     assert "blob1" in state["indexed_blobs"]  # JSON list
@@ -636,10 +695,11 @@ def test_save_index_state_upsert_pattern(
     store.save_index_state("commit2", ["blob1", "blob2"], "text-embedding-3-large")
 
     # Only one row should exist (upsert, not append)
-    metadata_df = store.metadata_table.to_pandas()
-    states = metadata_df[metadata_df["key"] == "index_state"]
+    arrow_table = store.metadata_table.to_arrow()
+    records = arrow_table.to_pylist()
+    states = [r for r in records if r["key"] == "index_state"]
     assert len(states) == 1
-    assert states.iloc[0]["last_commit"] == "commit2"
+    assert states[0]["last_commit"] == "commit2"
 
 
 def test_save_index_state_empty_table_no_exception(tmp_path: Path, isolated_env):
@@ -652,8 +712,8 @@ def test_save_index_state_empty_table_no_exception(tmp_path: Path, isolated_env)
     # Should not raise exception even if table is empty
     store.save_index_state("commit1", [], "text-embedding-3-large")
 
-    metadata_df = store.metadata_table.to_pandas()
-    assert len(metadata_df) == 1
+    arrow_table = store.metadata_table.to_arrow()
+    assert arrow_table.num_rows == 1
 
 
 def test_query_returns_complete_blob_location_context(
