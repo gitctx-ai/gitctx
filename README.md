@@ -75,15 +75,23 @@ Currently implementing **INIT-0001: MVP Foundation** (Q4 2025)
   - All 4 commands implemented (index, search, config, clear)
   - 13 BDD scenarios, 76 tests passing, 96.76% coverage
 
-**EPIC-0001.2: Real Indexing** 🟡 In Progress (9/21 story points)
+**EPIC-0001.2: Real Indexing** ✅ Complete (31/31 story points)
 
-- ✅ Commit Graph Walker (STORY-0001.2.1) - 9 points
+- ✅ Commit Graph Walker (STORY-0001.2.1) - 10 points
   - Blob deduplication, location metadata, filtering (binary/gitignore/size)
   - Multi-ref support, progress callbacks, error handling
   - 9 BDD scenarios, 267 tests passing, 95.09% coverage
-  - Fixed critical bug: walker now honors all configured refs
-- 🔵 Embedding Generation (STORY-0001.2.2) - 6 points
-- 🔵 LanceDB Storage (STORY-0001.2.3) - 6 points
+- ✅ Blob Chunking (STORY-0001.2.2) - 5 points
+  - Smart text chunking with semantic overlap
+  - Language-aware chunking for Python, JS, Go, Rust, TypeScript
+- ✅ OpenAI Embeddings (STORY-0001.2.3) - 8 points
+  - text-embedding-3-large integration with caching
+  - Batch processing, cost tracking, progress callbacks
+- ✅ LanceDB Vector Storage (STORY-0001.2.4) - 3 points
+  - Denormalized schema for single-query context retrieval
+  - IVF-PQ indexing, batch insertion, statistics
+  - 10 BDD scenarios, all tests passing, 95.84% coverage
+- 🔵 Progress Tracking (STORY-0001.2.5) - 5 points
 
 **Next Up:**
 
