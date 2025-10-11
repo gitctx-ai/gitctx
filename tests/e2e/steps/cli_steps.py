@@ -62,11 +62,14 @@ def run_command(
     # Run gitctx as subprocess with full isolation
     # Uses python -m gitctx to ensure it works in all environments
     # Environment now includes all platform-specific vars (fixed WinError 10106)
+    # Use repo_path as cwd if provided by previous @given steps
+    cwd = context.get("repo_path")
     result = subprocess.run(
         cmd_parts,
         env=env,
         capture_output=True,
         text=True,
+        cwd=cwd,
     )
 
     context["result"] = result
@@ -173,10 +176,25 @@ def setup_env_var(context: dict[str, Any], var: str, value: str) -> None:
 
     The run_command step will check for context["custom_env"] and use
     e2e_env_factory to create an environment with these vars.
+
+    Special handling: If value is "$ENV", pulls from os.environ[var]
     """
+    import os
+
     if "custom_env" not in context:
         context["custom_env"] = {}
-    context["custom_env"][var] = value
+
+    # Allow pulling from actual environment with $ENV token
+    if value == "$ENV":
+        actual_value = os.environ.get(var)
+        if actual_value is None:
+            raise ValueError(
+                f"Environment variable {var} is set to '$ENV' but not found in os.environ. "
+                f"Set {var} in your environment before running tests."
+            )
+        context["custom_env"][var] = actual_value
+    else:
+        context["custom_env"][var] = value
 
 
 @given(parsers.parse("repo config file exists with read-only permissions"))

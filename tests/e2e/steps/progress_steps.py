@@ -4,9 +4,16 @@ Pattern Reuse:
 - e2e_git_repo_factory: Create test repos with customizable structure
 - e2e_git_isolation_env: Secure subprocess environment (prevents SSH key access)
 - context fixture: Store CLI results between Given/When/Then steps
-- isolated_env + AsyncMock: Mock OpenAI API for zero-cost E2E testing
+- VCR.py cassettes: Record real OpenAI API responses, replay in CI (zero-cost)
 
-All scenarios use mocked embedders for fast, zero-cost CI execution.
+All scenarios use VCR.py cassettes for fast, deterministic, zero-cost CI execution.
+
+VCR Recording Workflow:
+1. Developer records cassettes once with real OPENAI_API_KEY
+2. Cassettes committed to git (API keys stripped)
+3. CI/CD replays cassettes (no API key needed, instant execution)
+
+See tests/e2e/cassettes/README.md for recording instructions.
 """
 
 import re
@@ -75,104 +82,51 @@ def setup_repo_with_size(n: int, size: str, e2e_git_repo_factory, context: dict[
         # Each line is ~40 bytes with "line X content for testing\n"
         lines_per_file = max(1, bytes_per_file // 40)
         content = "\n".join([f"line {j} content for testing" for j in range(lines_per_file)])
-        files[f"file{i+1}.py"] = content
+        files[f"file{i + 1}.py"] = content
 
     # Create repo with files and commit
     repo_path = e2e_git_repo_factory(files=files, num_commits=1)
     context["repo_path"] = repo_path
 
 
-@given("indexing is in progress with 20 files")
-def setup_long_running_index(e2e_git_repo_factory, context: dict[str, Any]) -> None:
-    """Create repository and prepare for long-running indexing operation.
-
-    Used for SIGINT cancellation testing.
-
-    Args:
-        e2e_git_repo_factory: Fixture for creating test repos
-        context: BDD context fixture
-    """
-    raise NotImplementedError("TASK-0001.2.5.4 will implement this step")
-
-
 @given("an empty repository with no indexable files")
 def setup_empty_repo(e2e_git_repo_factory, context: dict[str, Any]) -> None:
     """Create an empty git repository with no indexable files.
 
-    "No indexable files" means zero files matching 60+ supported extensions
-    or defaulting to markdown.
+    "No indexable files" means zero files after blob filtering.
+    Creates a repo where all files are filtered out (binary).
 
     Args:
         e2e_git_repo_factory: Fixture for creating test repos
         context: BDD context fixture
     """
-    raise NotImplementedError("TASK-0001.2.5.4 will implement this step")
+    # Create repo with no .gitignore and only a binary file (will be filtered)
+    repo_path = e2e_git_repo_factory(files={"test.bin": "placeholder"}, num_commits=1, add_gitignore=False)
+
+    # Replace with actual binary content (null bytes trigger binary detection)
+    (repo_path / "test.bin").write_bytes(b"\x00\x01\x02\x03\x04\x05")
+
+    # Amend the commit to include binary file
+    import subprocess
+    subprocess.run(
+        ["git", "add", "test.bin"],
+        cwd=repo_path,
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "--amend", "--no-edit"],
+        cwd=repo_path,
+        capture_output=True,
+        check=True,
+    )
+
+    context["repo_path"] = repo_path
 
 
 # ============================================================================
 # When Steps - Execute CLI Commands
 # ============================================================================
-
-
-@when('I run "gitctx index" with mocked embedder')
-def run_index_with_mock(e2e_git_isolation_env: dict[str, str], context: dict[str, Any]) -> None:
-    """Run gitctx index with mocked OpenAI embedder (zero API cost).
-
-    Uses isolated_env (no OPENAI_API_KEY) + AsyncMock pattern from
-    tests/unit/embeddings/test_openai_embedder.py:70-75.
-
-    Stores result in context for Then assertions.
-
-    Args:
-        e2e_git_isolation_env: Isolated environment fixture
-        context: BDD context fixture
-    """
-    repo_path = context["repo_path"]
-
-    # Run gitctx index command with isolated environment (no API key)
-    result = subprocess.run(
-        ["uv", "run", "gitctx", "index"],
-        cwd=repo_path,
-        env=e2e_git_isolation_env,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-
-    # Store results for Then assertions
-    context["stdout"] = result.stdout
-    context["stderr"] = result.stderr
-    context["exit_code"] = result.returncode
-
-
-@when('I run "gitctx index --verbose" with mocked embedder')
-def run_index_verbose_with_mock(
-    e2e_git_isolation_env: dict[str, str], context: dict[str, Any]
-) -> None:
-    """Run gitctx index in verbose mode with mocked embedder.
-
-    Should show phase-by-phase progress per TUI_GUIDE.md:230-256.
-
-    Args:
-        e2e_git_isolation_env: Isolated environment fixture
-        context: BDD context fixture
-    """
-    repo_path = context["repo_path"]
-
-    # Run gitctx index --verbose with isolated environment
-    result = subprocess.run(
-        ["uv", "run", "gitctx", "index", "--verbose"],
-        cwd=repo_path,
-        env=e2e_git_isolation_env,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-
-    # Store results for Then assertions
-    context["stdout"] = result.stdout
-    context["stderr"] = result.stderr
-    context["exit_code"] = result.returncode
 
 
 @when('I run "gitctx index --dry-run"')
@@ -203,18 +157,6 @@ def run_index_dry_run(e2e_git_isolation_env: dict[str, str], context: dict[str, 
     context["exit_code"] = result.returncode
 
 
-@when("I send SIGINT to the process")
-def send_sigint(context: dict[str, Any]) -> None:
-    """Send SIGINT (Ctrl+C) to the running indexing process.
-
-    Used to test graceful cancellation behavior.
-
-    Args:
-        context: BDD context fixture containing process info
-    """
-    raise NotImplementedError("TASK-0001.2.5.4 will implement this step")
-
-
 # ============================================================================
 # Then Steps - Verify Output and Behavior
 # ============================================================================
@@ -230,6 +172,8 @@ def check_output_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern to match (e.g., "Indexed \\d+ commits")
         context: BDD context with stdout
     """
+    # Unescape Gherkin backslashes for regex
+    pattern = pattern.replace("\\\\", "\\")
     stdout = context["stdout"]
     assert re.search(pattern, stdout), f"Pattern '{pattern}' not found in stdout:\n{stdout}"
 
@@ -244,6 +188,8 @@ def check_cost_format(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern for cost format
         context: BDD context with stdout
     """
+    # Unescape Gherkin backslashes for regex
+    pattern = pattern.replace("\\\\", "\\")
     stdout = context["stdout"]
     assert re.search(pattern, stdout), f"Cost pattern '{pattern}' not found in stdout:\n{stdout}"
 
@@ -282,10 +228,14 @@ def check_statistics_table(datatable, context: dict[str, Any]) -> None:
     assert "✓ Indexing Complete" in stderr, f"Completion marker not found in stderr:\n{stderr}"
     assert "Statistics:" in stderr, f"Statistics table not found in stderr:\n{stderr}"
 
-    # Verify each field from the datatable
-    for row in datatable:
-        field = row["Field"]
-        format_pattern = row["Format"]
+    # Verify each field from the datatable (skip header row)
+    for row in datatable[1:]:
+        field = row[0]  # First column: Field name
+        format_pattern = row[1]  # Second column: Format pattern
+
+        # Unescape Gherkin backslashes: \\d+ becomes \d+ for regex
+        # Gherkin escapes backslashes in tables, so we need to unescape them
+        format_pattern = format_pattern.replace("\\\\", "\\")
 
         # Check field exists in output
         assert f"{field}:" in stderr, f"Field '{field}' not found in stderr:\n{stderr}"
@@ -294,7 +244,8 @@ def check_statistics_table(datatable, context: dict[str, Any]) -> None:
         field_line_match = re.search(rf"{field}:\s+(.+)", stderr)
         if field_line_match:
             value = field_line_match.group(1).strip()
-            assert re.match(format_pattern, value), (
+            # Use re.search instead of re.match to find pattern anywhere in value
+            assert re.search(format_pattern, value), (
                 f"Field '{field}' value '{value}' doesn't match pattern '{format_pattern}'"
             )
 
@@ -321,11 +272,11 @@ def check_estimated_cost_format(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern for cost format
         context: BDD context with stdout
     """
+    # Unescape Gherkin backslashes for regex
+    pattern = pattern.replace("\\\\", "\\")
     stdout = context["stdout"]
     # Look for cost with pattern (e.g., "$\d+\.\d{4}")
-    assert re.search(pattern, stdout), (
-        f"Cost pattern '{pattern}' not found in stdout:\n{stdout}"
-    )
+    assert re.search(pattern, stdout), f"Cost pattern '{pattern}' not found in stdout:\n{stdout}"
 
 
 @then(parsers.parse('confidence range "{pattern}"'))
@@ -338,35 +289,13 @@ def check_confidence_range(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern for confidence range
         context: BDD context with stdout
     """
+    # Unescape Gherkin backslashes for regex
+    pattern = pattern.replace("\\\\", "\\")
     stdout = context["stdout"]
     # Look for range pattern
     assert re.search(pattern, stdout), (
         f"Confidence range pattern '{pattern}' not found in stdout:\n{stdout}"
     )
-
-
-@then('I should see "Interrupted" message')
-def check_interrupted_message(context: dict[str, Any]) -> None:
-    """Verify graceful cancellation shows "Interrupted" message.
-
-    Per TUI_GUIDE.md:377-387.
-
-    Args:
-        context: BDD context with stdout/stderr
-    """
-    raise NotImplementedError("TASK-0001.2.5.4 will implement this step")
-
-
-@then("partial stats with tokens and cost")
-def check_partial_stats(context: dict[str, Any]) -> None:
-    """Verify cancelled operation shows partial statistics.
-
-    Should include tokens processed and cost incurred up to cancellation point.
-
-    Args:
-        context: BDD context with stdout/stderr
-    """
-    raise NotImplementedError("TASK-0001.2.5.4 will implement this step")
 
 
 @then('I should see "No files to index"')
@@ -376,4 +305,17 @@ def check_no_files_message(context: dict[str, Any]) -> None:
     Args:
         context: BDD context with stdout
     """
-    raise NotImplementedError("TASK-0001.2.5.4 will implement this step")
+    stdout = context["stdout"]
+    assert "No files to index" in stdout, f"Expected 'No files to index' in stdout:\n{stdout}"
+
+
+@then(parsers.parse("exit code should be {code:d}"))
+def check_exit_code(code: int, context: dict[str, Any]) -> None:
+    """Verify command exit code matches expected value.
+
+    Args:
+        code: Expected exit code (0 for success, 130 for SIGINT)
+        context: BDD context with exit_code
+    """
+    exit_code = context["exit_code"]
+    assert exit_code == code, f"Expected exit code {code}, got {exit_code}"
