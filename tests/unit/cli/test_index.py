@@ -89,6 +89,8 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
                 # Extract arguments from the coroutine if possible
                 try:
                     args = coro.cr_frame.f_locals
+                    # Close the coroutine to avoid "never awaited" warning
+                    coro.close()
                     return await mock_index_impl(
                         repo_path=args.get("repo_path"),
                         settings=args.get("settings"),
@@ -96,6 +98,8 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
                         verbose=args.get("verbose", False),
                     )
                 except Exception:
+                    # Close the coroutine if extraction failed
+                    coro.close()
                     # Fallback: just run with defaults
                     return await mock_index_impl(
                         repo_path=None, settings=None, dry_run=False, verbose=False
