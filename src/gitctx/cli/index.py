@@ -1,5 +1,6 @@
 """Index command for gitctx CLI."""
 
+import asyncio
 from pathlib import Path
 
 import typer
@@ -29,11 +30,16 @@ def index_command(
         "-q",
         help="Suppress all output except errors",
     ),
-    force: bool = typer.Option(
+    _force: bool = typer.Option(  # noqa: ARG001 - Reserved for future use
         False,
         "--force",
         "-f",
         help="Force reindexing even if cache exists",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show cost estimate without indexing",
     ),
 ) -> None:
     """
@@ -61,50 +67,37 @@ def index_command(
         console_err.print(f"[red]{SYMBOLS['error']}[/red] Error: not a git repository")
         raise typer.Exit(code=3)
 
-    # Mock implementation - demonstrates expected output format from TUI_GUIDE.md
+    # Load settings
+    from gitctx.core.config import GitCtxSettings
 
-    # QUIET MODE: No output on success
-    if quiet:
-        # Silent - real implementation would index here
-        return
+    try:
+        settings = GitCtxSettings()
+    except Exception as e:
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] Configuration error: {e}")
+        raise typer.Exit(code=1) from e
 
-    # VERBOSE MODE: Multi-line detailed output (TUI_GUIDE.md lines 207-236)
-    if verbose:
-        if force:
-            console.print("Cleared existing index (47.3 MB)")
+    # Run the indexing pipeline
+    from gitctx.indexing.pipeline import index_repository
 
-        console.print(f"{SYMBOLS['arrow']} Walking commit graph")
-        console.print("  Found 5678 commits")
-        console.print()
-        console.print(f"{SYMBOLS['arrow']} Extracting blobs")
-        console.print("  Total blob references: 4567")
-        console.print("  Unique blobs: 1234")
-        console.print("  Deduplication: 73% savings")
-        console.print()
-        console.print(f"{SYMBOLS['arrow']} Generating embeddings")
-        console.print("  Processing blobs: abc123, def456, ...")
-        console.print()
-        console.print(f"{SYMBOLS['arrow']} Saving index")
-        console.print("  Embeddings: ~/.gitctx/embeddings/blobs/ (45.2 MB)")
-        console.print("  Metadata: ~/.gitctx/embeddings/metadata/ (2.1 MB)")
-        console.print("  Database: ~/.gitctx/db/ (1.8 MB, 1234 vectors)")
-        console.print()
-        console.print(
-            f"[green]{SYMBOLS['success']}[/green] Indexed 5678 commits (1234 unique blobs) in 8.2s"
+    repo_path = Path.cwd()
+
+    try:
+        # Quiet mode suppresses progress output
+        use_verbose = verbose and not quiet
+
+        asyncio.run(
+            index_repository(
+                repo_path=repo_path,
+                settings=settings,
+                dry_run=dry_run,
+                verbose=use_verbose,
+            )
         )
-        console.print()
-        console.print("Statistics:")
-        console.print("  Commits:      5678")
-        console.print("  Unique blobs: 1234")
-        console.print("  Total refs:   4567")
-        console.print("  Dedup rate:   73%")
-        console.print("  Chunks:       3456")
-        console.print("  Vector dims:  1536")
-        console.print("  DB records:   1234")
-        console.print("  Total size:   47.3 MB")
-        return
+    except KeyboardInterrupt:
+        # Handled by pipeline with exit 130
+        pass
+    except Exception as e:
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] Indexing failed: {e}")
+        raise typer.Exit(code=1) from e
 
-    # DEFAULT MODE: Terse single-line output (TUI_GUIDE.md line 189)
-    if force:
-        console.print("Cleared existing index (47.3 MB)")
-    console.print("Indexed 5678 commits (1234 unique blobs) in 8.2s")
+    # Note: force flag is reserved for future cache clearing functionality
