@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ████████░░ ~63% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 28/28 points, 38/60 total points)
+**Progress**: ████████░░ ~68% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 31/31 points, 41/60 total points)
 
 ## Objective
 
@@ -21,7 +21,7 @@ Build the core functionality users need to search their codebase intelligently. 
 | ID | Title | Status | Progress | Owner |
 |----|-------|--------|----------|-------|
 | [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | ✅ Complete | ██████████ 100% | Core Team |
-| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | 🟡 In Progress | ███░░░░░░░ 36% | Core Team |
+| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | ✅ Complete | ██████████ 100% | Core Team |
 | [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search | 🔵 Not Started | ░░░░░░░░░░ 0% | - |
 
 ## Success Metrics
@@ -88,7 +88,7 @@ Build the core functionality users need to search their codebase intelligently. 
 - ✅ Commit graph walker with blob deduplication (STORY-0001.2.1 complete)
 - ⬜ Smart text chunking with overlap (STORY-0001.2.2 - planned)
 - ⬜ OpenAI embedding generation (STORY-0001.2.3 - planned)
-- ⬜ LanceDB storage (STORY-0001.2.4 - planned)
+- ✅ LanceDB storage (STORY-0001.2.4 complete)
 - ⬜ Progress tracking and cost estimation (STORY-0001.2.5 - planned)
 
 **Progress**: 9/25 story points complete (36%)
