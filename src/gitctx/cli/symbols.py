@@ -22,6 +22,7 @@ if _console.legacy_windows:
         "tip": "[i]",
         "arrow": "->",
         "head": "[HEAD]",
+        "spinner_frames": "|/-\\",
     }
 else:
     # Modern terminals (Windows Terminal, macOS, Linux)
@@ -32,4 +33,5 @@ else:
         "tip": "💡",
         "arrow": "→",
         "head": "●",
+        "spinner_frames": "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏",
     }

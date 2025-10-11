@@ -114,7 +114,7 @@ def test_symbols_used_in_cli_commands():
     from gitctx.cli.symbols import SYMBOLS
 
     # Symbols should be a dict with all required keys
-    required_keys = {"success", "error", "warning", "tip", "arrow", "head"}
+    required_keys = {"success", "error", "warning", "tip", "arrow", "head", "spinner_frames"}
     assert set(SYMBOLS.keys()) == required_keys
 
     # All values should be non-empty strings

@@ -22,6 +22,8 @@ from typing import Any
 
 from pytest_bdd import given, parsers, then, when
 
+from gitctx.cli.symbols import SYMBOLS
+
 # ============================================================================
 # Given Steps - Setup Test Repositories
 # ============================================================================
@@ -204,14 +206,26 @@ def check_phase_markers(marker1: str, marker2: str, context: dict[str, Any]) -> 
     Expected markers: "→ Walking commit graph", "→ Generating embeddings"
     per TUI_GUIDE.md:230-256.
 
+    Note: Normalizes Unicode arrow to platform-appropriate symbol (→ or ->).
+
     Args:
-        marker1: First phase marker
-        marker2: Second phase marker
+        marker1: First phase marker (with Unicode arrow →)
+        marker2: Second phase marker (with Unicode arrow →)
         context: BDD context with stdout/stderr
     """
     stderr = context["stderr"]
-    assert marker1 in stderr, f"Marker '{marker1}' not found in stderr:\n{stderr}"
-    assert marker2 in stderr, f"Marker '{marker2}' not found in stderr:\n{stderr}"
+
+    # Normalize markers to use platform-appropriate arrow symbol
+    # Gherkin may have Unicode → but actual output uses SYMBOLS["arrow"]
+    marker1_normalized = marker1.replace("→", SYMBOLS["arrow"])
+    marker2_normalized = marker2.replace("→", SYMBOLS["arrow"])
+
+    assert marker1_normalized in stderr, (
+        f"Marker '{marker1_normalized}' not found in stderr:\n{stderr}"
+    )
+    assert marker2_normalized in stderr, (
+        f"Marker '{marker2_normalized}' not found in stderr:\n{stderr}"
+    )
 
 
 @then("final summary should show statistics table with fields:")
@@ -227,8 +241,9 @@ def check_statistics_table(datatable, context: dict[str, Any]) -> None:
     """
     stderr = context["stderr"]
 
-    # Verify completion marker
-    assert "✓ Indexing Complete" in stderr, f"Completion marker not found in stderr:\n{stderr}"
+    # Verify completion marker (use platform-appropriate symbol)
+    completion_marker = f"{SYMBOLS['success']} Indexing Complete"
+    assert completion_marker in stderr, f"Completion marker not found in stderr:\n{stderr}"
     assert "Statistics:" in stderr, f"Statistics table not found in stderr:\n{stderr}"
 
     # Verify each field from the datatable (skip header row)

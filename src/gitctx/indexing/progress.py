@@ -13,6 +13,8 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TypedDict
 
+from gitctx.cli.symbols import SYMBOLS
+
 
 @dataclass
 class IndexingStats:
@@ -49,7 +51,7 @@ class ProgressReporter:
         self.stats = IndexingStats()
         self.current_phase: str = ""
         self.spinner_active: bool = False
-        self.spinner_frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        self.spinner_frames = SYMBOLS["spinner_frames"]
         self.spinner_start_time: float | None = None
         self.last_spinner_update: float = 0.0
 
@@ -58,7 +60,7 @@ class ProgressReporter:
         self.stats.start_time = time.time()
         # In verbose mode, announce start
         if self.verbose:
-            print("→ Starting indexing...\n", file=sys.stderr)
+            print(f"{SYMBOLS['arrow']} Starting indexing...\n", file=sys.stderr)
         # In terse mode, spinner will show after 5s (handled in update loop)
 
     def phase(self, name: str) -> None:
@@ -69,7 +71,7 @@ class ProgressReporter:
         """
         self.current_phase = name
         if self.verbose:
-            print(f"→ {name}", file=sys.stderr)
+            print(f"{SYMBOLS['arrow']} {name}", file=sys.stderr)
 
     def update(
         self,
@@ -137,7 +139,7 @@ class ProgressReporter:
 
     def _print_verbose_summary(self, elapsed: float) -> None:
         """Print detailed statistics table (verbose mode)."""
-        print("\n✓ Indexing Complete\n", file=sys.stderr)
+        print(f"\n{SYMBOLS['success']} Indexing Complete\n", file=sys.stderr)
 
         # Statistics table (simplified, no Rich dependencies)
         print("Statistics:", file=sys.stderr)
