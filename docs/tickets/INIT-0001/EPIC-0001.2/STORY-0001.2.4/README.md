@@ -14,16 +14,16 @@ So that semantic search can retrieve precise code locations with full git contex
 
 ## Acceptance Criteria
 
-- [ ] Store embeddings in LanceDB with 3072-dimensional vectors (text-embedding-3-large)
-- [ ] Use denormalized schema (embed blob location metadata with each chunk)
-- [ ] Support batch insertion for efficient indexing (1000+ chunks at once)
-- [ ] Create IVF-PQ index automatically when table has >256 vectors
-- [ ] Store metadata: blob_sha, chunk_index, file_path, line numbers, commit_sha, author, date, message
-- [ ] Support incremental updates (add new chunks without full re-index)
-- [ ] Track index state (last commit, indexed blobs, timestamps)
-- [ ] Provide statistics (total chunks, files, languages, index size)
-- [ ] Handle schema evolution (detect dimension mismatches gracefully)
-- [ ] Store in `.gitctx/lancedb/` directory (gitignored)
+- [x] Store embeddings in LanceDB with 3072-dimensional vectors (text-embedding-3-large)
+- [x] Use denormalized schema (embed blob location metadata with each chunk)
+- [x] Support batch insertion for efficient indexing (1000+ chunks at once)
+- [x] Create IVF-PQ index automatically when table has >256 vectors
+- [x] Store metadata: blob_sha, chunk_index, file_path, line numbers, commit_sha, author, date, message
+- [x] Support incremental updates (add new chunks without full re-index)
+- [x] Track index state (last commit, indexed blobs, timestamps)
+- [x] Provide statistics (total chunks, files, languages, index size)
+- [x] Handle schema evolution (detect dimension mismatches gracefully)
+- [x] Store in `.gitctx/lancedb/` directory (gitignored)
 
 ## BDD Scenarios
 
@@ -115,12 +115,12 @@ Feature: LanceDB Vector Storage
 
 ## Child Tasks
 
-| ID | Title | Status | Hours |
-|----|-------|--------|-------|
-| [TASK-0001.2.4.1](TASK-0001.2.4.1.md) | Write ALL 10 BDD Scenarios | ✅ | 2 |
-| [TASK-0001.2.4.2](TASK-0001.2.4.2.md) | Implement LanceDBStore with batch insertion | ✅ | 4 |
-| [TASK-0001.2.4.3](TASK-0001.2.4.3.md) | Core Storage Operations & Indexing | ✅ | 3 |
-| [TASK-0001.2.4.4](TASK-0001.2.4.4.md) | BDD Implementation & Final Integration | ✅ | 8 |
+| ID | Title | Status | Hours | BDD Progress |
+|----|-------|--------|-------|--------------|
+| [TASK-0001.2.4.1](TASK-0001.2.4.1.md) | Write ALL 10 BDD Scenarios | ✅ | 2 | 0/10 (all failing) |
+| [TASK-0001.2.4.2](TASK-0001.2.4.2.md) | Implement LanceDBStore with batch insertion | ✅ | 4 | 0/10 (BDD skipped) |
+| [TASK-0001.2.4.3](TASK-0001.2.4.3.md) | Core Storage Operations & Indexing | ✅ | 3 | 0/10 (BDD skipped) |
+| [TASK-0001.2.4.4](TASK-0001.2.4.4.md) | BDD Implementation & Final Integration | ✅ | 8 | 10/10 passing ✅ |
 
 **Total**: 17 hours (revised from 12 due to inherited BDD technical debt)
 
