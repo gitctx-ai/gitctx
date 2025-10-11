@@ -79,6 +79,7 @@ def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
     chunk = embedding_context["chunk"]
     blob_sha = embedding_context["blob_sha"]
 
+    # Use asyncio.run() - creates fresh event loop, no contamination
     embeddings = asyncio.run(embedder.embed_chunks([chunk], blob_sha))
     embedding_context["embeddings"] = embeddings
 
@@ -303,6 +304,7 @@ def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
     )
 
     embedder = OpenAIEmbedder(api_key=api_key)
+    # Use asyncio.run() - creates fresh event loop, no contamination
     embeddings = asyncio.run(embedder.embed_chunks([chunk], "test123"))
     embedding_context["embeddings"] = embeddings
     embedding_context["api_key"] = api_key
@@ -359,6 +361,7 @@ def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
     ) as mock_create:
         mock_create.return_value = mock_response
         try:
+            # Use asyncio.run() - creates fresh event loop, no contamination
             asyncio.run(embedder.embed_chunks([chunk], "test123"))
             raise AssertionError("Should have raised DimensionMismatchError")
         except DimensionMismatchError as e:
@@ -424,6 +427,7 @@ def embed_chunks_totaling_tokens(
 
     # Generate embeddings
     blob_sha = "cost-tracking-test"
+    # Use asyncio.run() - creates fresh event loop, no contamination
     embeddings = asyncio.run(embedder.embed_chunks(chunks, blob_sha))
 
     # Store results

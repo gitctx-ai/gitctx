@@ -79,36 +79,11 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
                 print("Indexed 1 commits (1 unique blobs) in 0.1s")
                 print("Tokens: 50 | Cost: $0.0001")
 
-        # Mock asyncio.run to intercept the async call
-        def mock_asyncio_run(coro):
-            """Mock asyncio.run to execute our mock implementation."""
-            import anyio
-
-            # Create a simple async wrapper
-            async def run_mock():
-                # Extract arguments from the coroutine if possible
-                try:
-                    args = coro.cr_frame.f_locals
-                    # Close the coroutine to avoid "never awaited" warning
-                    coro.close()
-                    return await mock_index_impl(
-                        repo_path=args.get("repo_path"),
-                        settings=args.get("settings"),
-                        dry_run=args.get("dry_run", False),
-                        verbose=args.get("verbose", False),
-                    )
-                except Exception:
-                    # Close the coroutine if extraction failed
-                    coro.close()
-                    # Fallback: just run with defaults
-                    return await mock_index_impl(
-                        repo_path=None, settings=None, dry_run=False, verbose=False
-                    )
-
-            # Use anyio.run() to avoid event loop contamination in full test suite
-            return anyio.run(run_mock)
-
-        with patch("asyncio.run", side_effect=mock_asyncio_run):
+        # Patch index_repository where it's imported in the CLI
+        # The CLI does: from gitctx.indexing.pipeline import index_repository
+        # Then calls: asyncio.run(index_repository(...))
+        # We patch the module so the import gets our mock
+        with patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index_impl):
             yield isolated_cli_runner
 
 
