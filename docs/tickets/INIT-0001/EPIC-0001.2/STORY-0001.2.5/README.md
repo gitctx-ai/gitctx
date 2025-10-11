@@ -1,9 +1,9 @@
 # STORY-0001.2.5: Progress Tracking and Cost Estimation
 
 **Parent**: [EPIC-0001.2](../README.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 2
-**Progress**: ███████▓░░ 75% (3/4 tasks complete)
+**Progress**: ██████████ 100% (4/4 tasks complete)
 
 ## User Story
 
@@ -103,9 +103,9 @@ Feature: Progress Tracking and Cost Estimation
 
 **Rationale for 5 E2E Scenarios:**
 - TUI_GUIDE compliant: Tests both default (terse) and verbose modes
-- Cost-effective: No real API calls (mocked embedders)
-- Fast CI: Small repos (5-20 files, <50KB total)
-- Comprehensive: Covers CLI behavior end-to-end
+- Cost-effective: VCR.py cassettes (zero cost after initial recording)
+- Fast CI: Cassette replay (~1s per test vs multi-second API calls)
+- Comprehensive: Covers CLI behavior end-to-end with real API responses
 - Unit tests handle calculation logic with large numbers
 
 ## Child Tasks
@@ -115,9 +115,9 @@ Feature: Progress Tracking and Cost Estimation
 | [TASK-0001.2.5.1](TASK-0001.2.5.1.md) | Write BDD Scenarios for Progress + Cost | ✅ Complete | 2 | 0/5 (all stubbed) |
 | [TASK-0001.2.5.2](TASK-0001.2.5.2.md) | ProgressReporter with Terse/Verbose Modes | ✅ Complete | 3 | 2/5 ready (awaits integration) |
 | [TASK-0001.2.5.3](TASK-0001.2.5.3.md) | CostEstimator + BDD for Scenario 3 | ✅ Complete | 2 | 3/5 ready (awaits integration) |
-| [TASK-0001.2.5.4](TASK-0001.2.5.4.md) | Pipeline Integration + Final BDD | 🔵 Not Started | 1 | 5/5 passing ✅ |
+| [TASK-0001.2.5.4](TASK-0001.2.5.4.md) | Pipeline Integration + Final BDD | ✅ Complete | 1.5 | 5/5 passing ✅ |
 
-**Total**: 8 hours = 2 story points
+**Total**: 8.5 hours actual (8 estimated) = 2 story points
 
 **BDD Progress Tracking:**
 
@@ -130,7 +130,7 @@ Feature: Progress Tracking and Cost Estimation
 
 - **E2E Tests**: 5 scenarios per TUI_GUIDE patterns (default/verbose split)
 - **Unit Tests**: ~10 tests for cost calculation logic (simpler scope)
-- **Cost-Effective**: All E2E tests use small repos (5-20 files, <50KB) with mocked embedders
+- **Cost-Effective**: VCR.py cassettes with real API responses, zero CI costs
 - **Pattern**: BDD-first workflow with incremental scenario completion
 
 ## Technical Design
