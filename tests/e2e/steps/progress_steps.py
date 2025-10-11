@@ -57,7 +57,29 @@ def setup_repo_with_size(n: int, size: str, e2e_git_repo_factory, context: dict[
         e2e_git_repo_factory: Fixture from tests/e2e/conftest.py:254-356
         context: BDD context fixture
     """
-    raise NotImplementedError("TASK-0001.2.5.3 will implement this step")
+    # Parse size (e.g., "2KB" -> 2048 bytes)
+    size_upper = size.upper()
+    if size_upper.endswith("KB"):
+        target_bytes = int(size_upper[:-2]) * 1024
+    elif size_upper.endswith("MB"):
+        target_bytes = int(size_upper[:-2]) * 1024 * 1024
+    else:
+        raise ValueError(f"Unsupported size format: {size}")
+
+    # Distribute content across n files (within ±10%)
+    bytes_per_file = target_bytes // n
+
+    files = {}
+    for i in range(n):
+        # Create content to approximate bytes_per_file
+        # Each line is ~40 bytes with "line X content for testing\n"
+        lines_per_file = max(1, bytes_per_file // 40)
+        content = "\n".join([f"line {j} content for testing" for j in range(lines_per_file)])
+        files[f"file{i+1}.py"] = content
+
+    # Create repo with files and commit
+    repo_path = e2e_git_repo_factory(files=files, num_commits=1)
+    context["repo_path"] = repo_path
 
 
 @given("indexing is in progress with 20 files")
@@ -163,7 +185,22 @@ def run_index_dry_run(e2e_git_isolation_env: dict[str, str], context: dict[str, 
         e2e_git_isolation_env: Isolated environment fixture
         context: BDD context fixture
     """
-    raise NotImplementedError("TASK-0001.2.5.3 will implement this step")
+    repo_path = context["repo_path"]
+
+    # Run gitctx index --dry-run with isolated environment
+    result = subprocess.run(
+        ["uv", "run", "gitctx", "index", "--dry-run"],
+        cwd=repo_path,
+        env=e2e_git_isolation_env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    # Store results for Then assertions
+    context["stdout"] = result.stdout
+    context["stderr"] = result.stderr
+    context["exit_code"] = result.returncode
 
 
 @when("I send SIGINT to the process")
@@ -269,7 +306,11 @@ def check_estimated_tokens(context: dict[str, Any]) -> None:
     Args:
         context: BDD context with stdout
     """
-    raise NotImplementedError("TASK-0001.2.5.3 will implement this step")
+    stdout = context["stdout"]
+    # Look for pattern: "Est. tokens:  \d+,?\d*"
+    assert re.search(r"Est\. tokens:\s+\d+,?\d*", stdout), (
+        f"Estimated tokens not found in stdout:\n{stdout}"
+    )
 
 
 @then(parsers.parse('estimated cost formatted as "{pattern}"'))
@@ -280,7 +321,11 @@ def check_estimated_cost_format(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern for cost format
         context: BDD context with stdout
     """
-    raise NotImplementedError("TASK-0001.2.5.3 will implement this step")
+    stdout = context["stdout"]
+    # Look for cost with pattern (e.g., "$\d+\.\d{4}")
+    assert re.search(pattern, stdout), (
+        f"Cost pattern '{pattern}' not found in stdout:\n{stdout}"
+    )
 
 
 @then(parsers.parse('confidence range "{pattern}"'))
@@ -293,7 +338,11 @@ def check_confidence_range(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern for confidence range
         context: BDD context with stdout
     """
-    raise NotImplementedError("TASK-0001.2.5.3 will implement this step")
+    stdout = context["stdout"]
+    # Look for range pattern
+    assert re.search(pattern, stdout), (
+        f"Confidence range pattern '{pattern}' not found in stdout:\n{stdout}"
+    )
 
 
 @then('I should see "Interrupted" message')
