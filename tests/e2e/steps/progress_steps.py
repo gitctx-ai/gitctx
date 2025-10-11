@@ -9,6 +9,8 @@ Pattern Reuse:
 All scenarios use mocked embedders for fast, zero-cost CI execution.
 """
 
+import re
+import subprocess
 from typing import Any
 
 from pytest_bdd import given, parsers, then, when
@@ -30,7 +32,17 @@ def setup_repo_with_files(n: int, e2e_git_repo_factory, context: dict[str, Any])
         e2e_git_repo_factory: Fixture from tests/e2e/conftest.py:254-356
         context: BDD context fixture from tests/e2e/steps/cli_steps.py:12-15
     """
-    raise NotImplementedError("TASK-0001.2.5.2 will implement this step")
+    # Create N Python files with simple content
+    files = {}
+    for i in range(n):
+        files[f"file{i + 1}.py"] = f"""def function_{i + 1}():
+    '''Function {i + 1} in test file.'''
+    return {i + 1}
+"""
+
+    # Create repo with files and commit
+    repo_path = e2e_git_repo_factory(files=files, num_commits=1)
+    context["repo_path"] = repo_path
 
 
 @given(parsers.parse("a repository with {n:d} files totaling {size}"))
@@ -93,7 +105,22 @@ def run_index_with_mock(e2e_git_isolation_env: dict[str, str], context: dict[str
         e2e_git_isolation_env: Isolated environment fixture
         context: BDD context fixture
     """
-    raise NotImplementedError("TASK-0001.2.5.2 will implement this step")
+    repo_path = context["repo_path"]
+
+    # Run gitctx index command with isolated environment (no API key)
+    result = subprocess.run(
+        ["uv", "run", "gitctx", "index"],
+        cwd=repo_path,
+        env=e2e_git_isolation_env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    # Store results for Then assertions
+    context["stdout"] = result.stdout
+    context["stderr"] = result.stderr
+    context["exit_code"] = result.returncode
 
 
 @when('I run "gitctx index --verbose" with mocked embedder')
@@ -108,7 +135,22 @@ def run_index_verbose_with_mock(
         e2e_git_isolation_env: Isolated environment fixture
         context: BDD context fixture
     """
-    raise NotImplementedError("TASK-0001.2.5.2 will implement this step")
+    repo_path = context["repo_path"]
+
+    # Run gitctx index --verbose with isolated environment
+    result = subprocess.run(
+        ["uv", "run", "gitctx", "index", "--verbose"],
+        cwd=repo_path,
+        env=e2e_git_isolation_env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    # Store results for Then assertions
+    context["stdout"] = result.stdout
+    context["stderr"] = result.stderr
+    context["exit_code"] = result.returncode
 
 
 @when('I run "gitctx index --dry-run"')
@@ -151,7 +193,8 @@ def check_output_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern to match (e.g., "Indexed \\d+ commits")
         context: BDD context with stdout
     """
-    raise NotImplementedError("TASK-0001.2.5.2 will implement this step")
+    stdout = context["stdout"]
+    assert re.search(pattern, stdout), f"Pattern '{pattern}' not found in stdout:\n{stdout}"
 
 
 @then(parsers.parse('cost summary should show format "{pattern}"'))
@@ -164,7 +207,8 @@ def check_cost_format(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regex pattern for cost format
         context: BDD context with stdout
     """
-    raise NotImplementedError("TASK-0001.2.5.2 will implement this step")
+    stdout = context["stdout"]
+    assert re.search(pattern, stdout), f"Cost pattern '{pattern}' not found in stdout:\n{stdout}"
 
 
 @then(parsers.parse('I should see phase markers "{marker1}" and "{marker2}"'))
@@ -179,7 +223,9 @@ def check_phase_markers(marker1: str, marker2: str, context: dict[str, Any]) -> 
         marker2: Second phase marker
         context: BDD context with stdout/stderr
     """
-    raise NotImplementedError("TASK-0001.2.5.2 will implement this step")
+    stderr = context["stderr"]
+    assert marker1 in stderr, f"Marker '{marker1}' not found in stderr:\n{stderr}"
+    assert marker2 in stderr, f"Marker '{marker2}' not found in stderr:\n{stderr}"
 
 
 @then("final summary should show statistics table with fields:")
@@ -193,7 +239,27 @@ def check_statistics_table(datatable, context: dict[str, Any]) -> None:
         datatable: pytest-bdd datatable with expected fields and formats
         context: BDD context with stdout/stderr
     """
-    raise NotImplementedError("TASK-0001.2.5.2 will implement this step")
+    stderr = context["stderr"]
+
+    # Verify completion marker
+    assert "✓ Indexing Complete" in stderr, f"Completion marker not found in stderr:\n{stderr}"
+    assert "Statistics:" in stderr, f"Statistics table not found in stderr:\n{stderr}"
+
+    # Verify each field from the datatable
+    for row in datatable:
+        field = row["Field"]
+        format_pattern = row["Format"]
+
+        # Check field exists in output
+        assert f"{field}:" in stderr, f"Field '{field}' not found in stderr:\n{stderr}"
+
+        # Extract the value line and verify format
+        field_line_match = re.search(rf"{field}:\s+(.+)", stderr)
+        if field_line_match:
+            value = field_line_match.group(1).strip()
+            assert re.match(format_pattern, value), (
+                f"Field '{field}' value '{value}' doesn't match pattern '{format_pattern}'"
+            )
 
 
 @then("I should see estimated tokens")
