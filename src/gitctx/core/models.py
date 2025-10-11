@@ -58,6 +58,38 @@ class BlobLocation:
 
 
 @dataclass
+class Embedding:
+    """Embedding vector and metadata for a code chunk.
+
+    This dataclass represents the output from embedding generation
+    (OpenAI API or local models), ready for storage in LanceDB.
+
+    Attributes:
+        vector: Embedding vector (list of floats, dimension depends on model)
+        chunk_content: Raw code content that was embedded
+        token_count: Number of tokens in the chunk
+        blob_sha: Blob SHA-1 hash this chunk came from
+        chunk_index: Position within blob (0, 1, 2, ...)
+        start_line: Line number where chunk starts
+        end_line: Line number where chunk ends
+        total_chunks: Total chunks for this blob
+        language: Programming language
+        model: Embedding model used (e.g., "text-embedding-3-large")
+    """
+
+    vector: list[float]
+    chunk_content: str
+    token_count: int
+    blob_sha: str
+    chunk_index: int
+    start_line: int
+    end_line: int
+    total_chunks: int
+    language: str
+    model: str
+
+
+@dataclass
 class BlobRecord:
     """A unique blob and all its locations in git history (walker output).
 

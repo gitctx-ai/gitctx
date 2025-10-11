@@ -25,11 +25,14 @@ classifiers = [
 ]
 
 dependencies = [
+    "lancedb>=0.3.0",
     "langchain-core>=1.0.0a0",
     "langchain-openai>=1.0.0a0",
     "langchain-text-splitters>=1.0.0a0",
     "numpy>=1.24.0",
+    "pandas>=2.0.0",
     "pathspec>=0.11.0",
+    "pyarrow>=14.0.0",
     "pydantic>=2.11.0",
     "pydantic-settings[yaml]>=2.11.0",
     "pygit2>=1.13.0",
@@ -153,6 +156,16 @@ follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "safetensors.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "lancedb.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "pyarrow.*"
 ignore_missing_imports = true
 follow_imports = "skip"
 
