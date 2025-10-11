@@ -39,6 +39,17 @@ class TestIndexingStats:
 class TestProgressReporterTerse:
     """Test ProgressReporter in default (terse) mode."""
 
+    def test_reporter_initialization(self):
+        """Test ProgressReporter initializes with platform-appropriate symbols."""
+        from gitctx.cli.symbols import SYMBOLS
+        from gitctx.indexing.progress import ProgressReporter
+
+        reporter = ProgressReporter(verbose=False)
+
+        # Verify spinner frames are set from SYMBOLS
+        assert reporter.spinner_frames == SYMBOLS["spinner_frames"]
+        assert len(reporter.spinner_frames) > 0
+
     def test_terse_mode_output(self, capsys):
         """Test terse mode produces single-line summary."""
         from gitctx.indexing.progress import ProgressReporter
@@ -112,6 +123,7 @@ class TestProgressReporterVerbose:
 
     def test_verbose_mode_shows_phases(self, capsys):
         """Test verbose mode displays phase markers."""
+        from gitctx.cli.symbols import SYMBOLS
         from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter(verbose=True)
@@ -131,13 +143,13 @@ class TestProgressReporterVerbose:
 
         captured = capsys.readouterr()
 
-        # Assert phase markers in stderr
-        assert "→ Starting indexing" in captured.err
-        assert "→ Walking commit graph" in captured.err
-        assert "→ Generating embeddings" in captured.err
+        # Assert phase markers in stderr (use platform-appropriate symbols)
+        assert f"{SYMBOLS['arrow']} Starting indexing" in captured.err
+        assert f"{SYMBOLS['arrow']} Walking commit graph" in captured.err
+        assert f"{SYMBOLS['arrow']} Generating embeddings" in captured.err
 
-        # Assert verbose summary
-        assert "✓ Indexing Complete" in captured.err
+        # Assert verbose summary (use platform-appropriate symbols)
+        assert f"{SYMBOLS['success']} Indexing Complete" in captured.err
         assert "Statistics:" in captured.err
         assert "Commits:" in captured.err
         assert "Unique blobs:" in captured.err
