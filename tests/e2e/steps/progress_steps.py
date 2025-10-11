@@ -101,13 +101,16 @@ def setup_empty_repo(e2e_git_repo_factory, context: dict[str, Any]) -> None:
         context: BDD context fixture
     """
     # Create repo with no .gitignore and only a binary file (will be filtered)
-    repo_path = e2e_git_repo_factory(files={"test.bin": "placeholder"}, num_commits=1, add_gitignore=False)
+    repo_path = e2e_git_repo_factory(
+        files={"test.bin": "placeholder"}, num_commits=1, add_gitignore=False
+    )
 
     # Replace with actual binary content (null bytes trigger binary detection)
     (repo_path / "test.bin").write_bytes(b"\x00\x01\x02\x03\x04\x05")
 
     # Amend the commit to include binary file
     import subprocess
+
     subprocess.run(
         ["git", "add", "test.bin"],
         cwd=repo_path,
