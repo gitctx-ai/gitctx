@@ -329,6 +329,99 @@ def isolate_tests(monkeypatch):
 
 Always mock external dependencies and clean up after tests.
 
+## VCR.py Cassette Recording
+
+E2E tests use VCR.py to record real OpenAI API responses and replay them in CI.
+
+### Benefits
+
+- **Real API responses**: Guaranteed to match actual behavior
+- **Zero CI costs**: Cassettes replay locally, no API calls
+- **No mock maintenance**: Re-record when API changes
+- **Deterministic tests**: Same responses every run
+- **Fast execution**: Cassette replay is instant
+
+### Recording Workflow
+
+**One-Time Recording (Developer):**
+
+```bash
+# Set real API key
+export OPENAI_API_KEY="sk-real-key-here"
+
+# Record cassettes for all E2E tests
+uv run pytest tests/e2e/test_progress_tracking_features.py --vcr-record=once
+
+# Cassettes saved to tests/e2e/cassettes/
+ls tests/e2e/cassettes/
+# test_default_terse_output.yaml
+# test_verbose_mode_with_phase_progress.yaml
+# test_preindexing_cost_estimate_with_dryrun.yaml
+# test_graceful_cancellation.yaml
+# test_empty_repository_handling.yaml
+```
+
+**Re-Recording When API Changes:**
+
+```bash
+export OPENAI_API_KEY="sk-real-key-here"
+uv run pytest tests/e2e/ --vcr-record=all  # Force re-record
+```
+
+**CI/CD Usage (No API Key):**
+
+```bash
+# Cassettes in git, tests replay them
+uv run pytest tests/e2e/  # Uses cassettes, no API key needed
+```
+
+### Cassette Structure
+
+Cassettes are YAML files containing:
+- HTTP requests (method, URL, headers, body)
+- HTTP responses (status, headers, body)
+- Sanitized (API keys removed)
+
+Example: `tests/e2e/cassettes/test_default_terse_output.yaml`
+
+```yaml
+version: 1
+interactions:
+- request:
+    method: POST
+    uri: https://api.openai.com/v1/embeddings
+    body:
+      string: '{"input":["def function_1():..."],"model":"text-embedding-3-large"}'
+  response:
+    status: {code: 200, message: OK}
+    body:
+      string: '{"data":[{"embedding":[0.123,...]}],"usage":{"total_tokens":42}}'
+```
+
+### Pattern Reuse
+
+- Use standard `environment variable "OPENAI_API_KEY" is "sk-test123"` pattern
+- VCR intercepts OpenAI client calls automatically
+- No code changes needed in step definitions
+- Works transparently with subprocess-based E2E tests
+
+### Configuration
+
+VCR configured in `tests/e2e/conftest.py`:
+
+```python
+@pytest.fixture(scope="module")
+def vcr_config():
+    return {
+        "cassette_library_dir": "tests/e2e/cassettes",
+        "record_mode": "once",
+        "filter_headers": ["authorization"],
+        ...
+    }
+```
+
+See `tests/e2e/cassettes/README.md` for detailed recording instructions and troubleshooting.
+
 ## Common Patterns
 
 ### Testing CLI Output

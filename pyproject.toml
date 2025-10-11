@@ -50,6 +50,8 @@ dev = [
     "pytest-bdd>=7.0.0",
     "pytest-cov>=4.1.0",
     "pytest-xdist>=3.5.0",
+    "pytest-vcr>=1.0.2",
+    "vcrpy>=6.0.1",
     "poethepoet>=0.24.0",
     "mypy>=1.8.0",
     "ruff>=0.1.0",
@@ -255,6 +257,24 @@ cmd = "pytest tests/e2e -v"
 
 [tool.poe.tasks.test-cov]
 cmd = "pytest --cov=src/gitctx --cov-report=html"
+
+[tool.poe.tasks.record-cassettes]
+shell = """
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo "ERROR: OPENAI_API_KEY environment variable is not set"
+    echo ""
+    echo "To record cassettes, you need a real OpenAI API key:"
+    echo "  export OPENAI_API_KEY=\"sk-your-real-key-here\""
+    echo ""
+    echo "Then run: uv run poe record-cassettes"
+    exit 1
+fi
+echo "🎬 Recording VCR.py cassettes with real OpenAI API..."
+pytest tests/e2e/test_progress_tracking_features.py --vcr-record=once -v
+echo "✅ Cassettes recorded in tests/e2e/cassettes/"
+echo "Next: Verify replay with 'uv run poe test-e2e'"
+"""
+help = "Record VCR.py cassettes for E2E tests. Requires OPENAI_API_KEY env var"
 
 [tool.poe.tasks.install-hooks]
 sequence = [

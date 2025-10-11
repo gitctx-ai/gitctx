@@ -1,0 +1,8 @@
+# Ignore VCR temporary files
+*.pyc
+__pycache__/
+.pytest_cache/
+
+# Track all cassette YAML files
+!*.yaml
+!*.yml

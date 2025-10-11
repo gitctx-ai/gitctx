@@ -356,6 +356,57 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
     return _make_repo
 
 
+# === VCR.py Configuration for API Response Recording ===
+
+
+@pytest.fixture(scope="module")
+def vcr_config():
+    """VCR configuration for E2E tests.
+
+    Records real OpenAI API responses during dev (with real API key).
+    Replays cassettes in CI/CD (no API key needed).
+
+    Workflow:
+    1. Developer records cassettes once with OPENAI_API_KEY set
+    2. Cassettes committed to git (API keys stripped)
+    3. CI/CD replays cassettes (fast, deterministic, zero cost)
+
+    Returns:
+        dict: VCR configuration parameters
+    """
+    return {
+        "cassette_library_dir": "tests/e2e/cassettes",
+        "record_mode": "once",  # Record once, then replay
+        "match_on": ["method", "scheme", "host", "port", "path", "query", "body"],
+        "filter_headers": [
+            "authorization",  # Strip API keys from cassettes
+            "x-api-key",
+            "api-key",
+        ],
+        "filter_post_data_parameters": [
+            "api_key",
+        ],
+        "decode_compressed_response": True,
+        "allow_playback_repeats": True,  # Allow same request multiple times
+    }
+
+
+@pytest.fixture
+def vcr_cassette_name(request):
+    """Auto-generate cassette names from test names.
+
+    Cassette filename format: {test_name}.yaml
+    Example: test_default_terse_output.yaml
+
+    Args:
+        request: pytest request fixture
+
+    Returns:
+        str: Cassette filename
+    """
+    return f"{request.node.name}.yaml"
+
+
 # Future repository fixtures (can be built using factory above):
 # TODO: e2e_empty_git_repo - Just git init, no files (use factory with files={})
 # TODO: e2e_git_repo_with_history - Multiple commits (use factory with num_commits=10)
@@ -365,7 +416,6 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
 # === PHASE 3: Advanced Fixtures (TODO - Future) ===
 # TODO: e2e_indexed_repo - Repository with completed indexing
 # TODO: e2e_git_repo_factory - Parameterized repo builder
-# TODO: mock_openai_api - Subprocess-safe OpenAI mock
 
 # === COMPOSITION PATTERNS ===
 #
