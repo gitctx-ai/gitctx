@@ -1,7 +1,7 @@
 """Step definitions for LanceDB vector storage BDD scenarios.
 
 Step Implementation Plan:
-- TASK-0001.2.4.1 (Current): All steps stubbed with NotImplementedError
+- TASK-0001.2.4.1: All steps stubbed with NotImplementedError
 - TASK-0001.2.4.2: Implement @given steps for test data setup and schema/storage foundation
 - TASK-0001.2.4.3: Implement @when steps for storage operations
 - TASK-0001.2.4.4: Implement @then steps for verification and complete integration

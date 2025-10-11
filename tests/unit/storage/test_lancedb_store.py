@@ -574,3 +574,248 @@ def test_incremental_updates_preserve_existing_chunks(
 
     # All original blob_shas should still be present
     assert original_blob_shas.issubset(updated_blob_shas), "Some original chunks were lost"
+
+
+# ============================================================================
+# TASK-0001.2.4.4: Index State Tracking & Final Integration (TDD Red Phase)
+# ============================================================================
+
+
+def test_save_index_state_stores_metadata(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """save_index_state() stores complete metadata."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Add some chunks first
+    embeddings = [mock_embedding(blob_sha=f"{i:040d}", chunk_index=0) for i in range(100)]
+    blob_locations = {
+        f"{i:040d}": [mock_blob_location(file_path=f"file_{i}.py")] for i in range(100)
+    }
+    store.add_chunks_batch(embeddings, blob_locations)
+
+    # This test will FAIL until we implement save_index_state
+    store.save_index_state(
+        last_commit="abc123def456",  # pragma: allowlist secret
+        indexed_blobs=["blob1", "blob2", "blob3"],
+        embedding_model="text-embedding-3-large",
+    )
+
+    # Query metadata table
+    metadata_df = store.metadata_table.to_pandas()
+    state = metadata_df[metadata_df["key"] == "index_state"].iloc[0]
+
+    assert state["last_commit"] == "abc123def456"  # pragma: allowlist secret
+    assert "blob1" in state["indexed_blobs"]  # JSON list
+    assert state["embedding_model"] == "text-embedding-3-large"
+    assert state["total_chunks"] == 100
+    assert state["total_blobs"] == 3
+
+
+def test_save_index_state_upsert_pattern(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """save_index_state() replaces old state (upsert)."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Add some chunks first
+    embeddings = [mock_embedding(blob_sha=f"{i:040d}", chunk_index=0) for i in range(100)]
+    blob_locations = {
+        f"{i:040d}": [mock_blob_location(file_path=f"file_{i}.py")] for i in range(100)
+    }
+    store.add_chunks_batch(embeddings, blob_locations)
+
+    # Save state twice
+    store.save_index_state("commit1", ["blob1"], "text-embedding-3-large")
+    store.save_index_state("commit2", ["blob1", "blob2"], "text-embedding-3-large")
+
+    # Only one row should exist (upsert, not append)
+    metadata_df = store.metadata_table.to_pandas()
+    states = metadata_df[metadata_df["key"] == "index_state"]
+    assert len(states) == 1
+    assert states.iloc[0]["last_commit"] == "commit2"
+
+
+def test_save_index_state_empty_table_no_exception(tmp_path: Path, isolated_env):
+    """save_index_state() handles empty metadata table gracefully."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Should not raise exception even if table is empty
+    store.save_index_state("commit1", [], "text-embedding-3-large")
+
+    metadata_df = store.metadata_table.to_pandas()
+    assert len(metadata_df) == 1
+
+
+def test_query_returns_complete_blob_location_context(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """Query results include all 11 BlobLocation fields."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create embeddings with complete BlobLocation metadata
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [
+            mock_blob_location(
+                file_path=f"src/file_{i}.py",
+                commit_sha=f"commit{i:040d}",
+                is_head=i < 5,
+            )
+        ]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test content {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+
+    query_vector = [0.1] * 3072
+    results = store.search(query_vector, limit=5)
+
+    # Verify complete BlobLocation context (11 fields from BlobLocation + chunk fields)
+    first = results[0]
+    assert "blob_sha" in first
+    assert "file_path" in first
+    assert "start_line" in first
+    assert "end_line" in first
+    assert "commit_sha" in first
+    assert "author_name" in first
+    assert "author_email" in first
+    assert "commit_date" in first
+    assert "commit_message" in first
+    assert "is_head" in first
+    assert "is_merge" in first
+
+
+def test_statistics_language_breakdown(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """get_statistics() returns language counts."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create embeddings with different languages: 50 python, 30 javascript, 20 go
+    embeddings = []
+    blob_locations = {}
+
+    languages = [("python", 50), ("javascript", 30), ("go", 20)]
+    blob_idx = 0
+
+    for language, count in languages:
+        for i in range(count):
+            blob_sha = f"{blob_idx:040d}"
+            blob_locations[blob_sha] = [
+                mock_blob_location(file_path=f"src/file_{blob_idx}.{language}")
+            ]
+            embeddings.append(
+                mock_embedding(
+                    blob_sha=blob_sha,
+                    content=f"{language} content {i}",
+                    chunk_index=0,
+                    language=language,
+                )
+            )
+            blob_idx += 1
+
+    store.add_chunks_batch(embeddings, blob_locations)
+
+    stats = store.get_statistics()
+
+    assert "languages" in stats
+    langs = stats["languages"]
+    assert langs["python"] == 50
+    assert langs["javascript"] == 30
+    assert langs["go"] == 20
+
+
+@pytest.mark.slow
+def test_performance_insertion_speed(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """Verify >100 chunks/sec insertion speed."""
+    import os
+    import time
+
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10000 embeddings
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10000):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py")]
+        embeddings.append(mock_embedding(blob_sha=blob_sha, content=f"content {i}", chunk_index=0))
+
+    start = time.time()
+    store.add_chunks_batch(embeddings=embeddings, blob_locations=blob_locations)
+    elapsed = time.time() - start
+
+    # Configurable threshold for different hardware
+    min_chunks_per_sec = int(os.getenv("GITCTX_PERF_THRESHOLD_FAST", "100"))
+    chunks_per_sec = 10000 / elapsed
+    assert chunks_per_sec >= min_chunks_per_sec, (
+        f"Insertion too slow: {chunks_per_sec:.1f} chunks/sec (target: {min_chunks_per_sec}+)"
+    )
+
+
+@pytest.mark.slow
+def test_performance_search_latency(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """Verify <100ms search latency with IVF-PQ index."""
+    import os
+    import time
+
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 1000 embeddings
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(1000):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py")]
+        embeddings.append(mock_embedding(blob_sha=blob_sha, content=f"content {i}", chunk_index=0))
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()  # Create IVF-PQ index
+
+    query_vector = [0.1] * 3072
+
+    start = time.time()
+    results = store.search(query_vector, limit=10)
+    elapsed = time.time() - start
+
+    # Verify results returned
+    assert len(results) > 0
+
+    # Configurable threshold for different hardware
+    max_latency_ms = int(os.getenv("GITCTX_SEARCH_LATENCY_MS", "100"))
+    latency_ms = elapsed * 1000
+    assert latency_ms < max_latency_ms, (
+        f"Search too slow: {latency_ms:.1f}ms (target: <{max_latency_ms}ms)"
+    )

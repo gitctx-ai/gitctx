@@ -36,6 +36,7 @@ def mock_embedding() -> Callable[[str, str, int], Embedding]:
         blob_sha: str = "a" * 40,
         content: str = "def foo():\n    pass",
         chunk_index: int = 0,
+        language: str = "python",
     ) -> Embedding:
         return Embedding(
             vector=[0.1] * 3072,  # 3072-dim vector for text-embedding-3-large
@@ -46,7 +47,7 @@ def mock_embedding() -> Callable[[str, str, int], Embedding]:
             start_line=1,
             end_line=2,
             total_chunks=1,
-            language="python",
+            language=language,
             model="text-embedding-3-large",
         )
 

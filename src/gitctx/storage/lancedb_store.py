@@ -293,10 +293,33 @@ class LanceDBStore:
     ) -> None:
         """Save index state metadata.
 
+        Uses upsert pattern: delete old state, insert new state.
+
         Args:
             last_commit: Git commit SHA from last indexing
             indexed_blobs: List of blob SHAs that were indexed
-            embedding_model: Model used for embeddings
+            embedding_model: Model used for embeddings (e.g., "text-embedding-3-large")
         """
-        # This will be implemented in TASK-0001.2.4.3
-        raise NotImplementedError("save_index_state will be implemented in next task")
+        import json
+        from contextlib import suppress
+        from datetime import UTC, datetime
+
+        # Delete old state (upsert pattern)
+        # Table might be empty on first save - that's OK
+        assert self.metadata_table is not None  # Always initialized in __init__
+        with suppress(Exception):
+            self.metadata_table.delete("key = 'index_state'")
+
+        # Insert new state
+        state = {
+            "key": "index_state",
+            "last_commit": last_commit,
+            "indexed_blobs": json.dumps(indexed_blobs),  # Store as JSON string
+            "last_indexed": datetime.now(UTC).isoformat(),
+            "embedding_model": embedding_model,
+            "total_chunks": self.count(),
+            "total_blobs": len(indexed_blobs),
+        }
+
+        self.metadata_table.add([state])
+        logger.info(f"Saved index state: {len(indexed_blobs)} blobs indexed at {last_commit[:8]}")
