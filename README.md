@@ -13,17 +13,6 @@ git native context enhancement for agentic coding.
 
 gitctx provides precisely the right context for any coding task, helping developers and AI coding agents complete tasks effectively with full project-specific understanding.
 
-## Project Management with GitStory
-
-This project uses [GitStory](https://github.com/gitstory-ai/gitstory), a git-native project management framework designed for AI agent-driven development. GitStory provides:
-
-- **Hierarchical Planning** - INIT → EPIC → STORY → TASK structure in markdown
-- **Perfect Traceability** - Every commit links to tasks, documentation lives in git
-- **Agent-Optimized Specs** - Quality scores ensure concrete, testable requirements
-- **Story-Driven Workflow** - 1 story = 1 branch = 1 PR, with BDD/TDD throughout
-
-All development work follows structured tickets in [docs/tickets/](docs/tickets/). See [GitStory's README](https://github.com/gitstory-ai/gitstory) for the complete workflow and philosophy.
-
 ## Installation
 
 ```bash
@@ -115,6 +104,17 @@ uv run pytest
 uv run ruff check src tests
 uv run mypy src
 ```
+
+## Project Management with GitStory
+
+This project uses [GitStory](https://github.com/gitstory-ai/gitstory), a git-native project management framework designed for AI agent-driven development. GitStory provides:
+
+- **Hierarchical Planning** - INIT → EPIC → STORY → TASK structure in markdown
+- **Perfect Traceability** - Every commit links to tasks, documentation lives in git
+- **Agent-Optimized Specs** - Quality scores ensure concrete, testable requirements
+- **Story-Driven Workflow** - 1 story = 1 branch = 1 PR, with BDD/TDD throughout
+
+All development work follows structured tickets in [docs/tickets/](docs/tickets/). See [GitStory's README](https://github.com/gitstory-ai/gitstory) for the complete workflow and philosophy.
 
 ## License
 
