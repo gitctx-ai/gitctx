@@ -111,8 +111,8 @@ def test_table_metadata_includes_embedding_model(tmp_path: Path, isolated_env):
 
     store = LanceDBStore(db_path, embedding_model=embedding_model)
 
-    # Verify metadata is accessible (actual validation happens in integration tests)
-    # For now, just verify store initializes with model parameter
+    # Unit test: Verify store initializes with model parameter
+    # Full metadata validation happens in integration/E2E tests
     assert store.embedding_model == embedding_model
 
 
