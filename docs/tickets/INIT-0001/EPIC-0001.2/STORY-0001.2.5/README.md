@@ -341,9 +341,9 @@ class CostEstimator:
             if ".git" in file.parts:
                 continue
 
-            # Count all files with supported extensions + assume unknown are text (markdown fallback)
-            # This matches gitctx behavior: we process everything as text
-            if file.suffix.lower() in supported_extensions or file.suffix:
+            # Count supported extensions OR extensionless text files (Makefile, Dockerfile, etc.)
+            # Avoids trying to read known binary extensions (.exe, .bin, .dll)
+            if file.suffix.lower() in supported_extensions or not file.suffix:
                 try:
                     total_lines += len(file.read_text().splitlines())
                 except (UnicodeDecodeError, PermissionError, OSError):
@@ -369,8 +369,9 @@ class CostEstimator:
             if ".git" in file.parts:
                 continue
 
-            # Count all files with extensions (supported or assumed text)
-            if file.suffix.lower() in supported_extensions or file.suffix:
+            # Count supported extensions OR extensionless text files (Makefile, Dockerfile, etc.)
+            # Matches _count_lines logic - avoid counting known binary extensions
+            if file.suffix.lower() in supported_extensions or not file.suffix:
                 count += 1
 
         return count
