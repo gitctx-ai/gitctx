@@ -3,7 +3,7 @@
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 2
-**Progress**: █████░░░░░ 50% (2/4 tasks complete)
+**Progress**: ███████▓░░ 75% (3/4 tasks complete)
 
 ## User Story
 
@@ -114,7 +114,7 @@ Feature: Progress Tracking and Cost Estimation
 |----|-------|--------|-------|--------------|
 | [TASK-0001.2.5.1](TASK-0001.2.5.1.md) | Write BDD Scenarios for Progress + Cost | ✅ Complete | 2 | 0/5 (all stubbed) |
 | [TASK-0001.2.5.2](TASK-0001.2.5.2.md) | ProgressReporter with Terse/Verbose Modes | ✅ Complete | 3 | 2/5 ready (awaits integration) |
-| [TASK-0001.2.5.3](TASK-0001.2.5.3.md) | CostEstimator + BDD for Scenario 3 | 🔵 Not Started | 2 | 3/5 passing |
+| [TASK-0001.2.5.3](TASK-0001.2.5.3.md) | CostEstimator + BDD for Scenario 3 | ✅ Complete | 2 | 3/5 ready (awaits integration) |
 | [TASK-0001.2.5.4](TASK-0001.2.5.4.md) | Pipeline Integration + Final BDD | 🔵 Not Started | 1 | 5/5 passing ✅ |
 
 **Total**: 8 hours = 2 story points
