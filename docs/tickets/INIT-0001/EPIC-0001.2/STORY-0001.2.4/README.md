@@ -3,7 +3,7 @@
 **Parent**: [EPIC-0001.2](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 3
-**Progress**: ██▓░░░░░░░ 25% (1/4 tasks complete)
+**Progress**: ███████▓░░ 75% (3/4 tasks complete)
 
 ## User Story
 
@@ -117,8 +117,8 @@ Feature: LanceDB Vector Storage
 | ID | Title | Status | Hours |
 |----|-------|--------|-------|
 | [TASK-0001.2.4.1](TASK-0001.2.4.1.md) | Write ALL 10 BDD Scenarios | ✅ | 2 |
-| [TASK-0001.2.4.2](TASK-0001.2.4.2.md) | Implement LanceDBStore with batch insertion | 🔵 | 4 |
-| [TASK-0001.2.4.3](TASK-0001.2.4.3.md) | Integrate with pipeline and add index state tracking | 🔵 | 3 |
+| [TASK-0001.2.4.2](TASK-0001.2.4.2.md) | Implement LanceDBStore with batch insertion | ✅ | 4 |
+| [TASK-0001.2.4.3](TASK-0001.2.4.3.md) | Core Storage Operations & Indexing | ✅ | 3 |
 | [TASK-0001.2.4.4](TASK-0001.2.4.4.md) | BDD scenarios and integration tests | 🔵 | 3 |
 
 **Total**: 12 hours = 3 story points

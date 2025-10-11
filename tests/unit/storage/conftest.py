@@ -54,23 +54,24 @@ def mock_embedding() -> Callable[[str, str, int], Embedding]:
 
 
 @pytest.fixture
-def mock_blob_location() -> Callable[[str, str], BlobLocation]:
+def mock_blob_location() -> Callable[[str, str, bool], BlobLocation]:
     """Factory for creating test BlobLocation objects.
 
     Returns:
-        Callable that creates BlobLocation with specified blob_sha, file_path
+        Callable that creates BlobLocation with specified commit_sha, file_path, is_head
     """
 
-    def _create_location(blob_sha: str = "a" * 40, file_path: str = "src/main.py") -> BlobLocation:
+    def _create_location(
+        commit_sha: str = "b" * 40, file_path: str = "src/main.py", is_head: bool = True
+    ) -> BlobLocation:
         return BlobLocation(
-            blob_sha=blob_sha,
+            commit_sha=commit_sha,
             file_path=file_path,
-            commit_sha="b" * 40,
             author_name="Test Author",
             author_email="test@example.com",
             commit_date=1234567890,
             commit_message="Initial commit",
-            is_head=True,
+            is_head=is_head,
             is_merge=False,
         )
 

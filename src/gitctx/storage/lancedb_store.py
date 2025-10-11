@@ -152,7 +152,7 @@ class LanceDBStore:
         """Get index statistics.
 
         Returns:
-            Dict with keys: total_chunks, total_files, total_blobs, index_size_mb
+            Dict with keys: total_chunks, total_files, total_blobs, languages, index_size_mb
         """
         try:
             assert self.chunks_table is not None
@@ -163,6 +163,7 @@ class LanceDBStore:
                     "total_chunks": 0,
                     "total_files": 0,
                     "total_blobs": 0,
+                    "languages": {},
                     "index_size_mb": self._get_db_size_mb(),
                 }
 
@@ -170,6 +171,7 @@ class LanceDBStore:
                 "total_chunks": len(df),
                 "total_files": df["file_path"].nunique(),
                 "total_blobs": df["blob_sha"].nunique(),
+                "languages": df["language"].value_counts().to_dict(),
                 "index_size_mb": self._get_db_size_mb(),
             }
         except Exception:
@@ -178,6 +180,7 @@ class LanceDBStore:
                 "total_chunks": 0,
                 "total_files": 0,
                 "total_blobs": 0,
+                "languages": {},
                 "index_size_mb": self._get_db_size_mb(),
             }
 
@@ -197,13 +200,71 @@ class LanceDBStore:
             embeddings: List of Embedding objects from embedder
             blob_locations: Map of blob_sha -> BlobLocation list (from walker)
         """
-        # This will be implemented in TASK-0001.2.4.3
-        raise NotImplementedError("add_chunks_batch will be implemented in next task")
+        from datetime import UTC, datetime
+
+        records = []
+
+        for emb in embeddings:
+            # Get BlobLocation for this chunk's blob
+            locations = blob_locations.get(emb.blob_sha, [])
+            if not locations:
+                logger.warning(f"No location found for blob {emb.blob_sha[:8]}... - skipping chunk")
+                continue
+
+            # Use first location (denormalized schema duplicates this per chunk)
+            loc = locations[0]
+
+            record = {
+                "vector": emb.vector,
+                "chunk_content": emb.chunk_content,
+                "token_count": emb.token_count,
+                "blob_sha": emb.blob_sha,
+                "chunk_index": emb.chunk_index,
+                "start_line": emb.start_line,
+                "end_line": emb.end_line,
+                "total_chunks": emb.total_chunks,
+                "file_path": loc.file_path,
+                "language": emb.language,
+                "commit_sha": loc.commit_sha,
+                "author_name": loc.author_name,
+                "author_email": loc.author_email,
+                "commit_date": loc.commit_date,
+                "commit_message": loc.commit_message,
+                "is_head": loc.is_head,
+                "is_merge": loc.is_merge,
+                "embedding_model": emb.model,
+                "indexed_at": datetime.now(UTC).isoformat(),
+            }
+            records.append(record)
+
+        # Batch insert
+        if records:
+            assert self.chunks_table is not None
+            self.chunks_table.add(records)
+            logger.info(f"Inserted {len(records)} chunks into LanceDB")
 
     def optimize(self) -> None:
-        """Create IVF-PQ index for fast vector search."""
-        # This will be implemented in TASK-0001.2.4.3
-        raise NotImplementedError("optimize will be implemented in next task")
+        """Create IVF-PQ index for fast vector search.
+
+        Only creates index if we have enough vectors (>=256).
+        Index params are adaptive based on row count and dimensions.
+        """
+        row_count = self.count()
+
+        if row_count < 256:
+            logger.info(f"Not enough vectors ({row_count}) for indexing (minimum: 256)")
+            return
+
+        logger.info(f"Creating IVF-PQ index for {row_count} vectors...")
+
+        assert self.chunks_table is not None
+        self.chunks_table.create_index(
+            metric="cosine",
+            num_partitions=min(row_count // 256, 256),
+            num_sub_vectors=min(self.embedding_dimensions // 16, 96),
+        )
+
+        logger.info("IVF-PQ vector index created successfully")
 
     def search(
         self, query_vector: list[float], limit: int = 10, filter_head_only: bool = False
@@ -218,8 +279,14 @@ class LanceDBStore:
         Returns:
             List of chunk records with all denormalized metadata
         """
-        # This will be implemented in TASK-0001.2.4.3
-        raise NotImplementedError("search will be implemented in next task")
+        assert self.chunks_table is not None
+        query = self.chunks_table.search(query_vector).limit(limit)
+
+        if filter_head_only:
+            query = query.where("is_head = true")
+
+        results = query.to_pandas()
+        return results.to_dict("records")
 
     def save_index_state(
         self, last_commit: str, indexed_blobs: list[str], embedding_model: str

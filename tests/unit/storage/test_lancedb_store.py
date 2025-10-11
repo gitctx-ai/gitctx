@@ -64,6 +64,7 @@ def test_empty_index_get_statistics(tmp_path: Path, isolated_env):
     assert stats["total_chunks"] == 0
     assert stats["total_files"] == 0
     assert stats["total_blobs"] == 0
+    assert stats["languages"] == {}
     assert stats["index_size_mb"] >= 0  # Directory exists but minimal size
 
 
@@ -178,6 +179,7 @@ def test_get_statistics_handles_empty_dataframe(tmp_path: Path, isolated_env):
         assert stats["total_chunks"] == 0
         assert stats["total_files"] == 0
         assert stats["total_blobs"] == 0
+        assert stats["languages"] == {}
         assert stats["index_size_mb"] >= 0
 
 
@@ -194,4 +196,381 @@ def test_get_statistics_handles_exception(tmp_path: Path, isolated_env):
         assert stats["total_chunks"] == 0
         assert stats["total_files"] == 0
         assert stats["total_blobs"] == 0
+        assert stats["languages"] == {}
         assert stats["index_size_mb"] >= 0
+
+
+# ============================================================================
+# TASK-0001.2.4.3: Core Storage Operations & Indexing (TDD Red Phase)
+# ============================================================================
+
+
+def test_add_chunks_batch_denormalizes_blob_location(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """add_chunks_batch denormalizes BlobLocation metadata into each chunk."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10 embeddings from 2 blobs
+    blob_sha_1 = "a" * 40
+    blob_sha_2 = "b" * 40
+
+    embeddings = [
+        mock_embedding(blob_sha=blob_sha_1, content=f"chunk {i}", chunk_index=i) for i in range(5)
+    ]
+    embeddings.extend(
+        [mock_embedding(blob_sha=blob_sha_2, content=f"chunk {i}", chunk_index=i) for i in range(5)]
+    )
+
+    blob_locations = {
+        blob_sha_1: [mock_blob_location(file_path="src/main.py")],
+        blob_sha_2: [mock_blob_location(file_path="src/utils.py")],
+    }
+
+    # This test will FAIL until we implement add_chunks_batch
+    store.add_chunks_batch(embeddings=embeddings, blob_locations=blob_locations)
+
+    # Query back and verify denormalized fields
+    results = store.chunks_table.to_pandas()
+    assert len(results) == 10
+
+    # Verify all 19 denormalized fields are present
+    expected_fields = [
+        "vector",
+        "chunk_content",
+        "token_count",
+        "blob_sha",
+        "chunk_index",
+        "start_line",
+        "end_line",
+        "total_chunks",
+        "file_path",
+        "language",
+        "commit_sha",
+        "author_name",
+        "author_email",
+        "commit_date",
+        "commit_message",
+        "is_head",
+        "is_merge",
+        "embedding_model",
+        "indexed_at",
+    ]
+    for field in expected_fields:
+        assert field in results.columns, f"Missing field: {field}"
+
+    # Verify metadata from first blob
+    first_blob_chunks = results[results["blob_sha"] == blob_sha_1]
+    assert len(first_blob_chunks) == 5
+    assert first_blob_chunks.iloc[0]["author_name"] == "Test Author"
+    assert first_blob_chunks.iloc[0]["file_path"] == "src/main.py"
+
+
+def test_add_chunks_batch_empty_blob_locations_warning(
+    tmp_path: Path, isolated_env, mock_embedding, caplog
+):
+    """add_chunks_batch logs warning and skips chunks with missing blob locations."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    blob_sha = "a" * 40
+    embeddings = [mock_embedding(blob_sha=blob_sha, chunk_index=0)]
+
+    # Empty blob_locations dict - should warn and skip
+    store.add_chunks_batch(embeddings=embeddings, blob_locations={})
+
+    # Verify warning was logged (first 8 chars of SHA)
+    assert "No location found for blob" in caplog.text
+    assert blob_sha[:8] in caplog.text
+
+    # Verify no chunks were inserted
+    assert store.count() == 0
+
+
+@pytest.mark.slow
+def test_batch_insertion_performance_5000_chunks(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """Batch insertion handles 5000+ chunks at >100 chunks/sec."""
+    import os
+    import time
+
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 5000 embeddings from 100 blobs (50 chunks per blob)
+    embeddings = []
+    blob_locations = {}
+
+    for blob_idx in range(100):
+        blob_sha = f"{blob_idx:040d}"  # Zero-padded 40-char hex
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{blob_idx}.py")]
+
+        for chunk_idx in range(50):
+            embeddings.append(
+                mock_embedding(
+                    blob_sha=blob_sha,
+                    content=f"blob{blob_idx} chunk{chunk_idx}",
+                    chunk_index=chunk_idx,
+                )
+            )
+
+    # Measure performance
+    start = time.time()
+    store.add_chunks_batch(embeddings=embeddings, blob_locations=blob_locations)
+    elapsed = time.time() - start
+
+    # Verify all inserted
+    assert store.count() == 5000
+
+    # Performance target: >100 chunks/sec on baseline hardware (MacBook Pro M1, 16GB RAM, SSD)
+    # Adjust threshold via GITCTX_PERF_THRESHOLD env var if your hardware differs
+    min_chunks_per_sec = int(os.getenv("GITCTX_PERF_THRESHOLD", "100"))
+    chunks_per_sec = 5000 / elapsed
+    assert chunks_per_sec >= min_chunks_per_sec, (
+        f"Too slow: {chunks_per_sec:.1f} chunks/sec (target: {min_chunks_per_sec}+)"
+    )
+
+
+def test_optimize_creates_ivf_pq_index_at_256_vectors(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """optimize() creates IVF-PQ index when count >= 256."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 256 embeddings (minimum for indexing)
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(256):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py")]
+        embeddings.append(mock_embedding(blob_sha=blob_sha, chunk_index=0))
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    assert store.count() == 256
+
+    # This test will FAIL until we implement optimize
+    store.optimize()
+
+    # Verify index was created (LanceDB stores index metadata in table stats)
+    # Note: LanceDB's index metadata is accessible via table.list_indices()
+    indices = store.chunks_table.list_indices()
+    assert len(indices) > 0, "No index created"
+
+
+def test_optimize_skips_indexing_below_256_vectors(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location, caplog
+):
+    """optimize() skips indexing when count < 256."""
+    import logging
+
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    # Set log level to capture INFO messages
+    caplog.set_level(logging.INFO)
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 100 embeddings (below threshold)
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(100):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py")]
+        embeddings.append(mock_embedding(blob_sha=blob_sha, chunk_index=0))
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    assert store.count() == 100
+
+    store.optimize()
+
+    # Verify info message was logged
+    assert "Not enough vectors (100) for indexing" in caplog.text
+    assert "minimum: 256" in caplog.text
+
+
+def test_search_returns_denormalized_metadata(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """search() returns results with all 19 denormalized fields."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10 embeddings
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py")]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test content {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+
+    # Search with a query vector
+    query_vector = [0.1] * 3072
+    results = store.search(query_vector, limit=5)
+
+    assert len(results) > 0
+    first = results[0]
+
+    # Verify all 19 fields present
+    expected_fields = [
+        "vector",
+        "chunk_content",
+        "token_count",
+        "blob_sha",
+        "chunk_index",
+        "start_line",
+        "end_line",
+        "total_chunks",
+        "file_path",
+        "language",
+        "commit_sha",
+        "author_name",
+        "author_email",
+        "commit_date",
+        "commit_message",
+        "is_head",
+        "is_merge",
+        "embedding_model",
+        "indexed_at",
+    ]
+    for field in expected_fields:
+        assert field in first, f"Missing field: {field}"
+
+
+def test_search_filter_head_only(tmp_path: Path, isolated_env, mock_embedding, mock_blob_location):
+    """search() with filter_head_only returns only HEAD chunks."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10 embeddings: 5 from HEAD, 5 from history
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        is_head = i < 5  # First 5 are HEAD
+        blob_locations[blob_sha] = [
+            mock_blob_location(file_path=f"src/file_{i}.py", is_head=is_head)
+        ]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test content {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+
+    # Search with filter_head_only
+    query_vector = [0.1] * 3072
+    results = store.search(query_vector, limit=10, filter_head_only=True)
+
+    # All results should have is_head=True
+    assert len(results) > 0
+    assert all(r["is_head"] for r in results), "Some results have is_head=False"
+
+
+def test_get_statistics_accuracy(tmp_path: Path, isolated_env, mock_embedding, mock_blob_location):
+    """get_statistics() returns accurate counts and languages."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 100 chunks from 10 blobs across 5 files
+    embeddings = []
+    blob_locations = {}
+
+    for blob_idx in range(10):
+        blob_sha = f"{blob_idx:040d}"
+        file_idx = blob_idx % 5  # 5 unique files
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{file_idx}.py")]
+
+        # 10 chunks per blob
+        for chunk_idx in range(10):
+            embeddings.append(
+                mock_embedding(
+                    blob_sha=blob_sha,
+                    content=f"blob{blob_idx} chunk{chunk_idx}",
+                    chunk_index=chunk_idx,
+                )
+            )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+
+    stats = store.get_statistics()
+
+    assert stats["total_chunks"] == 100
+    assert stats["total_files"] == 5
+    assert stats["total_blobs"] == 10
+    assert "languages" in stats
+    assert isinstance(stats["languages"], dict)
+    assert stats["index_size_mb"] > 0
+
+
+def test_incremental_updates_preserve_existing_chunks(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """Incremental updates preserve existing chunks (old data unchanged)."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Insert 10 initial chunks
+    embeddings_1 = []
+    blob_locations_1 = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        blob_locations_1[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py")]
+        embeddings_1.append(
+            mock_embedding(blob_sha=blob_sha, content=f"original {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings_1, blob_locations_1)
+    assert store.count() == 10
+
+    # Get original data
+    original_data = store.chunks_table.to_pandas()
+    original_blob_shas = set(original_data["blob_sha"])
+
+    # Insert 5 new chunks
+    embeddings_2 = []
+    blob_locations_2 = {}
+
+    for i in range(10, 15):
+        blob_sha = f"{i:040d}"
+        blob_locations_2[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py")]
+        embeddings_2.append(mock_embedding(blob_sha=blob_sha, content=f"new {i}", chunk_index=0))
+
+    store.add_chunks_batch(embeddings_2, blob_locations_2)
+
+    # Verify total count
+    assert store.count() == 15
+
+    # Verify old chunks still exist
+    updated_data = store.chunks_table.to_pandas()
+    updated_blob_shas = set(updated_data["blob_sha"])
+
+    # All original blob_shas should still be present
+    assert original_blob_shas.issubset(updated_blob_shas), "Some original chunks were lost"
