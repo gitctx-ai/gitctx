@@ -197,9 +197,8 @@ def test_index_handles_keyboard_interrupt(
     ):
         result = isolated_cli_runner.invoke(app, ["index"])
 
-        # KeyboardInterrupt should be caught and passed through silently
-        # The CLI catches it and passes, exit code 0
-        assert result.exit_code == 0
+        # KeyboardInterrupt should be caught and exit with code 130 (standard Unix SIGINT exit code)
+        assert result.exit_code == 130
 
 
 def test_index_handles_generic_exception(

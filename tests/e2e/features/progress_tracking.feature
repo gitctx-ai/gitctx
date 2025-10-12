@@ -32,7 +32,7 @@ Feature: Progress Tracking and Cost Estimation
     When I run "gitctx index --dry-run"
     Then I should see estimated tokens
     And estimated cost formatted as "\$\d+\.\d{4}"
-    And confidence range "Range:\\s+\$\d+\\.\\d{4} - \$\d+\\.\\d{4} \\(±20%\\)"
+    And confidence range "Range:\\s+\$\d+\\.\\d{4} - \$\d+\\.\\d{4} \\(±10%\\)"
 
   Scenario: Empty repository handling
     Given an empty repository with no indexable files

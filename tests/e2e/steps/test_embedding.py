@@ -70,10 +70,8 @@ def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
 
     from gitctx.embeddings.openai_embedder import OpenAIEmbedder
 
-    # Check if we have a real API key for this E2E test
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key or api_key.startswith("sk-test-"):
-        pytest.skip("Requires valid OPENAI_API_KEY environment variable for E2E test")
+    # VCR.py will intercept API calls and use cassettes
+    api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
 
     embedder = OpenAIEmbedder(api_key=api_key)
     chunk = embedding_context["chunk"]
@@ -290,10 +288,8 @@ def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
     from gitctx.core.models import CodeChunk
     from gitctx.embeddings.openai_embedder import OpenAIEmbedder
 
-    # Check if we have a real API key for this E2E test
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key or api_key.startswith("sk-test-"):
-        pytest.skip("Requires valid OPENAI_API_KEY environment variable for E2E test")
+    # VCR.py will intercept API calls and use cassettes
+    api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
 
     chunk = CodeChunk(
         content="def test(): pass",
@@ -418,10 +414,8 @@ def embed_chunks_totaling_tokens(
             )
         )
 
-    # Use API key from environment or skip test
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key or not api_key.startswith("sk-"):
-        pytest.skip("Requires valid OPENAI_API_KEY environment variable")
+    # VCR.py will intercept API calls and use cassettes
+    api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
 
     embedder = OpenAIEmbedder(api_key=api_key)
 

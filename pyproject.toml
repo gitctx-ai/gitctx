@@ -270,11 +270,26 @@ if [ -z "$OPENAI_API_KEY" ]; then
     exit 1
 fi
 echo "🎬 Recording VCR.py cassettes with real OpenAI API..."
+echo ""
+echo "Recording embedding test cassettes (7 scenarios)..."
+pytest tests/e2e/test_embedding_features.py --vcr-record=once -v
+echo ""
+echo "Recording progress tracking test cassettes (5 scenarios)..."
 pytest tests/e2e/test_progress_tracking_features.py --vcr-record=once -v
-echo "✅ Cassettes recorded in tests/e2e/cassettes/"
+echo ""
+echo "✅ All cassettes recorded in tests/e2e/cassettes/"
+echo ""
+echo "Verifying cassette count..."
+CASSETTE_COUNT=$(find tests/e2e/cassettes -name "*.yaml" -type f | wc -l | tr -d ' ')
+echo "Found $CASSETTE_COUNT cassettes (expected 12: 7 embedding + 5 progress)"
+echo ""
+if [ "$CASSETTE_COUNT" -ne 12 ]; then
+    echo "⚠️  Warning: Expected 12 cassettes, found $CASSETTE_COUNT"
+    echo "Some tests may have been skipped or failed."
+fi
 echo "Next: Verify replay with 'uv run poe test-e2e'"
 """
-help = "Record VCR.py cassettes for E2E tests. Requires OPENAI_API_KEY env var"
+help = "Record VCR.py cassettes for E2E tests (embedding + progress). Requires OPENAI_API_KEY env var"
 
 [tool.poe.tasks.install-hooks]
 sequence = [

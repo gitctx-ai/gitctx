@@ -24,17 +24,29 @@ Cassettes are YAML files containing:
 # Set real OpenAI API key
 export OPENAI_API_KEY="sk-your-real-key-here"
 
-# Record all E2E cassettes using poe task
+# Record all E2E cassettes using poe task (recommended)
 uv run poe record-cassettes
 
 # Or record manually with pytest
+uv run pytest tests/e2e/test_embedding_features.py --vcr-record=once
 uv run pytest tests/e2e/test_progress_tracking_features.py --vcr-record=once
 
 # Verify cassettes created
 ls tests/e2e/cassettes/
 ```
 
-Expected cassettes:
+Expected cassettes (12 total):
+
+**Embedding tests (7 cassettes):**
+- `test_generate_embedding_for_single_chunk.yaml`
+- `test_cache_embeddings_by_blob_sha.yaml`
+- `test_generate_new_embeddings_for_uncached_blobs.yaml`
+- `test_track_api_costs_accurately.yaml`
+- `test_validate_api_key_on_initialization.yaml`
+- `test_generate_new_embeddings_for_uncached_blobs.yaml`
+- `test_validate_embedding_dimensions.yaml`
+
+**Progress tracking tests (5 cassettes):**
 - `test_default_terse_output.yaml`
 - `test_verbose_mode_with_phase_progress.yaml`
 - `test_preindexing_cost_estimate_with_dryrun.yaml`

@@ -341,6 +341,18 @@ E2E tests use VCR.py to record real OpenAI API responses and replay them in CI.
 - **Deterministic tests**: Same responses every run
 - **Fast execution**: Cassette replay is instant
 
+### Which Tests Use VCR?
+
+| Test File | VCR? | Scenarios | Reason |
+|-----------|------|-----------|--------|
+| `test_embedding_features.py` | ✅ | 7 | OpenAI API calls for embeddings |
+| `test_progress_tracking_features.py` | ✅ | 5 | OpenAI calls via indexing pipeline |
+| `test_commit_walker_features.py` | ❌ | - | No external APIs (git only) |
+| `test_chunking_features.py` | ❌ | - | No external APIs (text processing) |
+| `test_lancedb_storage_features.py` | ❌ | - | Local storage only (no API calls) |
+
+**Total**: 12 cassettes (7 embedding + 5 progress tracking)
+
 ### Recording Workflow
 
 **One-Time Recording (Developer):**
@@ -349,16 +361,16 @@ E2E tests use VCR.py to record real OpenAI API responses and replay them in CI.
 # Set real API key
 export OPENAI_API_KEY="sk-real-key-here"
 
-# Record cassettes for all E2E tests
+# Record all cassettes using poe task (recommended)
+uv run poe record-cassettes
+
+# Or record manually with pytest
+uv run pytest tests/e2e/test_embedding_features.py --vcr-record=once
 uv run pytest tests/e2e/test_progress_tracking_features.py --vcr-record=once
 
-# Cassettes saved to tests/e2e/cassettes/
-ls tests/e2e/cassettes/
-# test_default_terse_output.yaml
-# test_verbose_mode_with_phase_progress.yaml
-# test_preindexing_cost_estimate_with_dryrun.yaml
-# test_graceful_cancellation.yaml
-# test_empty_repository_handling.yaml
+# Verify 12 cassettes created
+ls tests/e2e/cassettes/ | wc -l
+# Expected output: 12
 ```
 
 **Re-Recording When API Changes:**

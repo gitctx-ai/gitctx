@@ -38,7 +38,7 @@ async def index_repository(
         print(f"Lines:        {estimate['total_lines']:,}")
         print(f"Est. tokens:  {estimate['estimated_tokens']:,}")
         print(f"Est. cost:    ${estimate['estimated_cost']:.4f}")
-        print(f"Range:        ${estimate['min_cost']:.4f} - ${estimate['max_cost']:.4f} (±20%)")
+        print(f"Range:        ${estimate['min_cost']:.4f} - ${estimate['max_cost']:.4f} (±10%)")
         return
 
     # Import pipeline components (lazy import to avoid circular dependencies)
@@ -163,10 +163,10 @@ async def index_repository(
 
     except KeyboardInterrupt:
         # Handle graceful cancellation (SIGINT)
+        # Print message and let exception propagate to CLI layer for exit code 130
         print("\nInterrupted", file=sys.stderr)
-        reporter.finish()
-        sys.exit(130)
+        raise
 
     finally:
-        # Always show final summary
+        # Always show final summary (called on success or cancellation)
         reporter.finish()

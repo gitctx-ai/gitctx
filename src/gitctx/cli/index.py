@@ -93,9 +93,10 @@ def index_command(
                 verbose=use_verbose,
             )
         )
-    except KeyboardInterrupt:
-        # Handled by pipeline with exit 130
-        pass
+    except KeyboardInterrupt as e:
+        # SIGINT (Ctrl+C) - exit with standard Unix code 130
+        # Pipeline has already shown "Interrupted" message and partial stats
+        raise typer.Exit(code=130) from e
     except Exception as e:
         console_err.print(f"[red]{SYMBOLS['error']}[/red] Indexing failed: {e}")
         raise typer.Exit(code=1) from e
