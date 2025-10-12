@@ -16,34 +16,34 @@ So that I can monitor operations and understand the financial impact of indexing
 ## Acceptance Criteria
 
 **Default Mode (Terse - TUI_GUIDE compliant)**:
-- [ ] Default output: single-line summary "Indexed N blobs in Xs" (git-like)
-- [ ] Show spinner only for operations >5 seconds: "⠋ Indexing... 8.3s"
-- [ ] Final summary: total chunks, total tokens, total cost (4 decimal places), time elapsed
+- [x] Default output: single-line summary "Indexed N blobs in Xs" (git-like)
+- [x] Show spinner only for operations >5 seconds: "⠋ Indexing... 8.3s"
+- [x] Final summary: total chunks, total tokens, total cost (4 decimal places), time elapsed
 
 **Verbose Mode (--verbose flag)**:
-- [ ] Phase-by-phase progress indicators (→ Walking, → Chunking, → Embedding, → Storing)
-- [ ] Statistics after completion: commits, blobs, chunks, tokens, cost, dedup rate
-- [ ] Format follows TUI_GUIDE.md INDEX command verbose output
+- [x] Phase-by-phase progress indicators (→ Walking, → Chunking, → Embedding, → Storing)
+- [x] Statistics after completion: commits, blobs, chunks, tokens, cost, dedup rate
+- [x] Format follows TUI_GUIDE.md INDEX command verbose output
 
 **Cost Tracking**:
-- [ ] Track token usage across all embedding API calls
-- [ ] Calculate costs in USD formatted to 4 decimal places (accuracy ±10%)
-- [ ] Display in final summary: total tokens, total cost
+- [x] Track token usage across all embedding API calls
+- [x] Calculate costs in USD formatted to 4 decimal places (accuracy ±10%)
+- [x] Display in final summary: total tokens, total cost
 
 **Error Handling**:
-- [ ] Handle cancellation on SIGINT (Ctrl+C):
+- [x] Handle cancellation on SIGINT (Ctrl+C):
   - Graceful shutdown within 5 seconds
   - Show partial stats: chunks processed, tokens used, cost incurred
   - Exit with code 130
-- [ ] Display error count in final summary: "Errors: N"
-- [ ] Log errors to stderr during indexing
-- [ ] Handle empty repository (no indexable files): display "No files to index", exit code 0
+- [x] Display error count in final summary: "Errors: N"
+- [x] Log errors to stderr during indexing
+- [x] Handle empty repository (no indexable files): display "No files to index", exit code 0
   - Indexable files: any file with supported extension (60+ extensions) or defaulted to markdown
 
 **Cost Estimation (--dry-run flag)**:
-- [ ] Analyze repository and show estimated tokens and cost
-- [ ] Display confidence range: "Range: $MIN - $MAX (±10%)"
-- [ ] Always use 4 decimal places for all costs (e.g., "$0.0001", "$1.2345")
+- [x] Analyze repository and show estimated tokens and cost
+- [x] Display confidence range: "Range: $MIN - $MAX (±10%)"
+- [x] Always use 4 decimal places for all costs (e.g., "$0.0001", "$1.2345")
 
 ## BDD Scenarios
 
