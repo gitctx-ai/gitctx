@@ -65,8 +65,9 @@ def api_key_configured(embedding_context: dict[str, Any]) -> None:
 @when("I generate an embedding for the chunk")
 def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
     """Generate embedding for single chunk."""
-    import asyncio
     import os
+
+    import anyio
 
     from gitctx.embeddings.openai_embedder import OpenAIEmbedder
 
@@ -77,8 +78,8 @@ def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
     chunk = embedding_context["chunk"]
     blob_sha = embedding_context["blob_sha"]
 
-    # Use asyncio.run() - creates fresh event loop, no contamination
-    embeddings = asyncio.run(embedder.embed_chunks([chunk], blob_sha))
+    # Use anyio.run() for async operation (pytest-bdd steps must be sync)
+    embeddings = anyio.run(embedder.embed_chunks, [chunk], blob_sha)
     embedding_context["embeddings"] = embeddings
 
 
@@ -282,8 +283,9 @@ def verify_cache_miss_logged(embedding_context: dict[str, Any]) -> None:
 @given("an embedding is generated from the API")
 def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
     """Generate embedding from API."""
-    import asyncio
     import os
+
+    import anyio
 
     from gitctx.core.models import CodeChunk
     from gitctx.embeddings.openai_embedder import OpenAIEmbedder
@@ -300,8 +302,8 @@ def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
     )
 
     embedder = OpenAIEmbedder(api_key=api_key)
-    # Use asyncio.run() - creates fresh event loop, no contamination
-    embeddings = asyncio.run(embedder.embed_chunks([chunk], "test123"))
+    # Use anyio.run() for async operation (pytest-bdd steps must be sync)
+    embeddings = anyio.run(embedder.embed_chunks, [chunk], "test123")
     embedding_context["embeddings"] = embeddings
     embedding_context["api_key"] = api_key
 
@@ -328,8 +330,9 @@ def verify_exact_dimensions(embedding_context: dict[str, Any], dimensions: int) 
 @then("if dimensions don't match, raise DimensionMismatchError")
 def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
     """Verify DimensionMismatchError is raised on dimension mismatch."""
-    import asyncio
     from unittest.mock import AsyncMock, MagicMock, patch
+
+    import anyio
 
     from gitctx.core.exceptions import DimensionMismatchError
     from gitctx.core.models import CodeChunk
@@ -357,8 +360,8 @@ def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
     ) as mock_create:
         mock_create.return_value = mock_response
         try:
-            # Use asyncio.run() - creates fresh event loop, no contamination
-            asyncio.run(embedder.embed_chunks([chunk], "test123"))
+            # Use anyio.run() for async operation (pytest-bdd steps must be sync)
+            anyio.run(embedder.embed_chunks, [chunk], "test123")
             raise AssertionError("Should have raised DimensionMismatchError")
         except DimensionMismatchError as e:
             assert "3072" in str(e), "Error should mention expected dimensions"
@@ -384,8 +387,9 @@ def embed_chunks_totaling_tokens(
     embedding_context: dict[str, Any], num_chunks: str, total_tokens: str
 ) -> None:
     """Embed large number of chunks for cost tracking."""
-    import asyncio
     import os
+
+    import anyio
 
     from gitctx.core.models import CodeChunk
     from gitctx.embeddings.openai_embedder import OpenAIEmbedder
@@ -421,8 +425,8 @@ def embed_chunks_totaling_tokens(
 
     # Generate embeddings
     blob_sha = "cost-tracking-test"
-    # Use asyncio.run() - creates fresh event loop, no contamination
-    embeddings = asyncio.run(embedder.embed_chunks(chunks, blob_sha))
+    # Use anyio.run() for async operation (pytest-bdd steps must be sync)
+    embeddings = anyio.run(embedder.embed_chunks, chunks, blob_sha)
 
     # Store results
     embedding_context["embeddings"] = embeddings
