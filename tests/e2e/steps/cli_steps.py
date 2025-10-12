@@ -1,7 +1,8 @@
 """Step definitions for CLI tests."""
 
-import subprocess
+import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -27,55 +28,58 @@ def gitctx_installed() -> None:
 @when(parsers.parse('I run "{command}"'))
 def run_command(
     command: str,
-    e2e_git_isolation_env: dict[str, str],
+    e2e_cli_runner,
     e2e_env_factory,
     context: dict[str, Any],
+    monkeypatch,
 ) -> None:
     """
-    Execute a CLI command as subprocess with full isolation.
+    Execute a CLI command using CliRunner with full isolation.
 
-    CRITICAL: Uses subprocess.run() with isolated environment to ensure
-    true isolation from developer SSH keys, GPG keys, and git config.
+    CRITICAL: Uses CliRunner.invoke() which runs in-process, enabling
+    VCR to intercept HTTP calls for cassette recording/replay.
 
     Enhancement: Checks context["custom_env"] for custom environment variables
     set by previous @given steps (e.g., OPENAI_API_KEY, GITCTX_*).
-
-    This is NOT the same as CliRunner.invoke() which runs in-process.
     """
+    from gitctx.cli.main import app
+
     # Check if custom env vars were set by previous @given steps
     if "custom_env" in context:
-        env = e2e_env_factory(**context["custom_env"])
+        # Merge custom env with isolated env via monkeypatch
+        for key, value in context["custom_env"].items():
+            monkeypatch.setenv(key, value)
         # Clear for next scenario
         context.pop("custom_env")
-    else:
-        env = e2e_git_isolation_env
 
-    # Parse the command and convert gitctx to python -m gitctx
-    # This ensures the command works in all environments (local, CI, etc.)
+    # Parse the command to extract args
     if command.startswith("gitctx"):
-        # Replace 'gitctx' with 'python -m gitctx' for reliable execution
+        # Extract args after "gitctx"
         args = command.replace("gitctx", "").strip().split() if command.strip() != "gitctx" else []
-        cmd_parts = [sys.executable, "-m", "gitctx"] + args
     else:
-        cmd_parts = command.strip().split()
+        # For non-gitctx commands, use full command as args
+        args = command.strip().split()
 
-    # Run gitctx as subprocess with full isolation
-    # Uses python -m gitctx to ensure it works in all environments
-    # Environment now includes all platform-specific vars (fixed WinError 10106)
-    # Use repo_path as cwd if provided by previous @given steps
+    # Change to repo directory if provided
     cwd = context.get("repo_path")
-    result = subprocess.run(
-        cmd_parts,
-        env=env,
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-    )
+    original_cwd = None
+    if cwd:
+        original_cwd = Path.cwd()
+        monkeypatch.chdir(cwd)
 
-    context["result"] = result
-    context["stdout"] = result.stdout
-    context["stderr"] = result.stderr
-    context["exit_code"] = result.returncode
+    try:
+        # Run CLI in-process with CliRunner
+        result = e2e_cli_runner.invoke(app, args)
+
+        context["result"] = result
+        context["stdout"] = result.stdout
+        # Typer's CliRunner mixes stderr into stdout by default
+        context["stderr"] = result.stderr if hasattr(result, "stderr") and result.stderr else ""
+        context["exit_code"] = result.exit_code
+    finally:
+        # Restore original directory
+        if original_cwd:
+            monkeypatch.chdir(original_cwd)
 
 
 @then(parsers.parse('the output should contain "{text}"'))
@@ -138,7 +142,6 @@ def setup_user_config_with_permissions(e2e_git_isolation_env: dict[str, str], pe
 
     CRITICAL: e2e_git_isolation_env["HOME"] already has .gitctx/ directory!
     """
-    import sys
     from pathlib import Path
 
     if sys.platform == "win32":
@@ -172,14 +175,10 @@ def setup_env_var(context: dict[str, Any], var: str, value: str) -> None:
     """Set environment variable for next command execution.
 
     CRITICAL: Stores in context["custom_env"] for run_command to use.
-    This is necessary because monkeypatch doesn't work in subprocess contexts.
-
-    The run_command step will check for context["custom_env"] and use
-    e2e_env_factory to create an environment with these vars.
+    The run_command step will apply these via monkeypatch before invoking CLI.
 
     Special handling: If value is "$ENV", pulls from os.environ[var]
     """
-    import os
 
     if "custom_env" not in context:
         context["custom_env"] = {}
@@ -188,11 +187,11 @@ def setup_env_var(context: dict[str, Any], var: str, value: str) -> None:
     if value == "$ENV":
         actual_value = os.environ.get(var)
         if actual_value is None:
-            raise ValueError(
-                f"Environment variable {var} is set to '$ENV' but not found in os.environ. "
-                f"Set {var} in your environment before running tests."
-            )
-        context["custom_env"][var] = actual_value
+            # When $ENV is used but variable is not set, use placeholder for VCR
+            # VCR will intercept API calls and use cassettes (no real API key needed)
+            context["custom_env"][var] = "vcr-test-key"
+        else:
+            context["custom_env"][var] = actual_value
     else:
         context["custom_env"][var] = value
 

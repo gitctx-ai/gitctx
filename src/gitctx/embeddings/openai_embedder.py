@@ -18,10 +18,10 @@ class OpenAIEmbedder:
 
     Design notes:
     - Uses LangChain for API abstraction and retry logic
-    - Validates API key format on initialization
     - Validates embedding dimensions match expected 3072
     - Tracks cost using OpenAI pricing ($0.13 per 1M tokens)
     - Batches requests efficiently (max 2048 chunks per batch)
+    - API key validation delegated to OpenAI SDK
 
     Attributes:
         MODEL: OpenAI model name (text-embedding-3-large)
@@ -44,25 +44,27 @@ class OpenAIEmbedder:
     def __init__(
         self, api_key: str, max_retries: int = 3, show_progress: bool = False, **kwargs: Any
     ) -> None:
-        """Initialize embedder with API key validation.
+        """Initialize embedder with OpenAI API key.
 
         Args:
-            api_key: OpenAI API key (must start with 'sk-')
+            api_key: OpenAI API key
             max_retries: Maximum retry attempts for API calls (default: 3)
             show_progress: Show progress bar during embedding (default: False)
             **kwargs: Additional arguments passed to OpenAIEmbeddings
 
         Raises:
-            ConfigurationError: If API key is missing or invalid format
+            ConfigurationError: If API key is missing
 
         Examples:
             >>> embedder = OpenAIEmbedder(api_key="sk-test123")
             >>> embedder = OpenAIEmbedder(api_key="sk-...", max_retries=5)
+
+        Note:
+            API key format is not validated - OpenAI SDK will handle validation.
         """
-        if not api_key or not api_key.startswith("sk-"):
+        if not api_key:
             raise ConfigurationError(
-                "OpenAI API key required (must start with 'sk-'). "
-                "Set OPENAI_API_KEY env var or configure in settings."
+                "OpenAI API key required. Set OPENAI_API_KEY env var or configure in settings."
             )
 
         self._embeddings = OpenAIEmbeddings(

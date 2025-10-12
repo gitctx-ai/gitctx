@@ -53,7 +53,7 @@ def create_mock_blob_record(
 
 @pytest.mark.anyio
 async def test_keyboard_interrupt_shows_interrupted_message(tmp_path, capsys):
-    """Test that KeyboardInterrupt shows 'Interrupted' message and exits 130."""
+    """Test that KeyboardInterrupt shows 'Interrupted' message and is re-raised."""
     # Create a minimal test repo
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
@@ -70,11 +70,9 @@ async def test_keyboard_interrupt_shows_interrupted_message(tmp_path, capsys):
         mock_walker.walk_blobs.side_effect = KeyboardInterrupt()
         mock_walker_cls.return_value = mock_walker
 
-        # Should raise SystemExit with code 130
-        with pytest.raises(SystemExit) as exc_info:
+        # Should raise KeyboardInterrupt (CLI layer converts to SystemExit(130))
+        with pytest.raises(KeyboardInterrupt):
             await index_repository(repo_path, mock_settings)
-
-        assert exc_info.value.code == 130
 
     # Check stderr for "Interrupted" message
     captured = capsys.readouterr()
@@ -102,10 +100,9 @@ async def test_keyboard_interrupt_shows_partial_statistics(tmp_path, capsys):
         mock_walker.walk_blobs.side_effect = KeyboardInterrupt()
         mock_walker_cls.return_value = mock_walker
 
-        with pytest.raises(SystemExit) as exc_info:
+        # Should raise KeyboardInterrupt (CLI layer converts to SystemExit(130))
+        with pytest.raises(KeyboardInterrupt):
             await index_repository(repo_path, mock_settings)
-
-        assert exc_info.value.code == 130
 
     # Verify finish() was called - check for stats in output
     captured = capsys.readouterr()
@@ -174,7 +171,7 @@ async def test_dry_run_shows_cost_estimation(tmp_path, capsys):
     assert "Lines:        1,000" in captured.out
     assert "Est. tokens:  5,000" in captured.out
     assert "Est. cost:    $0.0025" in captured.out
-    assert "Range:        $0.0020 - $0.0030 (±20%)" in captured.out
+    assert "Range:        $0.0020 - $0.0030 (±10%)" in captured.out
 
     # Verify estimator was called
     mock_estimator.estimate_repo_cost.assert_called_once_with(repo_path)

@@ -2,22 +2,24 @@
 
 Pattern Reuse:
 - e2e_git_repo_factory: Create test repos with customizable structure
-- e2e_git_isolation_env: Secure subprocess environment (prevents SSH key access)
+- e2e_cli_runner: CliRunner for in-process CLI testing (enables VCR cassettes)
 - context fixture: Store CLI results between Given/When/Then steps
 - VCR.py cassettes: Record real OpenAI API responses, replay in CI (zero-cost)
 
 All scenarios use VCR.py cassettes for fast, deterministic, zero-cost CI execution.
 
 VCR Recording Workflow:
-1. Developer records cassettes once with real OPENAI_API_KEY
-2. Cassettes committed to git (API keys stripped)
-3. CI/CD replays cassettes (no API key needed, instant execution)
+1. Delete existing cassettes (if re-recording)
+2. Run tests with real OPENAI_API_KEY
+3. VCR automatically records cassettes (record_mode: "once")
+4. Cassettes committed to git (API keys stripped)
+5. CI/CD replays cassettes (no API key needed, instant execution)
 
 See tests/e2e/cassettes/README.md for recording instructions.
 """
 
 import re
-import subprocess
+from pathlib import Path
 from typing import Any
 
 from pytest_bdd import given, parsers, then, when
@@ -135,31 +137,36 @@ def setup_empty_repo(e2e_git_repo_factory, context: dict[str, Any]) -> None:
 
 
 @when('I run "gitctx index --dry-run"')
-def run_index_dry_run(e2e_git_isolation_env: dict[str, str], context: dict[str, Any]) -> None:
+def run_index_dry_run(e2e_cli_runner, context: dict[str, Any], monkeypatch) -> None:
     """Run gitctx index in dry-run mode (cost estimation only).
 
     Should analyze repo and show estimated tokens/cost without indexing.
 
+    Note: This step is now redundant with the generic "I run" step from cli_steps.py,
+    but kept for explicitness. Could be removed in future refactoring.
+
     Args:
-        e2e_git_isolation_env: Isolated environment fixture
+        e2e_cli_runner: CliRunner fixture for in-process execution
         context: BDD context fixture
+        monkeypatch: pytest monkeypatch for directory changes
     """
+    from gitctx.cli.main import app
+
     repo_path = context["repo_path"]
+    original_cwd = Path.cwd()
+    monkeypatch.chdir(repo_path)
 
-    # Run gitctx index --dry-run with isolated environment
-    result = subprocess.run(
-        ["uv", "run", "gitctx", "index", "--dry-run"],
-        cwd=repo_path,
-        env=e2e_git_isolation_env,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    try:
+        # Run CLI in-process with CliRunner (enables VCR cassette recording)
+        result = e2e_cli_runner.invoke(app, ["index", "--dry-run"])
 
-    # Store results for Then assertions
-    context["stdout"] = result.stdout
-    context["stderr"] = result.stderr
-    context["exit_code"] = result.returncode
+        # Store results for Then assertions
+        context["stdout"] = result.stdout
+        # Typer's CliRunner mixes stderr into stdout by default
+        context["stderr"] = result.stderr if hasattr(result, "stderr") and result.stderr else ""
+        context["exit_code"] = result.exit_code
+    finally:
+        monkeypatch.chdir(original_cwd)
 
 
 # ============================================================================

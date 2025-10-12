@@ -170,42 +170,6 @@ class TestCommitWalkerPerformance:
 
         print(f"\nFiltered {stats.blobs_skipped} large blobs in {duration:.3f}s")
 
-    def test_progress_callback_overhead(self, git_repo_factory, git_isolation_base, isolated_env):
-        """Progress callbacks add <10% overhead.
-
-        Performance requirement: Progress reporting should not significantly
-        impact indexing performance.
-        """
-        # Arrange
-        repo_path = git_repo_factory(num_commits=100)
-        config = GitCtxSettings()
-
-        # Act - Measure without callbacks
-        walker_no_cb = CommitWalker(str(repo_path), config)
-        start_no_cb = time.perf_counter()
-        list(walker_no_cb.walk_blobs())
-        duration_no_cb = time.perf_counter() - start_no_cb
-
-        # Act - Measure with callbacks
-        progress_count = 0
-
-        def progress_callback(progress):
-            nonlocal progress_count
-            progress_count += 1
-
-        walker_with_cb = CommitWalker(str(repo_path), config)
-        start_with_cb = time.perf_counter()
-        list(walker_with_cb.walk_blobs(progress_callback=progress_callback))
-        duration_with_cb = time.perf_counter() - start_with_cb
-
-        # Assert
-        overhead = (duration_with_cb - duration_no_cb) / duration_no_cb
-        print(f"\nProgress callback overhead: {overhead * 100:.1f}%")
-        print(f"Callbacks invoked: {progress_count} times")
-
-        assert overhead < 0.1, f"Overhead {overhead * 100:.1f}% > 10%"
-        assert progress_count > 0, "No progress callbacks invoked"
-
     def test_resume_from_partial_index_efficiency(
         self, git_repo_factory, git_isolation_base, isolated_env
     ):

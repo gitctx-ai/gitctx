@@ -28,14 +28,6 @@ class TestOpenAIEmbedderInitialization:
             OpenAIEmbedder(api_key="")
         assert "OpenAI API key required" in str(exc_info.value)
 
-    def test_init_with_invalid_api_key_raises_config_error(self, isolated_env):
-        """Test initialization with non-sk- API key raises ConfigurationError."""
-        from gitctx.embeddings.openai_embedder import OpenAIEmbedder
-
-        with pytest.raises(ConfigurationError) as exc_info:
-            OpenAIEmbedder(api_key="invalid-key")  # pragma: allowlist secret
-        assert "must start with 'sk-'" in str(exc_info.value)
-
     def test_init_configures_langchain_correctly(self, isolated_env):
         """Test LangChain configuration has correct model and dimensions."""
         from gitctx.embeddings.openai_embedder import OpenAIEmbedder

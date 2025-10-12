@@ -132,12 +132,15 @@ def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -
 
 
 @pytest.fixture
-def e2e_cli_runner(e2e_git_isolation_env: dict[str, str]) -> CliRunner:
+def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch) -> CliRunner:
     """
     CLI runner with isolated environment.
 
     Uses CliRunner with complete environment isolation for testing
     gitctx CLI commands safely.
+
+    CRITICAL: Clears sensitive environment variables to prevent
+    leakage from developer's shell into in-process tests.
 
     Returns:
         CliRunner: Runner configured with isolated environment
@@ -147,6 +150,11 @@ def e2e_cli_runner(e2e_git_isolation_env: dict[str, str]) -> CliRunner:
             result = e2e_cli_runner.invoke(app, ["--version"])
             assert result.exit_code == 0
     """
+    # Clear sensitive env vars that might leak from developer's shell
+    # These will be set explicitly by tests when needed
+    for var in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GITCTX_API_KEY"]:
+        monkeypatch.delenv(var, raising=False)
+
     return CliRunner(env=e2e_git_isolation_env)
 
 
@@ -387,7 +395,6 @@ def vcr_config():
             "api_key",
         ],
         "decode_compressed_response": True,
-        "allow_playback_repeats": True,  # Allow same request multiple times
     }
 
 

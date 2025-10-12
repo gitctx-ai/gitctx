@@ -63,7 +63,6 @@ class TestConfigIntegration:
         # Verify error message is helpful
         error_msg = str(exc_info.value)
         assert "OpenAI API key required" in error_msg
-        assert "sk-" in error_msg
         assert "OPENAI_API_KEY" in error_msg or "settings" in error_msg
 
     def test_embedder_respects_env_var(self, isolated_env: Path, monkeypatch) -> None:
@@ -83,24 +82,6 @@ class TestConfigIntegration:
         # ASSERT - Embedder should be initialized
         assert embedder is not None
         assert embedder.MODEL == "text-embedding-3-large"
-
-    def test_embedder_requires_sk_prefix(self, isolated_env: Path) -> None:
-        """OpenAIEmbedder validates API key format (must start with 'sk-').
-
-        Given: An invalid API key not starting with 'sk-'
-        When: I attempt to initialize OpenAIEmbedder
-        Then: ConfigurationError is raised
-        """
-        # ARRANGE - Invalid API key
-        invalid_key = "invalid-key-without-prefix"
-
-        # ACT & ASSERT - Should raise ConfigurationError
-        with pytest.raises(ConfigurationError) as exc_info:
-            OpenAIEmbedder(api_key=invalid_key)
-
-        # Verify error message mentions format
-        error_msg = str(exc_info.value)
-        assert "sk-" in error_msg
 
     def test_embedder_rejects_empty_api_key(self, isolated_env: Path) -> None:
         """OpenAIEmbedder rejects empty API key.
