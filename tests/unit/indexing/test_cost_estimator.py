@@ -261,10 +261,10 @@ def authenticate_user(username: str, password: str) -> bool:
         repo = tmp_path / "test_repo"
         repo.mkdir()
 
-        # Create files with Unicode content
-        (repo / "chinese.py").write_text('greeting = "你好世界"  # Hello World')
-        (repo / "emoji.py").write_text('status = "✅ Complete 🎉"')
-        (repo / "mixed.py").write_text('text = "Hello мир 世界 🌍"')
+        # Create files with Unicode content (explicit UTF-8 for Windows compat)
+        (repo / "chinese.py").write_text('greeting = "你好世界"  # Hello World', encoding="utf-8")
+        (repo / "emoji.py").write_text('status = "✅ Complete 🎉"', encoding="utf-8")
+        (repo / "mixed.py").write_text('text = "Hello мир 世界 🌍"', encoding="utf-8")
 
         estimator = CostEstimator()
         result = estimator.estimate_repo_cost(repo)
