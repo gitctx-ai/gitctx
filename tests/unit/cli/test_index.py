@@ -1,6 +1,7 @@
 """Unit tests for index command."""
 
 import subprocess
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
@@ -64,16 +65,16 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
                 return
 
             if verbose:
-                print("→ Walking commit graph", file=__import__("sys").stderr)
-                print("→ Generating embeddings", file=__import__("sys").stderr)
-                print("\n✓ Indexing Complete\n", file=__import__("sys").stderr)
-                print("Statistics:", file=__import__("sys").stderr)
-                print("  Commits:      1", file=__import__("sys").stderr)
-                print("  Unique blobs: 1", file=__import__("sys").stderr)
-                print("  Chunks:       10", file=__import__("sys").stderr)
-                print("  Tokens:       50", file=__import__("sys").stderr)
-                print("  Cost:         $0.0001", file=__import__("sys").stderr)
-                print("  Time:         0:00:01", file=__import__("sys").stderr)
+                print("→ Walking commit graph", file=sys.stderr)
+                print("→ Generating embeddings", file=sys.stderr)
+                print("\n✓ Indexing Complete\n", file=sys.stderr)
+                print("Statistics:", file=sys.stderr)
+                print("  Commits:      1", file=sys.stderr)
+                print("  Unique blobs: 1", file=sys.stderr)
+                print("  Chunks:       10", file=sys.stderr)
+                print("  Tokens:       50", file=sys.stderr)
+                print("  Cost:         $0.0001", file=sys.stderr)
+                print("  Time:         0:00:01", file=sys.stderr)
             else:
                 # Terse mode - single line
                 print("Indexed 1 commits (1 unique blobs) in 0.1s")
