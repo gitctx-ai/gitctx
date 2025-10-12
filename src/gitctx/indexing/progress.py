@@ -223,7 +223,7 @@ class CostEstimator:
         sample_bytes = 0
         for file_path in sampled_files:
             try:
-                content = file_path.read_text()
+                content = file_path.read_text(encoding="utf-8")
                 # Take up to SAMPLE_SIZE_BYTES from each file
                 sample_chunk = content[: self.SAMPLE_SIZE_BYTES]
                 sample_content.append(sample_chunk)
@@ -254,7 +254,7 @@ class CostEstimator:
         total_lines = 0
         for file_path in indexable_files:
             try:
-                content = file_path.read_text()
+                content = file_path.read_text(encoding="utf-8")
                 total_bytes += len(content.encode("utf-8"))
                 total_lines += len(content.splitlines())
             except (UnicodeDecodeError, PermissionError, OSError):
