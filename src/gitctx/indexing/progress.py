@@ -289,6 +289,7 @@ class CostEstimator:
         # Count total content size across all files
         total_bytes = 0
         total_lines = 0
+        total_chars = 0
         for file_path in indexable_files:
             try:
                 # Read as bytes for accurate byte counting, decode for line counting
@@ -297,12 +298,12 @@ class CostEstimator:
                     content = content_bytes.decode("utf-8", errors="ignore")
                 total_bytes += len(content_bytes)
                 total_lines += len(content.splitlines())
+                total_chars += len(content)
             except (UnicodeDecodeError, PermissionError, OSError):
                 continue
 
         # Estimate total tokens using chars-per-token ratio from sample
         # Use character count (not bytes) for accurate token estimation
-        total_chars = total_bytes  # Approximate: UTF-8 bytes ≈ chars for ASCII/code
         estimated_tokens = int(total_chars / chars_per_token)
 
         # Calculate cost
