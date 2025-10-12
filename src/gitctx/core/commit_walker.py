@@ -89,6 +89,9 @@ class CommitWalker:
         # Accumulate blob locations for denormalized storage
         self.blob_locations: dict[str, list[BlobLocation]] = {}
 
+        # Cache unique blob count for O(1) progress reporting
+        self._unique_blobs_count: int = 0
+
         # Build HEAD tree blob set for O(1) is_head lookup
         # For bare repos, this will be empty (no HEAD working tree)
         self.head_blobs: set[str] = self._build_head_tree()
@@ -334,6 +337,7 @@ class CommitWalker:
                 # Accumulate location
                 if blob_sha not in self.blob_locations:
                     self.blob_locations[blob_sha] = []
+                    self._unique_blobs_count += 1
                 self.blob_locations[blob_sha].append(location)
 
             elif entry.type_str == "tree":
@@ -378,7 +382,7 @@ class CommitWalker:
                 progress = WalkProgress(
                     commits_seen=self.stats.commits_seen,
                     total_commits=None,  # Unknown total
-                    unique_blobs_found=len(self.blob_locations),
+                    unique_blobs_found=self._unique_blobs_count,
                     current_commit=commit_metadata,
                 )
                 progress_callback(progress)
