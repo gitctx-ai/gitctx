@@ -86,7 +86,7 @@ async def index_repository(
 
         # Handle empty repository
         if blob_count == 0:
-            print("No files to index")
+            print("No files to index", file=sys.stderr)
             return
 
         # Final walk phase update

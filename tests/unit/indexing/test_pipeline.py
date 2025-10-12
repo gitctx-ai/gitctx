@@ -236,9 +236,9 @@ async def test_empty_repository_exits_early(tmp_path, capsys):
 
         await index_repository(repo_path, mock_settings)
 
-    # Verify "No files to index" message
+    # Verify "No files to index" message (sent to stderr)
     captured = capsys.readouterr()
-    assert "No files to index" in captured.out
+    assert "No files to index" in captured.err
 
 
 @pytest.mark.anyio

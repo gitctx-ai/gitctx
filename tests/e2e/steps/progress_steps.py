@@ -328,10 +328,10 @@ def check_no_files_message(context: dict[str, Any]) -> None:
     """Verify empty repository shows appropriate message.
 
     Args:
-        context: BDD context with stdout
+        context: BDD context with stderr (message sent to stderr for consistency)
     """
-    stdout = context["stdout"]
-    assert "No files to index" in stdout, f"Expected 'No files to index' in stdout:\n{stdout}"
+    stderr = context["stderr"]
+    assert "No files to index" in stderr, f"Expected 'No files to index' in stderr:\n{stderr}"
 
 
 @then(parsers.parse("exit code should be {code:d}"))
