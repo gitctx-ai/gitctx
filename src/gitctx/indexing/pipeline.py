@@ -4,11 +4,15 @@ This module provides the main index_repository function that orchestrates
 the full indexing pipeline with TUI_GUIDE-compliant progress reporting.
 """
 
+import logging
 import sys
 from pathlib import Path
 
 from gitctx.core.config import GitCtxSettings
+from gitctx.indexing.formatting import format_cost, format_number
 from gitctx.indexing.progress import CostEstimator, ProgressReporter
+
+logger = logging.getLogger(__name__)
 
 
 async def index_repository(
@@ -34,11 +38,13 @@ async def index_repository(
         estimator = CostEstimator()
         estimate = estimator.estimate_repo_cost(repo_path)
 
-        print(f"Files:        {estimate['total_files']:,}")
-        print(f"Lines:        {estimate['total_lines']:,}")
-        print(f"Est. tokens:  {estimate['estimated_tokens']:,}")
-        print(f"Est. cost:    ${estimate['estimated_cost']:.4f}")
-        print(f"Range:        ${estimate['min_cost']:.4f} - ${estimate['max_cost']:.4f} (±10%)")
+        print(f"Files:        {format_number(estimate['total_files'])}")
+        print(f"Lines:        {format_number(estimate['total_lines'])}")
+        print(f"Est. tokens:  {format_number(estimate['estimated_tokens'])}")
+        print(f"Est. cost:    {format_cost(estimate['estimated_cost'])}")
+        print(
+            f"Range:        {format_cost(estimate['min_cost'])} - {format_cost(estimate['max_cost'])} (±10%)"
+        )
         return
 
     # Import pipeline components (lazy import to avoid circular dependencies)
@@ -149,13 +155,27 @@ async def index_repository(
                 )
 
             except UnicodeDecodeError:
-                # Skip binary files
+                # Skip binary files (expected for non-text content)
+                file_path = (
+                    blob_record.locations[0].file_path if blob_record.locations else blob_record.sha
+                )
+                logger.debug(
+                    "Skipping binary file %s (UnicodeDecodeError)",
+                    file_path,
+                    exc_info=True,
+                )
                 reporter.record_error()
                 continue
             except Exception as e:
-                # Log error and continue
+                # Log error with full traceback for debugging, show brief message to user
                 file_path = (
                     blob_record.locations[0].file_path if blob_record.locations else blob_record.sha
+                )
+                logger.debug(
+                    "Error processing blob %s (sha: %s)",
+                    file_path,
+                    blob_record.sha,
+                    exc_info=True,
                 )
                 print(f"Error processing {file_path}: {e}", file=sys.stderr)
                 reporter.record_error()

@@ -145,6 +145,44 @@ uv run pytest tests/e2e/test_progress_tracking_features.py::test_name
 - **No secrets in cassettes**: All sensitive data removed
 - **Safe to commit**: Cassettes contain only response data
 
+### Security Audit Checklist (After Recording)
+
+**IMPORTANT**: Always audit cassettes after recording to verify filters worked correctly.
+
+```bash
+# 1. Check for API keys
+grep -r "sk-" tests/e2e/cassettes/*.yaml
+grep -r "Bearer" tests/e2e/cassettes/*.yaml
+
+# 2. Check for authorization headers
+grep -r "authorization:" tests/e2e/cassettes/*.yaml
+
+# 3. Check for any tokens
+grep -r "token.*:" tests/e2e/cassettes/*.yaml | grep -v "total_tokens"
+
+# 4. Verify filters applied (should see no results)
+# If any matches found: DO NOT COMMIT
+```
+
+**If credentials found:**
+
+1. Delete cassettes: `rm tests/e2e/cassettes/*.yaml`
+2. Verify VCR config filters in `tests/e2e/conftest.py`:
+   ```python
+   "filter_headers": ["authorization", "x-api-key", "api-key"]
+   ```
+3. Re-record cassettes
+4. Re-run audit checklist
+
+**VCR Filter Configuration** (tests/e2e/conftest.py:389-396):
+
+The following filters are applied automatically:
+- `authorization` headers (strips Bearer tokens)
+- `x-api-key` headers
+- `api-key` parameters in POST bodies
+
+Cassettes committed without proper filtering can leak credentials! Always audit before committing.
+
 ## Size Considerations
 
 Cassettes contain full embedding vectors (3072 dimensions × 8 bytes = ~24KB per embedding).
