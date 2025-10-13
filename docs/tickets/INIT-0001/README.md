@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ████████░░ ~68% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 31/31 points, 41/60 total points)
+**Progress**: ████████░░ ~76% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 31/31 points, 41/54 total points)
 
 ## Objective
 
@@ -28,10 +28,10 @@ Build the core functionality users need to search their codebase intelligently. 
 
 ### Functional Requirements
 
-- ⬜ CLI responds to all commands
-- ⬜ Repository indexing completes successfully
+- ✅ CLI responds to all commands
+- ✅ Repository indexing completes successfully
 - ⬜ Search returns relevant results
-- ⬜ Configuration management works
+- ✅ Configuration management works
 
 ### Performance Targets
 
@@ -86,12 +86,12 @@ Build the core functionality users need to search their codebase intelligently. 
 ### Real Indexing (EPIC-0001.2)
 
 - ✅ Commit graph walker with blob deduplication (STORY-0001.2.1 complete)
-- ⬜ Smart text chunking with overlap (STORY-0001.2.2 - planned)
-- ⬜ OpenAI embedding generation (STORY-0001.2.3 - planned)
+- ✅ Smart text chunking with overlap (STORY-0001.2.2 complete)
+- ✅ OpenAI embedding generation (STORY-0001.2.3 complete)
 - ✅ LanceDB storage (STORY-0001.2.4 complete)
-- ⬜ Progress tracking and cost estimation (STORY-0001.2.5 - planned)
+- ✅ Progress tracking and cost estimation (STORY-0001.2.5 complete)
 
-**Progress**: 9/25 story points complete (36%)
+**Progress**: 31/31 story points complete (100%) ✅
 
 ### Vector Search (EPIC-0001.3)
 
@@ -186,5 +186,5 @@ The MVP is complete when:
 ---
 
 **Created**: 2025-09-28
-**Last Updated**: 2025-10-05
+**Last Updated**: 2025-10-12
 **Review Schedule**: Weekly during active development
