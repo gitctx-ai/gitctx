@@ -282,3 +282,92 @@ def results_displayed(context: dict[str, Any]) -> None:
     )
 
     assert has_results, f"No results found in output: {output}"
+
+
+# ===== STORY-0001.3.2: Stub Step Definitions (Pending Implementation) =====
+
+
+@then(parsers.parse('results should match query "{query}"'))
+def results_match_query(query: str, context: dict[str, Any]) -> None:
+    """Verify search results semantically match the query (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.2")
+
+
+@then(parsers.parse("exactly {n:d} results should be shown"))
+def exactly_n_results(n: int, context: dict[str, Any]) -> None:
+    """Verify exact number of results returned (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.3")
+
+
+@when(parsers.parse('I pipe "{text}" to "{command}"'))
+def pipe_text_to_command(text: str, command: str, context: dict[str, Any], e2e_cli_runner) -> None:
+    """Pipe text to command via stdin (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.2")
+
+
+@then("results should be sorted by _distance ascending (0.0 = best match first)")
+def results_sorted_by_distance(context: dict[str, Any]) -> None:
+    """Verify results sorted by similarity score (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.3")
+
+
+@then(parsers.parse("each result should show cosine similarity score between {min:f} and {max:f}"))
+def each_result_shows_score(min: float, max: float, context: dict[str, Any]) -> None:
+    """Verify each result has score in range (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.3")
+
+
+@given(parsers.parse('an indexed repository with 20+ chunks containing "{keyword}" keyword'))
+def indexed_repo_with_keyword_chunks(
+    keyword: str,
+    context: dict[str, Any],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    e2e_git_isolation_env: dict[str, Any],
+) -> None:
+    """Create indexed repository with 20+ chunks containing keyword (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.3")
+
+
+@given("no index exists at .gitctx/db/lancedb/")
+def no_index_exists(
+    context: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ensure no index directory exists (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.3")
+
+
+@when(parsers.parse('I run "{command}" with empty stdin in non-interactive terminal'))
+def run_with_empty_stdin(command: str, context: dict[str, Any], e2e_cli_runner) -> None:
+    """Run command with empty stdin in non-interactive mode (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.2")
+
+
+@given(parsers.parse("an indexed repository with {chunk_count:d} chunks"))
+def indexed_repo_with_n_chunks(
+    chunk_count: int,
+    context: dict[str, Any],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    e2e_git_isolation_env: dict[str, Any],
+) -> None:
+    """Create indexed repository with exactly N chunks (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.4")
+
+
+@when(parsers.parse('I run search {count:d} times with query "{query}"'))
+def run_search_n_times(count: int, query: str, context: dict[str, Any], e2e_cli_runner) -> None:
+    """Run search command N times for performance testing (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.4")
+
+
+@then(parsers.parse("p95 response time should be under {threshold:f} seconds"))
+def p95_under_threshold(threshold: float, context: dict[str, Any]) -> None:
+    """Verify p95 latency meets threshold (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.4")
+
+
+@then(parsers.parse("all requests should complete within {max_time:f} seconds"))
+def all_requests_within_time(max_time: float, context: dict[str, Any]) -> None:
+    """Verify max latency meets threshold (stub)."""
+    raise NotImplementedError("Pending TASK-0001.3.2.4")

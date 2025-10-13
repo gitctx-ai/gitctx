@@ -351,3 +351,67 @@ def test_search_embedding_error_exits_with_code_5(
         assert result.exit_code == 5
         output = result.stdout + result.stderr
         assert "API rate limit" in output
+
+
+@pytest.mark.skip(reason="Pending TASK-0001.3.2.3")
+def test_corrupted_index_missing_table(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """Test search with missing code_chunks table (corrupted LanceDB index).
+
+    Scenario: .gitctx/db/lancedb directory exists but code_chunks table is missing.
+    Expected: Exit code 1 with helpful error message suggesting re-indexing.
+    """
+    # ARRANGE - Set up minimal repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure (directory exists but table doesn't)
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # Mock settings
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+
+    # ACT & ASSERT - Mock lancedb.connect to raise TableNotFoundError
+    import lancedb
+
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("lancedb.connect") as mock_connect,
+    ):
+        mock_db = Mock()
+        mock_db.open_table.side_effect = lancedb.TableNotFoundError("code_chunks not found")
+        mock_connect.return_value = mock_db
+
+        result = isolated_cli_runner.invoke(app, ["search", "test"])
+
+        assert result.exit_code == 1
+        output = result.stdout + result.stderr
+        assert "Error: Index corrupted" in output
+        assert "gitctx clear && gitctx index" in output
