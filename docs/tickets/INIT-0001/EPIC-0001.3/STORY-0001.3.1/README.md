@@ -3,7 +3,7 @@
 **Parent Epic**: [EPIC-0001.3](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 4
-**Progress**: ██████░░░░ 60%
+**Progress**: ████████░░ 80%
 
 ## User Story
 
@@ -401,8 +401,8 @@ def test_concurrent_cache_writes():
 | [TASK-0001.3.1.0](./TASK-0001.3.1.0.md) | Architecture refactor for clean module boundaries | ✅ Complete | 5-6 | 0/5 → 0/5 (no BDD, pure refactor) |
 | [TASK-0001.3.1.1](./TASK-0001.3.1.1.md) | Write BDD scenarios for query embedding | ✅ Complete | 3 | 0/5 → 0/5 (all failing, red phase) |
 | [TASK-0001.3.1.2](./TASK-0001.3.1.2.md) | Model registry and provider infrastructure | ✅ Complete | 3 | 0/5 → 0/5 (infra complete, BDD deferred to TASK-3) |
-| [TASK-0001.3.1.3](./TASK-0001.3.1.3.md) | Core query embedding implementation (TDD) | 🔵 Not Started | 8 | 1/5 → 4/5 (validation, cache, errors) |
-| [TASK-0001.3.1.4](./TASK-0001.3.1.4.md) | Integration and E2E verification | 🔵 Not Started | 2 | 4/5 → 5/5 (all passing ✅) |
+| [TASK-0001.3.1.3](./TASK-0001.3.1.3.md) | Core query embedding implementation (TDD) | ✅ Complete | 9 | 0/5 → 0/5 (BDD stubs for TASK-4) |
+| [TASK-0001.3.1.4](./TASK-0001.3.1.4.md) | Integration and E2E verification | 🔵 Not Started | 2 | 0/5 → 5/5 (all passing ✅) |
 
 **Total Estimated Hours**: 21-22 hours (≈5 story points at 4h/point)
 
@@ -445,3 +445,13 @@ Scenarios will be implemented incrementally across tasks.
 **Created**: 2025-10-12
 **Last Updated**: 2025-10-12
 **Planning Complete**: 2025-10-12 (5 tasks defined, ready for implementation)
+
+## Recent Progress
+
+**2025-10-12**: TASK-0001.3.1.3 completed
+- QueryEmbedder implemented with validation, caching, and error handling
+- 16/16 unit tests passing (12 embedding + 4 cache)
+- CLI integration complete with proper exit codes (2, 4, 5)
+- BDD step definitions stubbed for TASK-0001.3.1.4
+- Quality gates: All passing (ruff, mypy)
+- Commits: 1df41af, 3b321da, 60d9ac3
