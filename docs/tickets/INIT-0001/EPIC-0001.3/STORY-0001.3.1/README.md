@@ -1,9 +1,9 @@
 # STORY-0001.3.1: Query Embedding Generation
 
 **Parent Epic**: [EPIC-0001.3](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Story Points**: 4
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: ██░░░░░░░░ 20%
 
 ## User Story
 
@@ -25,10 +25,13 @@ So that I can perform semantic code search based on meaning rather than exact te
   - Check `OPENAI_API_KEY` env var and `~/.gitctx/config.yml`
   - Error: `"Error: OpenAI API key not configured\nSet with: export OPENAI_API_KEY=sk-...\nOr run: gitctx config set api_keys.openai sk-..."`
 - [ ] API error handling via unit tests (exit code 5):
-  - HTTP 429 → `"Error: API rate limit exceeded. Wait 60 seconds and retry."`
-  - HTTP 5xx → `"Error: OpenAI API unavailable. Retry in a few moments."`
-  - Timeout (>30s) → `"Error: Request timeout after 30s. Check network and retry."`
+  - HTTP 429 → `"Error: API rate limit exceeded (429). Retry after 60 seconds or check usage limits at https://platform.openai.com/account/rate-limits"`
+  - HTTP 5xx → `"Error: OpenAI API unavailable (HTTP {status_code}). Service may be down. Check status at https://status.openai.com and retry in 1-2 minutes."`
+  - Timeout (>30s) → `"Error: Request timeout after 30 seconds. Verify internet connection and firewall settings. Retry with shorter query if issue persists."`
   - Connection refused → `"Error: Cannot connect to OpenAI API. Verify network access."`
+  - HTTP 401 → `"Error: API key rejected (invalid or revoked). Get new key at https://platform.openai.com/api-keys"`
+- [ ] Malformed query validation (exit code 2):
+  - Query with null bytes → `"Error: Query contains invalid characters (null bytes)"`
 - [ ] Query embeddings cached in LanceDB `query_embeddings` table:
   - Schema: `{cache_key: str (SHA256), query_text: str, embedding: vector[3072], model_name: str, created_at: timestamp}`
   - Cache key: `SHA256(query_text + model_name)`
@@ -56,7 +59,7 @@ Scenario: Cached query embedding reused (no API call)
   And query "database setup" was previously searched
   When I run "gitctx search 'database setup'"
   Then the exit code should be 0
-  And cached embedding should be used
+  And results should be displayed
 
 Scenario: Missing API key (exit code 4)
   Given an indexed repository
@@ -395,7 +398,7 @@ def test_concurrent_cache_writes():
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.3.1.0](./TASK-0001.3.1.0.md) | Architecture refactor for clean module boundaries | 🔵 Not Started | 5-6 | 0/5 → 0/5 (no BDD, pure refactor) |
+| [TASK-0001.3.1.0](./TASK-0001.3.1.0.md) | Architecture refactor for clean module boundaries | ✅ Complete | 5-6 | 0/5 → 0/5 (no BDD, pure refactor) |
 | [TASK-0001.3.1.1](./TASK-0001.3.1.1.md) | Write BDD scenarios for query embedding | 🔵 Not Started | 3 | 0/5 → 0/5 (all failing, red phase) |
 | [TASK-0001.3.1.2](./TASK-0001.3.1.2.md) | Model registry and provider infrastructure | 🔵 Not Started | 3 | 0/5 → 1/5 (first scenario with VCR) |
 | [TASK-0001.3.1.3](./TASK-0001.3.1.3.md) | Core query embedding implementation (TDD) | 🔵 Not Started | 8 | 1/5 → 4/5 (validation, cache, errors) |
