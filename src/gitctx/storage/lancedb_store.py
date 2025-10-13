@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 
 import lancedb
+import numpy as np
 import pyarrow as pa
+from numpy.typing import NDArray
 
 from gitctx.git.types import BlobLocation
 from gitctx.indexing.types import Embedding
@@ -343,17 +345,15 @@ class LanceDBStore:
         self.metadata_table.add([state])
         logger.info(f"Saved index state: {len(indexed_blobs)} blobs indexed at {last_commit[:8]}")
 
-    def get_query_embedding(self, cache_key: str) -> Any | None:
+    def get_query_embedding(self, cache_key: str) -> NDArray[np.floating] | None:  # type: ignore[no-any-unimported]
         """Check if query embedding cached.
 
         Args:
             cache_key: SHA256 hash of (query_text + model_name)
 
         Returns:
-            Cached embedding vector or None if not found
+            Cached embedding vector (float32 array) or None if not found
         """
-        import numpy as np
-
         try:
             table = self.db.open_table("query_embeddings")
             results = table.search().where(f"cache_key = '{cache_key}'").limit(1).to_list()
@@ -362,8 +362,12 @@ class LanceDBStore:
             # Table doesn't exist yet or query not found
             return None
 
-    def cache_query_embedding(
-        self, cache_key: str, query_text: str, embedding: Any, model_name: str
+    def cache_query_embedding(  # type: ignore[no-any-unimported]
+        self,
+        cache_key: str,
+        query_text: str,
+        embedding: NDArray[np.floating],
+        model_name: str,
     ) -> None:
         """Store query embedding with metadata.
 

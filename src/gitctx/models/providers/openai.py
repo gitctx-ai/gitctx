@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+import numpy as np
 from langchain_openai import OpenAIEmbeddings
+from numpy.typing import NDArray
 from pydantic import SecretStr
 
 from gitctx.config.errors import ConfigurationError
 from gitctx.indexing.types import CodeChunk, Embedding
 from gitctx.models.errors import DimensionMismatchError
-
-if TYPE_CHECKING:
-    import numpy as np
 
 
 class OpenAIEmbedder:
@@ -226,14 +225,14 @@ class OpenAIProvider:
         """Provider name (e.g., 'openai')."""
         return self.spec["provider"]
 
-    def embed_query(self, text: str) -> np.ndarray:  # type: ignore[no-any-unimported]
+    def embed_query(self, text: str) -> NDArray[np.floating]:  # type: ignore[no-any-unimported]
         """Generate embedding for single query text.
 
         Args:
             text: Query text to embed
 
         Returns:
-            numpy array of shape (dimensions,)
+            numpy array of shape (dimensions,) with float32 values
 
         Examples:
             >>> provider = OpenAIProvider("text-embedding-3-large", "sk-...")
@@ -241,19 +240,17 @@ class OpenAIProvider:
             >>> vector.shape
             (3072,)
         """
-        import numpy as np
-
         embedding = self._client.embed_query(text)
-        return np.array(embedding)  # type: ignore[no-any-return]
+        return np.array(embedding)
 
-    def embed_documents(self, texts: list[str]) -> list[np.ndarray]:  # type: ignore[no-any-unimported]
+    def embed_documents(self, texts: list[str]) -> list[NDArray[np.floating]]:  # type: ignore[no-any-unimported]
         """Generate embeddings for multiple documents.
 
         Args:
             texts: List of document texts to embed
 
         Returns:
-            List of numpy arrays, each of shape (dimensions,)
+            List of numpy arrays, each of shape (dimensions,) with floating point values
 
         Examples:
             >>> provider = OpenAIProvider("text-embedding-3-large", "sk-...")
@@ -261,7 +258,5 @@ class OpenAIProvider:
             >>> len(vectors)
             2
         """
-        import numpy as np
-
         embeddings = self._client.embed_documents(texts)
         return [np.array(emb) for emb in embeddings]

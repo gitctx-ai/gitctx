@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import openai
 import tiktoken
+from numpy.typing import NDArray
 
 from gitctx.config.errors import ConfigurationError
 from gitctx.models.factory import get_embedder
@@ -44,14 +45,14 @@ class QueryEmbedder:
         """
         return hashlib.sha256(f"{query}{self.model_name}".encode()).hexdigest()
 
-    def embed_query(self, query: str) -> np.ndarray:  # type: ignore[no-any-unimported]
+    def embed_query(self, query: str) -> NDArray[np.floating]:  # type: ignore[no-any-unimported]
         """Generate or retrieve cached query embedding.
 
         Args:
             query: Query text to embed
 
         Returns:
-            numpy array of shape (dimensions,)
+            numpy array of shape (dimensions,) with float32 values
 
         Raises:
             ValidationError: If query validation fails
@@ -63,7 +64,7 @@ class QueryEmbedder:
         cache_key = self.get_cache_key(query)
         cached_vector = self.store.get_query_embedding(cache_key)
         if cached_vector is not None:
-            return cached_vector  # type: ignore[no-any-return]
+            return cached_vector
 
         # Generate embedding with error handling
         try:
@@ -102,7 +103,7 @@ class QueryEmbedder:
             raise EmbeddingError(f"Unexpected error during embedding generation: {err}") from err
 
         # Cache result
-        self.store.cache_query_embedding(cache_key, query, query_vector, self.model_name)
+        self.store.cache_query_embedding(cache_key, query, query_vector, self.model_name)  # type: ignore[no-any-unimported]
 
         return query_vector
 
