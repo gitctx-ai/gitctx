@@ -40,7 +40,7 @@ def get_embedder(model_name: str, settings: GitCtxSettings) -> OpenAIProvider:
         api_key = settings.get("api_keys.openai")
         if not api_key:
             raise ConfigurationError(
-                "OpenAI API key not configured\n"
+                "Error: OpenAI API key not configured\n"
                 "Set with: export OPENAI_API_KEY=sk-...\n"
                 "Or run: gitctx config set api_keys.openai sk-..."
             )

@@ -1,6 +1,7 @@
 """Step definitions for CLI tests."""
 
 import os
+import shlex
 import sys
 from pathlib import Path
 from typing import Any
@@ -44,21 +45,15 @@ def run_command(
     """
     from gitctx.cli.main import app
 
-    # Check if custom env vars were set by previous @given steps
-    if "custom_env" in context:
-        # Merge custom env with isolated env via monkeypatch
-        for key, value in context["custom_env"].items():
-            monkeypatch.setenv(key, value)
-        # Clear for next scenario
-        context.pop("custom_env")
-
-    # Parse the command to extract args
+    # Parse the command to extract args using shlex to handle quotes properly
     if command.startswith("gitctx"):
-        # Extract args after "gitctx"
-        args = command.replace("gitctx", "").strip().split() if command.strip() != "gitctx" else []
+        # Use shlex.split to properly handle quoted arguments
+        all_args = shlex.split(command)
+        # Remove 'gitctx' from the beginning
+        args = all_args[1:] if len(all_args) > 1 else []
     else:
-        # For non-gitctx commands, use full command as args
-        args = command.strip().split()
+        # For non-gitctx commands, use shlex.split
+        args = shlex.split(command)
 
     # Change to repo directory if provided
     cwd = context.get("repo_path")
@@ -69,7 +64,11 @@ def run_command(
 
     try:
         # Run CLI in-process with CliRunner
+        # Environment automatically merged from context["custom_env"] by fixture
         result = e2e_cli_runner.invoke(app, args)
+
+        # Clear custom_env after use to prevent leakage to next command
+        context.pop("custom_env", None)
 
         context["result"] = result
         context["stdout"] = result.stdout
@@ -170,14 +169,16 @@ def setup_repo_config(content: str) -> None:
     (config_path / "config.yml").write_text(content.replace("\\n", "\n"))
 
 
-@given(parsers.parse('environment variable "{var}" is "{value}"'))
-def setup_env_var(context: dict[str, Any], var: str, value: str) -> None:
+@given(parsers.re(r'environment variable "(?P<var>[^"]+)" is "(?P<value>.*)"'))
+def setup_env_var(var: str, value: str, context: dict[str, Any]) -> None:
     """Set environment variable for next command execution.
 
     CRITICAL: Stores in context["custom_env"] for run_command to use.
     The run_command step will apply these via monkeypatch before invoking CLI.
 
     Special handling: If value is "$ENV", pulls from os.environ[var]
+
+    Uses regex parser to handle empty strings correctly (parsers.parse doesn't work with "").
     """
 
     if "custom_env" not in context:

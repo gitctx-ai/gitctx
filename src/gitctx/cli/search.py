@@ -1,6 +1,7 @@
 """Search command for gitctx CLI."""
 
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -22,10 +23,10 @@ def register(app: typer.Typer) -> None:
 
 
 def search_command(
-    query: str = typer.Argument(
-        ...,
-        help="The search query to find relevant code and documentation",
-    ),
+    query: Annotated[
+        list[str],
+        typer.Argument(help="The search query to find relevant code and documentation"),
+    ],
     limit: int = typer.Option(
         10,
         "--limit",
@@ -66,6 +67,9 @@ def search_command(
         # MCP mode (structured markdown for AI)
         $ gitctx search "authentication" --mcp
     """
+    # Join variadic query words into single string
+    query_text = " ".join(query)
+
     # Validate mutually exclusive output modes
     if verbose and mcp:
         console_err = Console(stderr=True)
@@ -87,7 +91,7 @@ def search_command(
         ) as progress:
             task = progress.add_task("Generating query embedding...", total=None)
             embedder = QueryEmbedder(settings, store)
-            query_vector = embedder.embed_query(query)  # noqa: F841 (will be used in STORY-0001.3.2)
+            query_vector = embedder.embed_query(query_text)  # noqa: F841 (will be used in STORY-0001.3.2)
             progress.update(task, completed=True)
 
     except ValidationError as err:
@@ -171,7 +175,7 @@ def search_command(
     \"\"\"Test successful authentication.\"\"\"
     response = client.post("/api/login", json={
         "username": "testuser",
-        "password": "testpass123"
+        "password": "testpass123"  # pragma: allowlist secret
     })
     assert response.status_code == 200""",
         },
@@ -186,18 +190,18 @@ def search_command(
         console.print("---")
         console.print("status: success")
         console.print("command: search")
-        console.print(f"query: {query}")
+        console.print(f"query: {query_text}")
         console.print(f"results_count: {len(results_to_show)}")
         console.print("duration_seconds: 0.23")
         console.print("timestamp: 2025-10-04T13:00:00Z")
         console.print("version: 0.1.0")
         console.print("---")
         console.print()
-        console.print(f'# Search Results: "{query}"')
+        console.print(f'# Search Results: "{query_text}"')
         console.print()
         console.print("## Summary")
         console.print()
-        console.print(f"- **Query**: `{query}`")
+        console.print(f"- **Query**: `{query_text}`")
         console.print(f"- **Results**: {len(results_to_show)} matches")
         console.print("- **Duration**: 0.23s")
         console.print("- **Chunks searched**: 5678")

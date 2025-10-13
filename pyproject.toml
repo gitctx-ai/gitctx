@@ -147,8 +147,26 @@ ignore_missing_imports = true
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "gitctx.core.commit_walker"
+module = "gitctx.git.walker"
 warn_unused_ignores = false
+disallow_any_unimported = false
+
+[[tool.mypy.overrides]]
+module = "gitctx.storage.embedding_cache"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "gitctx.models.providers.openai"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "gitctx.search.embeddings"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "openai.*"
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "numpy.*"
@@ -170,10 +188,6 @@ module = "pyarrow.*"
 ignore_missing_imports = true
 follow_imports = "skip"
 
-[[tool.mypy.overrides]]
-module = "gitctx.core.embedding_cache"
-warn_unused_ignores = false
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
@@ -194,6 +208,8 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "anyio: marks tests using anyio for async operations",
+    "vcr: marks tests using VCR cassettes for API recording/replay",
 ]
 
 [tool.coverage.run]

@@ -58,6 +58,11 @@ class QueryEmbedder:
         try:
             embedder = get_embedder(self.model_name, self.settings)
             query_vector = embedder.embed_query(query)
+        except openai.AuthenticationError as err:
+            raise EmbeddingError(
+                "API key rejected (invalid or revoked). "
+                "Get new key at https://platform.openai.com/api-keys"
+            ) from err
         except openai.RateLimitError as err:
             raise EmbeddingError("API rate limit exceeded. Wait 60 seconds and retry.") from err
         except openai.APIStatusError as err:
@@ -85,11 +90,11 @@ class QueryEmbedder:
         """
         # Check not empty
         if not query:
-            raise ValidationError("Query cannot be empty")
+            raise ValidationError("Error: Query cannot be empty")
 
         # Check not whitespace only
         if not query.strip():
-            raise ValidationError("Query cannot be whitespace only")
+            raise ValidationError("Error: Query cannot be whitespace only")
 
         # Check token limit
         spec = get_model_spec(self.model_name)
@@ -98,6 +103,6 @@ class QueryEmbedder:
 
         if token_count > spec["max_tokens"]:
             raise ValidationError(
-                f"Query exceeds {spec['max_tokens']} tokens (got {token_count}). "
+                f"Error: Query exceeds {spec['max_tokens']} tokens (got {token_count}). "
                 f"Try a shorter, more specific query."
             )
