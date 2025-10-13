@@ -75,9 +75,8 @@ class TestUserConfigLoading:
     def test_insecure_permissions_shows_warning(self, isolated_env, capsys):
         """Config should warn when file has insecure permissions."""
 
-        from tests.conftest import is_windows
-
         from gitctx.config.settings import UserConfig
+        from tests.conftest import is_windows
 
         if is_windows():
             # Skip on Windows - permissions work differently

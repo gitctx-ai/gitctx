@@ -222,9 +222,8 @@ class TestErrorHandling:
         """Clear error message for permission denied."""
         import subprocess
 
-        from tests.conftest import is_windows
-
         from gitctx.config.settings import RepoConfig
+        from tests.conftest import is_windows
 
         # Setup
         monkeypatch.chdir(tmp_path)

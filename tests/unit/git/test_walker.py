@@ -14,7 +14,6 @@ import time
 from pathlib import Path
 
 import pytest
-from tests.conftest import is_windows
 
 from gitctx.config.settings import GitCtxSettings
 from gitctx.git.types import BlobLocation, CommitMetadata
@@ -24,6 +23,7 @@ from gitctx.git.walker import (
     PartialCloneError,
     ShallowCloneError,
 )
+from tests.conftest import is_windows
 
 # ============================================================================
 # Core Functionality

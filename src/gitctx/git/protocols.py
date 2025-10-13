@@ -1,11 +1,12 @@
 """Protocols for git operations."""
 
 from collections.abc import Callable, Iterator
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from gitctx.git.types import BlobRecord, WalkProgress, WalkStats
 
 
+@runtime_checkable
 class CommitWalkerProtocol(Protocol):
     """Protocol for commit graph walking - can be fulfilled by Python or Rust.
 
