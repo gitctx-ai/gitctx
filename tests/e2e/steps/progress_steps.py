@@ -158,7 +158,11 @@ def run_index_dry_run(e2e_cli_runner, context: dict[str, Any], monkeypatch) -> N
 
     try:
         # Run CLI in-process with CliRunner (enables VCR cassette recording)
+        # Environment automatically merged from context["custom_env"] by fixture
         result = e2e_cli_runner.invoke(app, ["index", "--dry-run"])
+
+        # Clear custom_env after use
+        context.pop("custom_env", None)
 
         # Store results for Then assertions
         context["stdout"] = result.stdout

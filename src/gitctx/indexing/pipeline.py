@@ -8,7 +8,7 @@ import logging
 import sys
 from pathlib import Path
 
-from gitctx.core.config import GitCtxSettings
+from gitctx.config.settings import GitCtxSettings
 from gitctx.indexing.formatting import format_cost, format_number
 from gitctx.indexing.progress import CostEstimator, ProgressReporter
 
@@ -48,9 +48,9 @@ async def index_repository(
         return
 
     # Import pipeline components (lazy import to avoid circular dependencies)
-    from gitctx.core.chunker import LanguageAwareChunker
-    from gitctx.core.commit_walker import CommitWalker
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
+    from gitctx.git.walker import CommitWalker
+    from gitctx.indexing.chunker import LanguageAwareChunker
+    from gitctx.models.providers.openai import OpenAIEmbedder
     from gitctx.storage.lancedb_store import LanceDBStore
 
     # Initialize components
@@ -105,7 +105,7 @@ async def index_repository(
                 content = blob_record.content.decode("utf-8")
 
                 # Detect language for language-aware chunking (use first location's path)
-                from gitctx.core.language_detection import detect_language_from_extension
+                from gitctx.indexing.language_detection import detect_language_from_extension
 
                 file_path = blob_record.locations[0].file_path
                 language = detect_language_from_extension(file_path)
@@ -126,8 +126,8 @@ async def index_repository(
                 total_cost = sum(e.cost_usd for e in protocol_embeddings)
                 reporter.update(tokens=total_tokens, cost=total_cost)
 
-                # Convert to models.Embedding for storage
-                from gitctx.core.models import Embedding as StorageEmbedding
+                # Convert to storage Embedding format
+                from gitctx.indexing.types import Embedding as StorageEmbedding
 
                 storage_embeddings = []
 
@@ -135,15 +135,16 @@ async def index_repository(
                     storage_embeddings.append(
                         StorageEmbedding(
                             vector=proto_emb.vector,
-                            chunk_content=chunk.content,
                             token_count=chunk.token_count,
+                            model=proto_emb.model,
+                            cost_usd=proto_emb.cost_usd,
                             blob_sha=blob_record.sha,
                             chunk_index=proto_emb.chunk_index,
+                            chunk_content=chunk.content,
                             start_line=chunk.start_line,
                             end_line=chunk.end_line,
                             total_chunks=len(chunks),
                             language=language,
-                            model=proto_emb.model,
                         )
                     )
 

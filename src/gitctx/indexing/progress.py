@@ -337,7 +337,7 @@ class CostEstimator:
         Returns:
             List of Path objects for indexable files
         """
-        from gitctx.core.language_detection import EXTENSION_TO_LANGUAGE
+        from gitctx.indexing.language_detection import EXTENSION_TO_LANGUAGE
 
         supported_extensions = set(EXTENSION_TO_LANGUAGE.keys())
         indexable_files = []

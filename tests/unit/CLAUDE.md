@@ -168,6 +168,73 @@ class TestChunker:
         assert chunks[0].content == text
 ```
 
+## Deterministic Test Data
+
+**CRITICAL: Never use `np.random.rand()` in tests - it creates non-deterministic data that makes debugging impossible when tests fail intermittently.**
+
+### Embedding Vectors
+
+Use the `test_embedding_vector` fixture for all embedding vector generation:
+
+```python
+def test_cache_hit_returns_embedding(tmp_path, test_embedding_vector):
+    """Test that cache hit returns embedding."""
+    store = LanceDBStore(tmp_path / "lancedb")
+
+    # Create deterministic 3072-dim vector (text-embedding-3-large)
+    expected_vector = test_embedding_vector()
+
+    store.cache_query_embedding(cache_key, "test query", expected_vector, model)
+    result = store.get_query_embedding(cache_key)
+
+    # Vectors are predictable and reproducible
+    np.testing.assert_array_almost_equal(result, expected_vector, decimal=6)
+
+def test_small_model_embedding(test_embedding_vector):
+    """Test with different embedding dimensions."""
+    # text-embedding-3-small uses 1536 dimensions
+    vector_small = test_embedding_vector(1536)
+
+    # text-embedding-ada-002 also uses 1536 dimensions
+    vector_ada = test_embedding_vector(1536)
+
+    # Custom dimensions for future models
+    vector_custom = test_embedding_vector(2048)
+```
+
+**Why this matters:**
+- Tests fail consistently if there's a bug (not randomly)
+- Debugging is possible with reproducible data
+- CI/CD results are reliable
+- Code reviews can reason about test behavior
+
+**Anti-pattern:**
+```python
+# ❌ NEVER do this
+vector = np.random.rand(3072)  # Non-deterministic, breaks debugging
+
+# ❌ Even with seed, avoid in tests
+np.random.seed(42)
+vector = np.random.rand(3072)  # Fixture pattern is clearer
+
+# ✅ ALWAYS use the fixture
+vector = test_embedding_vector()  # Deterministic, debuggable, clear intent
+```
+
+### Other Random Data
+
+For non-embedding random data, use seeded generators within tests:
+
+```python
+def test_random_repo_names():
+    """Test with random repo names."""
+    import random
+
+    random.seed(42)  # Explicit seed for reproducibility
+    repo_names = [f"repo_{random.randint(1000, 9999)}" for _ in range(10)]
+    # Test with deterministic "random" names
+```
+
 ## Mocking and Test Isolation
 
 ```python

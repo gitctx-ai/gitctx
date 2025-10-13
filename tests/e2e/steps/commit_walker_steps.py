@@ -6,9 +6,9 @@ from typing import Any
 
 from pytest_bdd import given, parsers, then, when
 
-from gitctx.core.commit_walker import CommitWalker
-from gitctx.core.config import GitCtxSettings
-from gitctx.core.models import BlobRecord, WalkProgress
+from gitctx.config.settings import GitCtxSettings
+from gitctx.git.types import BlobRecord, WalkProgress
+from gitctx.git.walker import CommitWalker
 
 # ===== Scenario: Blob deduplication across commits =====
 

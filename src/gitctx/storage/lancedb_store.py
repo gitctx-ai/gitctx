@@ -9,10 +9,13 @@ from pathlib import Path
 from typing import Any
 
 import lancedb
+import numpy as np
 import pyarrow as pa
+from numpy.typing import NDArray
 
-from gitctx.core.exceptions import DimensionMismatchError
-from gitctx.core.models import BlobLocation, Embedding
+from gitctx.git.types import BlobLocation
+from gitctx.indexing.types import Embedding
+from gitctx.models.errors import DimensionMismatchError
 from gitctx.storage.schema import CHUNK_SCHEMA
 
 logger = logging.getLogger(__name__)
@@ -341,3 +344,76 @@ class LanceDBStore:
 
         self.metadata_table.add([state])
         logger.info(f"Saved index state: {len(indexed_blobs)} blobs indexed at {last_commit[:8]}")
+
+    def get_query_embedding(self, cache_key: str) -> NDArray[np.floating] | None:  # type: ignore[no-any-unimported]
+        """Check if query embedding cached.
+
+        Args:
+            cache_key: SHA256 hash of (query_text + model_name)
+
+        Returns:
+            Cached embedding vector (float32 array) or None if not found
+        """
+        try:
+            table = self.db.open_table("query_embeddings")
+            results = table.search().where(f"cache_key = '{cache_key}'").limit(1).to_list()
+            return np.array(results[0]["embedding"]) if results else None
+        except Exception:
+            # Table doesn't exist yet or query not found
+            return None
+
+    def cache_query_embedding(  # type: ignore[no-any-unimported]
+        self,
+        cache_key: str,
+        query_text: str,
+        embedding: NDArray[np.floating],
+        model_name: str,
+    ) -> None:
+        """Store query embedding with metadata.
+
+        Concurrency: LanceDB operations are atomic at the operation level (each `table.add()`
+        completes fully or not at all). However, LanceDB does NOT support concurrent writes
+        from multiple processes - if multiple processes try to write simultaneously, some
+        operations may fail. For query caching, this is acceptable: failures are rare and
+        users can simply retry their query.
+
+        Note: There is no explicit transaction API in LanceDB Python SDK. The atomicity
+        guarantee applies to individual operations only.
+
+        Args:
+            cache_key: SHA256 hash for lookup
+            query_text: Original query (for debugging)
+            embedding: Embedding vector
+            model_name: Model used to generate embedding
+        """
+        import time
+
+        # Create table if doesn't exist
+        try:
+            table = self.db.open_table("query_embeddings")
+        except Exception:
+            # Create table with schema
+            query_schema = pa.schema(
+                [
+                    pa.field("cache_key", pa.string()),
+                    pa.field("query_text", pa.string()),
+                    pa.field("embedding", pa.list_(pa.float32(), 3072)),
+                    pa.field("model_name", pa.string()),
+                    pa.field("created_at", pa.float64()),
+                ]
+            )
+            table = self.db.create_table("query_embeddings", schema=query_schema)
+
+        # Insert with atomic operation (completes fully or fails)
+        # Multiple concurrent processes may conflict, but this is rare for cache usage
+        table.add(
+            [
+                {
+                    "cache_key": cache_key,
+                    "query_text": query_text,
+                    "embedding": embedding.tolist(),
+                    "model_name": model_name,
+                    "created_at": time.time(),
+                }
+            ]
+        )

@@ -358,15 +358,9 @@ E2E tests use VCR.py to record real OpenAI API responses and replay them in CI.
 **One-Time Recording (Developer):**
 
 ```bash
-# Set real API key
-export OPENAI_API_KEY="sk-real-key-here"
-
-# Record all cassettes using poe task (recommended)
-uv run poe record-cassettes
-
-# Or record manually with pytest
-uv run pytest tests/e2e/test_embedding_features.py --vcr-record=once
-uv run pytest tests/e2e/test_progress_tracking_features.py --vcr-record=once
+# Record cassettes with direnv (loads API key from .envrc)
+direnv exec . uv run pytest tests/e2e/test_embedding_features.py --vcr-record=once
+direnv exec . uv run pytest tests/e2e/test_progress_tracking_features.py --vcr-record=once
 
 # Verify 12 cassettes created
 ls tests/e2e/cassettes/ | wc -l
@@ -376,8 +370,8 @@ ls tests/e2e/cassettes/ | wc -l
 **Re-Recording When API Changes:**
 
 ```bash
-export OPENAI_API_KEY="sk-real-key-here"
-uv run pytest tests/e2e/ --vcr-record=all  # Force re-record
+# Force re-record all cassettes
+direnv exec . uv run pytest tests/e2e/ --vcr-record=all
 ```
 
 **CI/CD Usage (No API Key):**
@@ -433,6 +427,95 @@ def vcr_config():
 ```
 
 See `tests/e2e/cassettes/README.md` for detailed recording instructions and troubleshooting.
+
+### Working with CliRunner and Custom Environments
+
+**AUTOMATIC**: The `e2e_cli_runner` fixture automatically merges `context["custom_env"]` into the environment when `invoke()` is called. No boilerplate needed!
+
+#### How It Works
+
+The fixture wraps `CliRunner.invoke()` to automatically merge custom environment variables:
+
+```python
+@pytest.fixture
+def e2e_cli_runner(e2e_git_isolation_env, monkeypatch, request) -> CliRunner:
+    runner = CliRunner(env=e2e_git_isolation_env)
+
+    # Wrap invoke() to auto-merge context["custom_env"]
+    original_invoke = runner.invoke
+    def invoke_with_auto_env(*args, **kwargs):
+        if 'env' not in kwargs:
+            context = request.getfixturevalue('context')
+            env = runner.env.copy()
+            if "custom_env" in context:
+                env.update(context["custom_env"])
+            kwargs['env'] = env
+        return original_invoke(*args, **kwargs)
+
+    runner.invoke = invoke_with_auto_env
+    return runner
+```
+
+#### Writing Steps (The Easy Way)
+
+Just call `invoke()` normally - environment merges automatically:
+
+```python
+@when('I run "gitctx search query"')
+def run_search(e2e_cli_runner, context: dict[str, Any], monkeypatch) -> None:
+    """Custom When step with API calls."""
+    from gitctx.cli.main import app
+
+    # Change directory if needed
+    if repo_path := context.get("repo_path"):
+        monkeypatch.chdir(repo_path)
+
+    # Just invoke - environment merges automatically!
+    result = e2e_cli_runner.invoke(app, ["search", "query"])
+
+    # Optional: Clear custom_env if you want
+    context.pop("custom_env", None)
+
+    # Store results
+    context["result"] = result
+    context["stdout"] = result.stdout
+    context["exit_code"] = result.exit_code
+```
+
+**No boilerplate needed!** The fixture handles everything.
+
+#### When to Clear `custom_env`
+
+**Clear in "final" invoke steps** (typically `@when` steps):
+- Prevents env leaking to next command in scenario
+- Use `context.pop("custom_env", None)`
+
+**Don't clear in "setup" steps** (typically `@given` steps):
+- Allows multiple invokes to share same env
+- Example: `query_previously_searched` → `run_command`
+
+#### Override Behavior (Advanced)
+
+Pass `env=` explicitly if you need custom behavior:
+
+```python
+# Bypass auto-merge, use completely custom env
+result = e2e_cli_runner.invoke(app, args, env={"CUSTOM": "value"})
+```
+
+#### Why This Matters for VCR
+
+With automatic environment merging:
+- ✅ No boilerplate at invoke sites
+- ✅ API calls succeed with real key during recording
+- ✅ VCR creates cassettes automatically
+- ✅ CI/CD replays cassettes (no key needed)
+- ✅ Less to remember for future test writers
+
+See working examples in:
+- `tests/e2e/steps/cli_steps.py` - `run_command()`
+- `tests/e2e/steps/progress_steps.py` - `run_index_dry_run()`
+- `tests/e2e/steps/search_steps.py` - `query_previously_searched()`
 
 ## Common Patterns
 

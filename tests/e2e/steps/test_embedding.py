@@ -6,8 +6,8 @@ from typing import Any
 import pytest
 from pytest_bdd import given, parsers, then, when
 
-from gitctx.core.embedding_cache import EmbeddingCache
-from gitctx.core.protocols import Embedding
+from gitctx.indexing.types import Embedding
+from gitctx.storage.embedding_cache import EmbeddingCache
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def embedding_context() -> dict[str, Any]:
 @given(parsers.parse("a code chunk with {num_tokens:d} tokens"))
 def code_chunk_with_tokens(embedding_context: dict[str, Any], num_tokens: int) -> None:
     """Create code chunk with specified token count."""
-    from gitctx.core.models import CodeChunk
+    from gitctx.indexing.types import CodeChunk
 
     # Create code chunk with content that approximates the token count
     # (~4 characters per token in English)
@@ -69,7 +69,7 @@ def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
 
     import anyio
 
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
+    from gitctx.models.providers.openai import OpenAIEmbedder
 
     # VCR.py will intercept API calls and use cassettes
     api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
@@ -287,8 +287,8 @@ def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
 
     import anyio
 
-    from gitctx.core.models import CodeChunk
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
+    from gitctx.indexing.types import CodeChunk
+    from gitctx.models.providers.openai import OpenAIEmbedder
 
     # VCR.py will intercept API calls and use cassettes
     api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
@@ -334,9 +334,9 @@ def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
 
     import anyio
 
-    from gitctx.core.exceptions import DimensionMismatchError
-    from gitctx.core.models import CodeChunk
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
+    from gitctx.indexing.types import CodeChunk
+    from gitctx.models.errors import DimensionMismatchError
+    from gitctx.models.providers.openai import OpenAIEmbedder
 
     # Test that dimension mismatch raises error
     chunk = CodeChunk(
@@ -391,8 +391,8 @@ def embed_chunks_totaling_tokens(
 
     import anyio
 
-    from gitctx.core.models import CodeChunk
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
+    from gitctx.indexing.types import CodeChunk
+    from gitctx.models.providers.openai import OpenAIEmbedder
 
     # Convert comma-separated numbers to integers
     num_chunks_int = int(num_chunks.replace(",", ""))
@@ -507,8 +507,8 @@ def no_api_key_configured(embedding_context: dict[str, Any]) -> None:
 @when("I attempt to initialize the OpenAIEmbedder")
 def attempt_initialize_embedder(embedding_context: dict[str, Any]) -> None:
     """Attempt to initialize OpenAIEmbedder."""
-    from gitctx.core.exceptions import ConfigurationError
-    from gitctx.embeddings.openai_embedder import OpenAIEmbedder
+    from gitctx.config.errors import ConfigurationError
+    from gitctx.models.providers.openai import OpenAIEmbedder
 
     api_key = embedding_context["api_key"]
 
@@ -524,7 +524,7 @@ def attempt_initialize_embedder(embedding_context: dict[str, Any]) -> None:
 @then("a ConfigurationError should be raised")
 def verify_configuration_error_raised(embedding_context: dict[str, Any]) -> None:
     """Verify ConfigurationError is raised."""
-    from gitctx.core.exceptions import ConfigurationError
+    from gitctx.config.errors import ConfigurationError
 
     error = embedding_context["error"]
     assert error is not None, "Expected ConfigurationError to be raised"

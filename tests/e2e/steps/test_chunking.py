@@ -7,7 +7,7 @@ import pytest
 import tiktoken
 from pytest_bdd import given, parsers, then, when
 
-from gitctx.core.chunker import LanguageAwareChunker
+from gitctx.indexing.chunker import LanguageAwareChunker
 
 
 @pytest.fixture
@@ -541,7 +541,7 @@ def verify_language_metadata(chunking_context: dict[str, Any]) -> None:
 @given(parsers.parse("a blob chunked into {num_chunks:d} pieces"))
 def blob_chunked_into_pieces(chunking_context: dict[str, Any], num_chunks: int) -> None:
     """Create blob that chunks into N pieces."""
-    from gitctx.core.chunker import LanguageAwareChunker
+    from gitctx.indexing.chunker import LanguageAwareChunker
 
     # Configure chunking to create exactly N chunks
     # For 5 chunks: 5000 tokens blob / 1000 max_tokens = 5 chunks

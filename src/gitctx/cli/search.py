@@ -1,9 +1,18 @@
 """Search command for gitctx CLI."""
 
+from pathlib import Path
+from typing import Annotated
+
 import typer
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from gitctx.cli.symbols import SYMBOLS
+from gitctx.config.errors import ConfigurationError
+from gitctx.config.settings import GitCtxSettings
+from gitctx.search.embeddings import QueryEmbedder
+from gitctx.search.errors import EmbeddingError, ValidationError
+from gitctx.storage.lancedb_store import LanceDBStore
 
 console = Console()
 
@@ -14,10 +23,10 @@ def register(app: typer.Typer) -> None:
 
 
 def search_command(
-    query: str = typer.Argument(
-        ...,
-        help="The search query to find relevant code and documentation",
-    ),
+    query: Annotated[
+        list[str],
+        typer.Argument(help="The search query to find relevant code and documentation"),
+    ],
     limit: int = typer.Option(
         10,
         "--limit",
@@ -58,6 +67,9 @@ def search_command(
         # MCP mode (structured markdown for AI)
         $ gitctx search "authentication" --mcp
     """
+    # Join variadic query words into single string
+    query_text = " ".join(query)
+
     # Validate mutually exclusive output modes
     if verbose and mcp:
         console_err = Console(stderr=True)
@@ -66,8 +78,59 @@ def search_command(
         )
         raise typer.Exit(code=2)
 
-    # Mock implementation: query is validated by Typer but not used in mock results
-    # TODO: Use query for actual semantic search in real implementation
+    # Generate query embedding
+    try:
+        settings = GitCtxSettings()
+        repo_path = Path.cwd()
+        store = LanceDBStore(repo_path / ".gitctx" / "db" / "lancedb")
+        embedder = QueryEmbedder(settings, store)
+
+        # Check cache first to avoid showing spinner for instant cache hits
+        cache_key = embedder.get_cache_key(query_text)
+        cached_vector = store.get_query_embedding(cache_key)
+
+        if cached_vector is not None:
+            # Cache hit - instant result
+            console.print("[green]✓[/green] Using cached query embedding")
+            query_vector = cached_vector
+        else:
+            # Cache miss - show progress for API call
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                embed_task = progress.add_task(
+                    "[cyan]Generating query embedding...[/cyan]", total=None
+                )
+                query_vector = embedder.embed_query(query_text)  # noqa: F841 (will be used in STORY-0001.3.2)
+                progress.update(
+                    embed_task, description="[green]✓[/green] Query embedding generated"
+                )
+
+        # Success message
+        console.print(
+            f"[green]✓[/green] Query embedded successfully ({query_vector.shape[0]} dimensions)"
+        )
+        console.print("[dim]Note: Full search results coming in STORY-0001.3.2[/dim]")
+
+    except ValidationError as err:
+        console_err = Console(stderr=True)
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
+        raise typer.Exit(code=2) from err
+
+    except ConfigurationError as err:
+        console_err = Console(stderr=True)
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
+        raise typer.Exit(code=4) from err
+
+    except EmbeddingError as err:
+        console_err = Console(stderr=True)
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
+        raise typer.Exit(code=5) from err
+
+    # Mock implementation: query_vector will be used for actual semantic search in STORY-0001.3.2
+    # TODO: Replace mock results with actual vector search: retriever.search(query_vector, limit=limit)
 
     # Mock search results: demonstrate both git history AND HEAD
     # TUI_GUIDE.md lines 404-411 (default), 417-465 (verbose)
@@ -132,7 +195,7 @@ def search_command(
     \"\"\"Test successful authentication.\"\"\"
     response = client.post("/api/login", json={
         "username": "testuser",
-        "password": "testpass123"
+        "password": "<redacted>"
     })
     assert response.status_code == 200""",
         },
@@ -147,18 +210,18 @@ def search_command(
         console.print("---")
         console.print("status: success")
         console.print("command: search")
-        console.print(f"query: {query}")
+        console.print(f"query: {query_text}")
         console.print(f"results_count: {len(results_to_show)}")
         console.print("duration_seconds: 0.23")
         console.print("timestamp: 2025-10-04T13:00:00Z")
         console.print("version: 0.1.0")
         console.print("---")
         console.print()
-        console.print(f'# Search Results: "{query}"')
+        console.print(f'# Search Results: "{query_text}"')
         console.print()
         console.print("## Summary")
         console.print()
-        console.print(f"- **Query**: `{query}`")
+        console.print(f"- **Query**: `{query_text}`")
         console.print(f"- **Results**: {len(results_to_show)} matches")
         console.print("- **Duration**: 0.23s")
         console.print("- **Chunks searched**: 5678")

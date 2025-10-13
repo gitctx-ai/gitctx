@@ -132,9 +132,9 @@ def e2e_git_isolation_env(git_isolation_base: dict[str, str], temp_home: Path) -
 
 
 @pytest.fixture
-def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch) -> CliRunner:
+def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch, request) -> CliRunner:
     """
-    CLI runner with isolated environment.
+    CLI runner with isolated environment and automatic context["custom_env"] merging.
 
     Uses CliRunner with complete environment isolation for testing
     gitctx CLI commands safely.
@@ -142,20 +142,53 @@ def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch) -> CliRun
     CRITICAL: Clears sensitive environment variables to prevent
     leakage from developer's shell into in-process tests.
 
+    AUTOMATIC ENV MERGING: When invoke() is called, this fixture automatically
+    merges context["custom_env"] into the environment. This enables VCR cassette
+    recording without boilerplate at every invoke site.
+
     Returns:
-        CliRunner: Runner configured with isolated environment
+        CliRunner: Runner with wrapped invoke() that auto-merges custom_env
 
     Example:
-        def test_cli_command(e2e_cli_runner):
-            result = e2e_cli_runner.invoke(app, ["--version"])
-            assert result.exit_code == 0
+        def test_cli_command(e2e_cli_runner, context):
+            # Set custom environment variable
+            context["custom_env"] = {"OPENAI_API_KEY": "sk-test"}  # pragma: allowlist secret
+
+            # Just invoke - environment merges automatically!
+            result = e2e_cli_runner.invoke(app, ["search", "query"])
+
+            # Optional cleanup
+            context.pop("custom_env", None)
     """
     # Clear sensitive env vars that might leak from developer's shell
     # These will be set explicitly by tests when needed
     for var in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GITCTX_API_KEY"]:
         monkeypatch.delenv(var, raising=False)
 
-    return CliRunner(env=e2e_git_isolation_env)
+    runner = CliRunner(env=e2e_git_isolation_env)
+
+    # Wrap invoke() to automatically merge context["custom_env"]
+    # This eliminates boilerplate and makes VCR "just work"
+    original_invoke = runner.invoke
+
+    def invoke_with_auto_env(*args, **kwargs):
+        """Auto-merge context["custom_env"] unless env explicitly provided."""
+        # Only auto-merge if caller didn't provide env explicitly
+        if "env" not in kwargs:
+            try:
+                # Access context fixture via pytest's request object
+                context = request.getfixturevalue("context")
+                env = runner.env.copy() if runner.env else {}
+                if "custom_env" in context:
+                    env.update(context["custom_env"])
+                kwargs["env"] = env
+            except (pytest.FixtureLookupError, LookupError):
+                # Context unavailable or other error - proceed with default env
+                pass
+        return original_invoke(*args, **kwargs)
+
+    runner.invoke = invoke_with_auto_env
+    return runner
 
 
 @pytest.fixture

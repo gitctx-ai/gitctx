@@ -52,7 +52,7 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
     mock_settings.indexing.max_tokens_per_chunk = 500
     mock_settings.indexing.overlap_tokens = 50
 
-    with patch("gitctx.core.config.GitCtxSettings", return_value=mock_settings):
+    with patch("gitctx.config.settings.GitCtxSettings", return_value=mock_settings):
         # Mock index_repository to simulate successful indexing with output
         async def mock_index_impl(repo_path, settings, dry_run=False, verbose=False):
             """Mock implementation that produces expected output."""
@@ -153,7 +153,7 @@ def test_index_handles_config_error(isolated_cli_runner, tmp_path, monkeypatch, 
     )
 
     # Mock GitCtxSettings to raise an exception
-    with patch("gitctx.core.config.GitCtxSettings", side_effect=ValueError("Invalid config")):
+    with patch("gitctx.config.settings.GitCtxSettings", side_effect=ValueError("Invalid config")):
         result = isolated_cli_runner.invoke(app, ["index"])
 
         # Exit code 1 for config error
@@ -193,7 +193,7 @@ def test_index_handles_keyboard_interrupt(
         raise KeyboardInterrupt()
 
     with (
-        patch("gitctx.core.config.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.config.settings.GitCtxSettings", return_value=mock_settings),
         patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index_raises_interrupt),
     ):
         result = isolated_cli_runner.invoke(app, ["index"])
@@ -234,7 +234,7 @@ def test_index_handles_generic_exception(
         raise RuntimeError("Unexpected error during indexing")
 
     with (
-        patch("gitctx.core.config.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.config.settings.GitCtxSettings", return_value=mock_settings),
         patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index_raises_error),
     ):
         result = isolated_cli_runner.invoke(app, ["index"])

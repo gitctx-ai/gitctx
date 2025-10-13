@@ -18,7 +18,7 @@ def create_mock_blob_location(
     is_merge: bool = False,
 ):
     """Helper to create mock BlobLocation with sensible defaults."""
-    from gitctx.core.models import BlobLocation
+    from gitctx.git.types import BlobLocation
 
     return BlobLocation(
         commit_sha=commit_sha,
@@ -38,7 +38,7 @@ def create_mock_blob_record(
     locations: list | None = None,
 ):
     """Helper to create mock BlobRecord with sensible defaults."""
-    from gitctx.core.models import BlobRecord
+    from gitctx.git.types import BlobRecord
 
     if locations is None:
         locations = [create_mock_blob_location()]
@@ -65,7 +65,7 @@ async def test_keyboard_interrupt_shows_interrupted_message(tmp_path, capsys):
     mock_settings.get.return_value = "sk-test"
 
     # Mock CommitWalker to raise KeyboardInterrupt
-    with patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls:
+    with patch("gitctx.git.walker.CommitWalker") as mock_walker_cls:
         mock_walker = Mock()
         mock_walker.walk_blobs.side_effect = KeyboardInterrupt()
         mock_walker_cls.return_value = mock_walker
@@ -94,7 +94,7 @@ async def test_keyboard_interrupt_shows_partial_statistics(tmp_path, capsys):
     mock_settings.repo.index.max_chunk_tokens = 500
     mock_settings.get.return_value = "sk-test"
 
-    with patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls:
+    with patch("gitctx.git.walker.CommitWalker") as mock_walker_cls:
         mock_walker = Mock()
         # Simulate some work before interrupt
         mock_walker.walk_blobs.side_effect = KeyboardInterrupt()
@@ -123,7 +123,7 @@ async def test_non_keyboard_interrupt_does_not_exit_130(tmp_path, capsys):
     mock_settings.repo.index.max_chunk_tokens = 500
     mock_settings.get.return_value = "sk-test"
 
-    with patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls:
+    with patch("gitctx.git.walker.CommitWalker") as mock_walker_cls:
         # Raise a different exception
         mock_walker = Mock()
         mock_walker.walk_blobs.side_effect = RuntimeError("Some error")
@@ -200,9 +200,9 @@ async def test_dry_run_does_not_index(tmp_path):
 
         # Mock the actual indexing components - they should NOT be called
         with (
-            patch("gitctx.core.commit_walker.CommitWalker") as mock_walker,
-            patch("gitctx.core.chunker.LanguageAwareChunker") as mock_chunker,
-            patch("gitctx.embeddings.openai_embedder.OpenAIEmbedder") as mock_embedder,
+            patch("gitctx.git.walker.CommitWalker") as mock_walker,
+            patch("gitctx.indexing.chunker.LanguageAwareChunker") as mock_chunker,
+            patch("gitctx.models.providers.openai.OpenAIEmbedder") as mock_embedder,
         ):
             # Call with dry_run=True
             await index_repository(repo_path, mock_settings, dry_run=True)
@@ -224,9 +224,9 @@ async def test_empty_repository_exits_early(tmp_path, capsys):
     mock_settings.repo.index.max_chunk_tokens = 500
 
     with (
-        patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls,
-        patch("gitctx.core.chunker.LanguageAwareChunker"),
-        patch("gitctx.embeddings.openai_embedder.OpenAIEmbedder"),
+        patch("gitctx.git.walker.CommitWalker") as mock_walker_cls,
+        patch("gitctx.indexing.chunker.LanguageAwareChunker"),
+        patch("gitctx.models.providers.openai.OpenAIEmbedder"),
         patch("gitctx.storage.lancedb_store.LanceDBStore"),
     ):
         # Mock walker to return no blobs
@@ -260,7 +260,7 @@ async def test_indexing_processes_single_blob(tmp_path, capsys):
     )
 
     # Create mock chunks
-    from gitctx.core.models import CodeChunk
+    from gitctx.indexing.types import CodeChunk
 
     mock_chunk = CodeChunk(
         content="def authenticate(user):\n    pass",
@@ -271,7 +271,7 @@ async def test_indexing_processes_single_blob(tmp_path, capsys):
     )
 
     # Create mock protocol embedding
-    from gitctx.core.protocols import Embedding as ProtocolEmbedding
+    from gitctx.indexing.types import Embedding as ProtocolEmbedding
 
     mock_proto_embedding = ProtocolEmbedding(
         vector=[0.1] * 1536,
@@ -283,11 +283,13 @@ async def test_indexing_processes_single_blob(tmp_path, capsys):
     )
 
     with (
-        patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls,
-        patch("gitctx.core.chunker.LanguageAwareChunker") as mock_chunker_cls,
-        patch("gitctx.embeddings.openai_embedder.OpenAIEmbedder") as mock_embedder_cls,
+        patch("gitctx.git.walker.CommitWalker") as mock_walker_cls,
+        patch("gitctx.indexing.chunker.LanguageAwareChunker") as mock_chunker_cls,
+        patch("gitctx.models.providers.openai.OpenAIEmbedder") as mock_embedder_cls,
         patch("gitctx.storage.lancedb_store.LanceDBStore") as mock_store_cls,
-        patch("gitctx.core.language_detection.detect_language_from_extension") as mock_detect_lang,
+        patch(
+            "gitctx.indexing.language_detection.detect_language_from_extension"
+        ) as mock_detect_lang,
     ):
         # Mock walker
         mock_walker = Mock()
@@ -343,9 +345,9 @@ async def test_indexing_handles_unicode_decode_error(tmp_path, capsys):
     )
 
     with (
-        patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls,
-        patch("gitctx.core.chunker.LanguageAwareChunker"),
-        patch("gitctx.embeddings.openai_embedder.OpenAIEmbedder"),
+        patch("gitctx.git.walker.CommitWalker") as mock_walker_cls,
+        patch("gitctx.indexing.chunker.LanguageAwareChunker"),
+        patch("gitctx.models.providers.openai.OpenAIEmbedder"),
         patch("gitctx.storage.lancedb_store.LanceDBStore"),
     ):
         # Mock walker
@@ -380,11 +382,13 @@ async def test_indexing_handles_processing_error(tmp_path, capsys):
     )
 
     with (
-        patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls,
-        patch("gitctx.core.chunker.LanguageAwareChunker") as mock_chunker_cls,
-        patch("gitctx.embeddings.openai_embedder.OpenAIEmbedder"),
+        patch("gitctx.git.walker.CommitWalker") as mock_walker_cls,
+        patch("gitctx.indexing.chunker.LanguageAwareChunker") as mock_chunker_cls,
+        patch("gitctx.models.providers.openai.OpenAIEmbedder"),
         patch("gitctx.storage.lancedb_store.LanceDBStore"),
-        patch("gitctx.core.language_detection.detect_language_from_extension") as mock_detect_lang,
+        patch(
+            "gitctx.indexing.language_detection.detect_language_from_extension"
+        ) as mock_detect_lang,
     ):
         # Mock walker
         mock_walker = Mock()
@@ -421,8 +425,8 @@ async def test_indexing_processes_multiple_chunks(tmp_path):
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob
-    from gitctx.core.models import CodeChunk
-    from gitctx.core.protocols import Embedding as ProtocolEmbedding
+    from gitctx.indexing.types import CodeChunk
+    from gitctx.indexing.types import Embedding as ProtocolEmbedding
 
     mock_blob = create_mock_blob_record(
         sha="large_file",
@@ -461,11 +465,13 @@ async def test_indexing_processes_multiple_chunks(tmp_path):
     ]
 
     with (
-        patch("gitctx.core.commit_walker.CommitWalker") as mock_walker_cls,
-        patch("gitctx.core.chunker.LanguageAwareChunker") as mock_chunker_cls,
-        patch("gitctx.embeddings.openai_embedder.OpenAIEmbedder") as mock_embedder_cls,
+        patch("gitctx.git.walker.CommitWalker") as mock_walker_cls,
+        patch("gitctx.indexing.chunker.LanguageAwareChunker") as mock_chunker_cls,
+        patch("gitctx.models.providers.openai.OpenAIEmbedder") as mock_embedder_cls,
         patch("gitctx.storage.lancedb_store.LanceDBStore") as mock_store_cls,
-        patch("gitctx.core.language_detection.detect_language_from_extension") as mock_detect_lang,
+        patch(
+            "gitctx.indexing.language_detection.detect_language_from_extension"
+        ) as mock_detect_lang,
     ):
         # Mock walker
         mock_walker = Mock()

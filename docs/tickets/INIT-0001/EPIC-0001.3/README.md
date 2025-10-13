@@ -1,9 +1,9 @@
 # EPIC-0001.3: Vector Search Implementation
 
 **Parent Initiative**: [INIT-0001](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Estimated**: 13 story points
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: ████░░░░░░ 31% (4/13 points complete)
 
 ## Overview
 
@@ -21,7 +21,7 @@ Replace mock search results with actual vector similarity search using LanceDB. 
 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
-| [STORY-0001.3.1](STORY-0001.3.1/README.md) | Query Embedding Generation | 🔵 Not Started | 4 |
+| [STORY-0001.3.1](STORY-0001.3.1/README.md) | Query Embedding Generation | ✅ Complete | 4 |
 | [STORY-0001.3.2](STORY-0001.3.2/README.md) | Vector Similarity Search | 🔵 Not Started | 6 |
 | [STORY-0001.3.3](STORY-0001.3.3/README.md) | Result Formatting & Output | 🔵 Not Started | 3 |
 

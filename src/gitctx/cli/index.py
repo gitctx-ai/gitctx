@@ -68,7 +68,7 @@ def index_command(
         raise typer.Exit(code=3)
 
     # Load settings
-    from gitctx.core.config import GitCtxSettings
+    from gitctx.config.settings import GitCtxSettings
 
     try:
         settings = GitCtxSettings()

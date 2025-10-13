@@ -131,7 +131,7 @@ def test_get_db_size_mb_returns_positive_value(tmp_path: Path, isolated_env):
 
 def test_dimension_validation_raises_error_on_mismatch(tmp_path: Path, isolated_env):
     """_validate_dimensions() raises DimensionMismatchError on dimension mismatch."""
-    from gitctx.core.exceptions import DimensionMismatchError
+    from gitctx.models.errors import DimensionMismatchError
     from gitctx.storage.lancedb_store import LanceDBStore
 
     db_path = tmp_path / ".gitctx" / "lancedb"
@@ -290,7 +290,7 @@ def test_add_chunks_batch_empty_blob_locations_warning(
 
 def test_add_chunks_batch_uses_most_recent_location(tmp_path: Path, isolated_env, mock_embedding):
     """add_chunks_batch uses location with highest commit_date when blob has multiple locations."""
-    from gitctx.core.models import BlobLocation
+    from gitctx.git.types import BlobLocation
     from gitctx.storage.lancedb_store import LanceDBStore
 
     db_path = tmp_path / ".gitctx" / "lancedb"

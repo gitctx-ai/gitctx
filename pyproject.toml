@@ -147,8 +147,38 @@ ignore_missing_imports = true
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "gitctx.core.commit_walker"
+module = "gitctx.git.walker"
 warn_unused_ignores = false
+disallow_any_unimported = false
+# Reason: Uses pygit2 library which has incomplete type stubs (Any leakage in Tree/Commit types)
+# Ticket: TASK-TBD (Create protocol wrappers for pygit2 types)
+# Target: EPIC-0001.4 completion (Indexing improvements) or 2025-Q3
+
+[[tool.mypy.overrides]]
+module = "gitctx.storage.embedding_cache"
+warn_unused_ignores = false
+# Reason: Legacy module with unused type ignores from previous implementation
+# Ticket: TASK-TBD (Audit and remove unnecessary type ignores)
+# Target: 2025-Q2 (Low priority - module works correctly)
+
+[[tool.mypy.overrides]]
+module = "gitctx.models.providers.openai"
+warn_unused_ignores = false
+# Reason: OpenAI SDK has evolving type signatures, some type ignores may be stale
+# Ticket: TASK-TBD (Review after OpenAI SDK 2.0 stabilizes)
+# Target: 2025-Q2 (When SDK types are stable)
+
+[[tool.mypy.overrides]]
+module = "gitctx.search.embeddings"
+warn_unused_ignores = false
+# Reason: Numpy array type annotations cause spurious mypy warnings about ignores
+# Ticket: TASK-TBD (Investigate numpy type stub compatibility)
+# Target: 2025-Q2 (After numpy 2.0 type stubs mature)
+
+[[tool.mypy.overrides]]
+module = "openai.*"
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "numpy.*"
@@ -170,10 +200,6 @@ module = "pyarrow.*"
 ignore_missing_imports = true
 follow_imports = "skip"
 
-[[tool.mypy.overrides]]
-module = "gitctx.core.embedding_cache"
-warn_unused_ignores = false
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
@@ -194,6 +220,8 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "anyio: marks tests using anyio for async operations",
+    "vcr: marks tests using VCR cassettes for API recording/replay",
 ]
 
 [tool.coverage.run]

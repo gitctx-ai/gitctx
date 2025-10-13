@@ -927,3 +927,37 @@ def code_blob_factory():
         return "".join(lines)
 
     return _make_blob
+
+
+@pytest.fixture
+def test_embedding_vector():
+    """
+    Factory for creating deterministic embedding vectors of any dimension.
+
+    Uses np.linspace for predictability and ease of debugging.
+    DO NOT use np.random.rand() in tests - it creates non-deterministic data.
+
+    Returns:
+        callable: Function(dimension=3072) -> np.ndarray
+
+    Usage:
+        def test_cache_hit(test_embedding_vector):
+            # Default 3072-dim for text-embedding-3-large
+            vector = test_embedding_vector()
+
+            # Custom dimensions for other models
+            vector_small = test_embedding_vector(1536)  # text-embedding-3-small
+            vector_ada = test_embedding_vector(1536)     # text-embedding-ada-002
+
+            store.cache_query_embedding(key, query, vector, model)
+
+    Note:
+        Returns float32 to match LanceDB storage format and avoid precision issues.
+    """
+    import numpy as np
+
+    def _make_vector(dimension: int = 3072) -> np.ndarray:
+        """Generate deterministic vector of specified dimension."""
+        return np.linspace(0, 1, dimension, dtype=np.float32)
+
+    return _make_vector

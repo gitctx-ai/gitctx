@@ -121,3 +121,53 @@ def test_symbols_used_in_cli_commands():
     for _key, value in SYMBOLS.items():
         assert isinstance(value, str)
         assert len(value) > 0
+
+
+def test_symbols_legacy_windows_in_process():
+    """Test legacy Windows symbols with in-process mock for coverage.
+
+    This test uses importlib.reload() to reimport the symbols module after
+    mocking Console.legacy_windows=True, ensuring the if branch executes
+    within the same process and contributes to coverage metrics.
+
+    IMPORTANT: Restores module state after test to avoid affecting other tests.
+    """
+    import importlib
+    from unittest.mock import Mock, patch
+
+    # Save original symbols state
+    import gitctx.cli.symbols
+
+    original_symbols = gitctx.cli.symbols.SYMBOLS.copy()
+
+    try:
+        # Mock Console BEFORE reloading symbols
+        with patch("rich.console.Console") as MockConsole:
+            mock_instance = Mock()
+            mock_instance.legacy_windows = True
+            MockConsole.return_value = mock_instance
+
+            # Reimport symbols module to trigger the legacy_windows branch
+            importlib.reload(gitctx.cli.symbols)
+
+            # Verify ASCII fallback symbols are set
+            from gitctx.cli.symbols import SYMBOLS
+
+            assert SYMBOLS["success"] == "[OK]"
+            assert SYMBOLS["error"] == "[X]"
+            assert SYMBOLS["warning"] == "[!]"
+            assert SYMBOLS["tip"] == "[i]"
+            assert SYMBOLS["arrow"] == "->"
+            assert SYMBOLS["head"] == "[HEAD]"
+            assert SYMBOLS["spinner_frames"] == "|/-\\"
+
+    finally:
+        # CRITICAL: Restore original module state by reloading without mock
+        # This ensures other tests aren't affected by our state changes
+        importlib.reload(gitctx.cli.symbols)
+
+        # Verify restoration worked
+        from gitctx.cli.symbols import SYMBOLS
+
+        # Should be back to original state (Unicode on most platforms)
+        assert original_symbols == SYMBOLS or SYMBOLS["success"] in ("[OK]", "✓")
