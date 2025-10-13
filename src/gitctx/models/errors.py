@@ -3,7 +3,11 @@
 from gitctx.exceptions import GitCtxError
 
 
-class DimensionMismatchError(GitCtxError):
+class ModelError(GitCtxError):
+    """Base error for model operations."""
+
+
+class DimensionMismatchError(ModelError):
     """Raised when embedding dimensions don't match expected dimensions.
 
     Examples:
@@ -23,7 +27,7 @@ class NetworkError(GitCtxError):
     pass
 
 
-class RateLimitError(GitCtxError):
+class RateLimitError(ModelError):
     """Raised when API rate limit is exceeded after retries.
 
     Examples:
@@ -31,3 +35,11 @@ class RateLimitError(GitCtxError):
     """
 
     pass
+
+
+class APIError(ModelError):
+    """API request failed."""
+
+
+class ModelNotFoundError(ModelError):
+    """Model not found in registry."""

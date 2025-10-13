@@ -1,6 +1,8 @@
 """OpenAI embedding generator using LangChain wrapper."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
@@ -8,6 +10,9 @@ from pydantic import SecretStr
 from gitctx.config.errors import ConfigurationError
 from gitctx.indexing.types import CodeChunk, Embedding
 from gitctx.models.errors import DimensionMismatchError
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class OpenAIEmbedder:
@@ -164,3 +169,99 @@ class OpenAIEmbedder:
             >>> embedder.estimate_cost(0)          # 0.0
         """
         return (token_count / 1_000_000) * self.COST_PER_MILLION_TOKENS
+
+
+class OpenAIProvider:
+    """OpenAI provider for search/query embedding (simple interface).
+
+    Wraps LangChain OpenAIEmbeddings to provide simple text-to-vector conversion
+    for search queries. Unlike OpenAIEmbedder (for indexing), this returns raw
+    numpy arrays without metadata.
+
+    Inherits from BaseProvider to access model specifications.
+
+    Examples:
+        >>> provider = OpenAIProvider("text-embedding-3-large", "sk-...")
+        >>> query_vector = provider.embed_query("authentication logic")
+        >>> query_vector.shape
+        (3072,)
+    """
+
+    def __init__(self, model_name: str, api_key: str) -> None:
+        """Initialize provider with model and API key.
+
+        Args:
+            model_name: Model identifier (e.g., "text-embedding-3-large")
+            api_key: OpenAI API key
+
+        Examples:
+            >>> provider = OpenAIProvider("text-embedding-3-large", "sk-...")
+        """
+        from gitctx.models.base import BaseProvider
+
+        # Initialize BaseProvider to load model spec
+        base = BaseProvider(model_name)
+        self.model_name = model_name
+        self.spec = base.spec
+
+        # Initialize LangChain client
+        self._client = OpenAIEmbeddings(
+            model=model_name,
+            api_key=SecretStr(api_key),
+            dimensions=base.dimensions,
+        )
+
+    @property
+    def max_tokens(self) -> int:
+        """Maximum token limit for this model."""
+        return self.spec["max_tokens"]
+
+    @property
+    def dimensions(self) -> int:
+        """Embedding dimension count."""
+        return self.spec["dimensions"]
+
+    @property
+    def provider(self) -> str:
+        """Provider name (e.g., 'openai')."""
+        return self.spec["provider"]
+
+    def embed_query(self, text: str) -> "np.ndarray":  # type: ignore[no-any-unimported]
+        """Generate embedding for single query text.
+
+        Args:
+            text: Query text to embed
+
+        Returns:
+            numpy array of shape (dimensions,)
+
+        Examples:
+            >>> provider = OpenAIProvider("text-embedding-3-large", "sk-...")
+            >>> vector = provider.embed_query("authentication")
+            >>> vector.shape
+            (3072,)
+        """
+        import numpy as np
+
+        embedding = self._client.embed_query(text)
+        return np.array(embedding)  # type: ignore[no-any-return]
+
+    def embed_documents(self, texts: list[str]) -> list["np.ndarray"]:  # type: ignore[no-any-unimported]
+        """Generate embeddings for multiple documents.
+
+        Args:
+            texts: List of document texts to embed
+
+        Returns:
+            List of numpy arrays, each of shape (dimensions,)
+
+        Examples:
+            >>> provider = OpenAIProvider("text-embedding-3-large", "sk-...")
+            >>> vectors = provider.embed_documents(["text1", "text2"])
+            >>> len(vectors)
+            2
+        """
+        import numpy as np
+
+        embeddings = self._client.embed_documents(texts)
+        return [np.array(emb) for emb in embeddings]
