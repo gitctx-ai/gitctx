@@ -35,3 +35,22 @@ def test_get_embedder_invalid_model():
 
     with pytest.raises(ValueError, match="Unsupported model"):
         get_embedder("invalid-model", mock_settings)
+
+
+def test_get_embedder_unknown_provider():
+    """Test get_embedder raises ValueError for model with unknown provider.
+
+    This test covers the case where a model exists in the registry but has
+    a provider that isn't implemented (e.g., "anthropic", "cohere", etc.).
+    """
+    from unittest.mock import patch
+
+    mock_settings = Mock()
+    mock_settings.get.return_value = "fake-api-key"
+
+    # Mock get_model_spec to return a spec with an unknown provider
+    with patch("gitctx.models.factory.get_model_spec") as mock_get_spec:
+        mock_get_spec.return_value = {"provider": "anthropic", "dimensions": 1536}
+
+        with pytest.raises(ValueError, match="Unknown provider: anthropic"):
+            get_embedder("claude-embedding-v1", mock_settings)
