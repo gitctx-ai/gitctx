@@ -42,7 +42,7 @@ def test_token_limit_exceeded_raises_validation_error(settings: Mock, store: Lan
         embedder.embed_query(long_query)
 
 
-def test_valid_query_passes_validation(settings: Mock) -> None:
+def test_valid_query_passes_validation(settings: Mock, test_embedding_vector) -> None:
     """Test that valid query passes validation and returns embedding."""
     from gitctx.search.embeddings import QueryEmbedder
 
@@ -51,7 +51,7 @@ def test_valid_query_passes_validation(settings: Mock) -> None:
     mock_store.get_query_embedding.return_value = None
 
     # Mock the embedder to return a vector
-    expected_vector = np.random.rand(3072)
+    expected_vector = test_embedding_vector()
 
     # Patch OpenAIProvider to avoid real API calls
     with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
@@ -71,13 +71,13 @@ def test_valid_query_passes_validation(settings: Mock) -> None:
             mock_store.cache_query_embedding.assert_called_once()
 
 
-def test_cache_hit_skips_api_call(settings: Mock) -> None:
+def test_cache_hit_skips_api_call(settings: Mock, test_embedding_vector) -> None:
     """Test that cache hit skips API call."""
     from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store with cached embedding
     mock_store = Mock()
-    cached_vector = np.random.rand(3072)
+    cached_vector = test_embedding_vector()
     mock_store.get_query_embedding.return_value = cached_vector
 
     with patch("gitctx.models.factory.get_embedder") as mock_get_embedder:
@@ -89,7 +89,7 @@ def test_cache_hit_skips_api_call(settings: Mock) -> None:
         assert np.array_equal(result, cached_vector)
 
 
-def test_cache_miss_calls_api(settings: Mock) -> None:
+def test_cache_miss_calls_api(settings: Mock, test_embedding_vector) -> None:
     """Test that cache miss calls API."""
     from gitctx.search.embeddings import QueryEmbedder
 
@@ -97,7 +97,7 @@ def test_cache_miss_calls_api(settings: Mock) -> None:
     mock_store = Mock()
     mock_store.get_query_embedding.return_value = None
 
-    expected_vector = np.random.rand(3072)
+    expected_vector = test_embedding_vector()
 
     with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
         mock_instance = Mock()
@@ -113,7 +113,7 @@ def test_cache_miss_calls_api(settings: Mock) -> None:
             assert np.array_equal(result, expected_vector)
 
 
-def test_generated_embedding_cached(settings: Mock) -> None:
+def test_generated_embedding_cached(settings: Mock, test_embedding_vector) -> None:
     """Test that generated embedding is cached."""
     from gitctx.search.embeddings import QueryEmbedder
 
@@ -121,7 +121,7 @@ def test_generated_embedding_cached(settings: Mock) -> None:
     mock_store = Mock()
     mock_store.get_query_embedding.return_value = None
 
-    generated_vector = np.random.rand(3072)
+    generated_vector = test_embedding_vector()
 
     with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
         mock_instance = Mock()
