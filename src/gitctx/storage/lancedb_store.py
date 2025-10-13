@@ -342,3 +342,64 @@ class LanceDBStore:
 
         self.metadata_table.add([state])
         logger.info(f"Saved index state: {len(indexed_blobs)} blobs indexed at {last_commit[:8]}")
+
+    def get_query_embedding(self, cache_key: str) -> Any | None:
+        """Check if query embedding cached.
+
+        Args:
+            cache_key: SHA256 hash of (query_text + model_name)
+
+        Returns:
+            Cached embedding vector or None if not found
+        """
+        import numpy as np
+
+        try:
+            table = self.db.open_table("query_embeddings")
+            results = table.search().where(f"cache_key = '{cache_key}'").limit(1).to_list()
+            return np.array(results[0]["embedding"]) if results else None
+        except Exception:
+            # Table doesn't exist yet or query not found
+            return None
+
+    def cache_query_embedding(
+        self, cache_key: str, query_text: str, embedding: Any, model_name: str
+    ) -> None:
+        """Store query embedding with metadata.
+
+        Args:
+            cache_key: SHA256 hash for lookup
+            query_text: Original query (for debugging)
+            embedding: Embedding vector
+            model_name: Model used to generate embedding
+        """
+        import time
+
+        # Create table if doesn't exist
+        try:
+            table = self.db.open_table("query_embeddings")
+        except Exception:
+            # Create table with schema
+            query_schema = pa.schema(
+                [
+                    pa.field("cache_key", pa.string()),
+                    pa.field("query_text", pa.string()),
+                    pa.field("embedding", pa.list_(pa.float32(), 3072)),
+                    pa.field("model_name", pa.string()),
+                    pa.field("created_at", pa.float64()),
+                ]
+            )
+            table = self.db.create_table("query_embeddings", schema=query_schema)
+
+        # Insert (last-write-wins for concurrent access)
+        table.add(
+            [
+                {
+                    "cache_key": cache_key,
+                    "query_text": query_text,
+                    "embedding": embedding.tolist(),
+                    "model_name": model_name,
+                    "created_at": time.time(),
+                }
+            ]
+        )

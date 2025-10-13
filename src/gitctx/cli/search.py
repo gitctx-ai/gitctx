@@ -1,9 +1,17 @@
 """Search command for gitctx CLI."""
 
+from pathlib import Path
+
 import typer
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from gitctx.cli.symbols import SYMBOLS
+from gitctx.config.errors import ConfigurationError
+from gitctx.config.settings import GitCtxSettings
+from gitctx.search.embeddings import QueryEmbedder
+from gitctx.search.errors import EmbeddingError, ValidationError
+from gitctx.storage.lancedb_store import LanceDBStore
 
 console = Console()
 
@@ -66,8 +74,39 @@ def search_command(
         )
         raise typer.Exit(code=2)
 
-    # Mock implementation: query is validated by Typer but not used in mock results
-    # TODO: Use query for actual semantic search in real implementation
+    # Generate query embedding
+    try:
+        settings = GitCtxSettings()
+        repo_path = Path.cwd()
+        store = LanceDBStore(repo_path / ".gitctx" / "db" / "lancedb")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Generating query embedding...", total=None)
+            embedder = QueryEmbedder(settings, store)
+            query_vector = embedder.embed_query(query)  # noqa: F841 (will be used in STORY-0001.3.2)
+            progress.update(task, completed=True)
+
+    except ValidationError as err:
+        console_err = Console(stderr=True)
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
+        raise typer.Exit(code=2) from err
+
+    except ConfigurationError as err:
+        console_err = Console(stderr=True)
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
+        raise typer.Exit(code=4) from err
+
+    except EmbeddingError as err:
+        console_err = Console(stderr=True)
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
+        raise typer.Exit(code=5) from err
+
+    # Mock implementation: query_vector will be used for actual semantic search in STORY-0001.3.2
+    # TODO: Replace mock results with actual vector search: retriever.search(query_vector, limit=limit)
 
     # Mock search results: demonstrate both git history AND HEAD
     # TUI_GUIDE.md lines 404-411 (default), 417-465 (verbose)
