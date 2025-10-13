@@ -48,7 +48,9 @@ So that I can find relevant code based on meaning rather than exact keyword matc
 
 ## BDD Scenarios
 
-**E2E Scenarios:**
+**Total**: 13 test scenarios (12 E2E Gherkin + 1 unit test for mocking)
+
+**E2E Scenarios (12):**
 
 ```gherkin
 # Added to tests/e2e/features/search.feature
@@ -182,23 +184,24 @@ def search(
     console = Console()
 
     # 1. Get query from args or stdin
-    if query is None or len(query) == 0:
-        if not sys.stdin.isatty():
-            query_text = sys.stdin.read().strip()
-            if not query_text:
-                console.print(
-                    f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)",
-                    file=sys.stderr
-                )
-                raise typer.Exit(2)
-        else:
-            console.print(
-                f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)",
-                file=sys.stderr
+    # If query provided as args, join and use
+    if query:
+        query_text = " ".join(query)
+    # No args - check stdin
+    elif sys.stdin.isatty():
+        # Interactive terminal with no piped input
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)"
+        )
+        raise typer.Exit(2)
+    else:
+        # Read from piped stdin
+        query_text = sys.stdin.read().strip()
+        if not query_text:
+            console_err.print(
+                f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)"
             )
             raise typer.Exit(2)
-    else:
-        query_text = " ".join(query)
 
     # 2. Validate limit (Typer handles this, but explicit for clarity)
     if not (1 <= limit <= 100):
@@ -247,25 +250,34 @@ def search(
     start_time = time.time()
 
     try:
-        # Import from STORY-0001.3.1 (provides generate_query_embedding)
-        # Returns: list[float] with length = embedding_dimensions
-        query_vector = generate_query_embedding(query_text, settings, store)
-    except ValueError as e:
+        # Import from STORY-0001.3.1: src/gitctx/search/embeddings.py
+        # Usage: QueryEmbedder(settings, store).embed_query(query) -> NDArray[np.floating]
+        # Returns: numpy array with shape (dimensions,) where dimensions from settings.repo.model.embedding
+        #          - text-embedding-3-large: 3072 dimensions
+        #          - text-embedding-3-small: 1536 dimensions
+        from gitctx.search.embeddings import QueryEmbedder
+
+        embedder = QueryEmbedder(settings, store)
+        query_vector = embedder.embed_query(query_text)
+    except ValidationError as e:
         console.print(f"[red]{SYMBOLS['error']}[/red] {e}", file=sys.stderr)
         raise typer.Exit(2)
     except ConfigurationError as e:
         console.print(f"[red]{SYMBOLS['error']}[/red] {e}", file=sys.stderr)
         raise typer.Exit(4)
-    except NetworkError as e:
+    except EmbeddingError as e:
         console.print(f"[red]{SYMBOLS['error']}[/red] {e}", file=sys.stderr)
         raise typer.Exit(5)
 
-    # 5. Search LanceDB (reuse existing store.search())
+    # 5. Search LanceDB vector database using cosine distance metric
     results = store.search(
-        query_vector=query_vector,
-        limit=limit,
-        filter_head_only=False
+        query_vector=query_vector,  # NDArray[np.floating] from QueryEmbedder.embed_query()
+        limit=limit,  # int between 1-100, validated by Typer
+        filter_head_only=False  # Search all commits, not just HEAD
     )
+    # Returns: list[dict] with 11 denormalized fields per result:
+    #   file_path, start_line, end_line, _distance, commit_sha,
+    #   commit_message, commit_date, author_name, is_head, language, chunk_content
 
     duration = time.time() - start_time
 
@@ -330,10 +342,50 @@ jobs:
 ## Pattern Reuse
 
 **Reused Patterns:**
-- **e2e_git_repo_factory** (`tests/e2e/conftest.py:262`) - For performance tests with 10K chunks
-- **VCR cassettes** (`tests/e2e/conftest.py:370`) - For API response recording (query embedding)
-- **e2e_git_isolation_env** (`tests/e2e/conftest.py:41`) - For isolated CLI testing
-- **LanceDBStore.search()** (`src/gitctx/storage/lancedb_store.py`) - Existing method
+- **e2e_git_repo_factory** - Create test repo with N files:
+  ```python
+  repo = e2e_git_repo_factory(num_files=1000, avg_size=500)
+  # Returns: Path to temporary git repo with realistic Python files
+  # avg_size=500 tokens → ~10 chunks per file → ~10K total chunks
+  ```
+
+- **VCR cassettes with automatic environment** - Record OpenAI API calls:
+  ```python
+  # In Gherkin Given step: Sets API key in context (shared across scenario)
+  @given(parsers.re(r'environment variable "(?P<var>[^"]+)" is "(?P<value>.*)"'))
+  def setup_env_var(var: str, value: str, context: dict[str, Any]) -> None:
+      if "custom_env" not in context:
+          context["custom_env"] = {}
+      context["custom_env"][var] = value  # e.g., OPENAI_API_KEY = "sk-test"
+
+  # In When step: Just invoke - e2e_cli_runner auto-merges context["custom_env"]!
+  @when('I run "gitctx search query"')
+  def run_search(e2e_cli_runner, context: dict[str, Any]) -> None:
+      result = e2e_cli_runner.invoke(app, ["search", "query"])
+      context.pop("custom_env", None)  # Clear after final invoke
+      # VCR intercepts API calls automatically - no code changes needed!
+
+  # Recording: direnv exec . uv run pytest tests/e2e/test_search_features.py --vcr-record=once
+  # First run: Records API call with real key to tests/e2e/cassettes/{test_name}.yaml
+  # CI/subsequent runs: Replays from cassette (no API key needed)
+  ```
+
+- **e2e_git_isolation_env** - Isolated environment dict:
+  ```python
+  # Used internally by e2e_cli_runner - provides base isolation
+  # Contains: {'HOME': temp_dir, 'GIT_CONFIG_GLOBAL': '/dev/null', ...}
+  # Prevents test pollution of user's git config
+  ```
+
+- **LanceDBStore.search()** - Existing method at `src/gitctx/storage/lancedb_store.py:290`:
+  ```python
+  results = store.search(
+      query_vector=query_vector,  # list[float] or NDArray - duck typing works
+      limit=limit,                  # int, default 10
+      filter_head_only=False       # bool, default False (search all commits)
+  )
+  # Returns: list[dict] with 11 fields (see acceptance criteria line 26)
+  ```
 
 **New Components:**
 - Variadic query argument handling (Typer)
