@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from gitctx.models.providers.openai import OpenAIProvider
 
 
-def get_embedder(model_name: str, settings: GitCtxSettings) -> "OpenAIProvider":
+def get_embedder(model_name: str, settings: GitCtxSettings) -> OpenAIProvider:
     """Get embedding provider for model.
 
     Args:

@@ -226,7 +226,7 @@ class OpenAIProvider:
         """Provider name (e.g., 'openai')."""
         return self.spec["provider"]
 
-    def embed_query(self, text: str) -> "np.ndarray":  # type: ignore[no-any-unimported]
+    def embed_query(self, text: str) -> np.ndarray:  # type: ignore[no-any-unimported]
         """Generate embedding for single query text.
 
         Args:
@@ -246,7 +246,7 @@ class OpenAIProvider:
         embedding = self._client.embed_query(text)
         return np.array(embedding)  # type: ignore[no-any-return]
 
-    def embed_documents(self, texts: list[str]) -> list["np.ndarray"]:  # type: ignore[no-any-unimported]
+    def embed_documents(self, texts: list[str]) -> list[np.ndarray]:  # type: ignore[no-any-unimported]
         """Generate embeddings for multiple documents.
 
         Args:
