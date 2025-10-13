@@ -137,6 +137,7 @@ def test_symbols_legacy_windows_in_process():
 
     # Save original symbols state
     import gitctx.cli.symbols
+
     original_symbols = gitctx.cli.symbols.SYMBOLS.copy()
 
     try:
@@ -167,5 +168,6 @@ def test_symbols_legacy_windows_in_process():
 
         # Verify restoration worked
         from gitctx.cli.symbols import SYMBOLS
+
         # Should be back to original state (Unicode on most platforms)
-        assert SYMBOLS == original_symbols or SYMBOLS["success"] in ("[OK]", "✓")
+        assert original_symbols == SYMBOLS or SYMBOLS["success"] in ("[OK]", "✓")

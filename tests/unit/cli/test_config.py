@@ -460,6 +460,7 @@ def test_config_list_truly_empty(isolated_cli_runner, monkeypatch):
 def test_config_set_greater_than_validation():
     """Test setting value below minimum constraint (greater_than error)."""
     from unittest.mock import Mock, patch
+
     from pydantic import ValidationError
     from typer.testing import CliRunner
 
@@ -488,6 +489,7 @@ def test_config_set_greater_than_validation():
 def test_config_set_less_than_validation():
     """Test setting value above maximum constraint (less_than error)."""
     from unittest.mock import Mock, patch
+
     from pydantic import ValidationError
     from typer.testing import CliRunner
 
@@ -516,6 +518,7 @@ def test_config_set_less_than_validation():
 def test_config_set_bool_validation_error():
     """Test setting invalid boolean value."""
     from unittest.mock import Mock, patch
+
     from pydantic import ValidationError
     from typer.testing import CliRunner
 
@@ -542,6 +545,7 @@ def test_config_set_bool_validation_error():
 def test_config_set_generic_exception():
     """Test generic exception handler in config_set."""
     from unittest.mock import Mock, patch
+
     from typer.testing import CliRunner
 
     with patch("gitctx.cli.config.GitCtxSettings") as MockSettings:
@@ -566,6 +570,7 @@ def test_config_list_no_items():
     triggering the 'No configuration set' message.
     """
     from unittest.mock import Mock, patch
+
     from typer.testing import CliRunner
 
     with patch("gitctx.cli.config.GitCtxSettings") as MockSettings:
@@ -601,8 +606,9 @@ def test_config_list_no_items():
 
 def test_translate_validation_error_empty_errors():
     """Test _translate_validation_error with empty errors list."""
-    from gitctx.cli.config import _translate_validation_error
     from pydantic import ValidationError
+
+    from gitctx.cli.config import _translate_validation_error
 
     # Create ValidationError with empty errors list (edge case)
     val_error = ValidationError.from_exception_data("ValidationError", [])
