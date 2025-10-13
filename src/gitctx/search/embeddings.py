@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import openai
-import requests.exceptions  # type: ignore[import-untyped]
 import tiktoken
 
+from gitctx.config.errors import ConfigurationError
 from gitctx.models.factory import get_embedder
 from gitctx.models.registry import get_model_spec
 from gitctx.search.errors import EmbeddingError, ValidationError
@@ -33,6 +33,17 @@ class QueryEmbedder:
         self.store = store
         self.model_name = settings.repo.model.embedding
 
+    def get_cache_key(self, query: str) -> str:
+        """Generate cache key for query.
+
+        Args:
+            query: Query text
+
+        Returns:
+            SHA256 hash of query + model name
+        """
+        return hashlib.sha256(f"{query}{self.model_name}".encode()).hexdigest()
+
     def embed_query(self, query: str) -> np.ndarray:  # type: ignore[no-any-unimported]
         """Generate or retrieve cached query embedding.
 
@@ -49,7 +60,7 @@ class QueryEmbedder:
         self._validate_query(query)
 
         # Check cache
-        cache_key = hashlib.sha256(f"{query}{self.model_name}".encode()).hexdigest()
+        cache_key = self.get_cache_key(query)
         cached_vector = self.store.get_query_embedding(cache_key)
         if cached_vector is not None:
             return cached_vector  # type: ignore[no-any-return]
@@ -64,15 +75,31 @@ class QueryEmbedder:
                 "Get new key at https://platform.openai.com/api-keys"
             ) from err
         except openai.RateLimitError as err:
-            raise EmbeddingError("API rate limit exceeded. Wait 60 seconds and retry.") from err
+            raise EmbeddingError(
+                "API rate limit exceeded (429). Retry after 60 seconds or "
+                "check usage limits at https://platform.openai.com/account/rate-limits"
+            ) from err
+        except openai.APITimeoutError as err:
+            raise EmbeddingError(
+                "Request timeout after 30 seconds. Verify internet connection and "
+                "firewall settings. Retry with shorter query if issue persists."
+            ) from err
+        except openai.APIConnectionError as err:
+            raise EmbeddingError("Cannot connect to OpenAI API. Verify network access.") from err
         except openai.APIStatusError as err:
             if err.status_code >= 500:
-                raise EmbeddingError("OpenAI API unavailable. Retry in a few moments.") from err
+                raise EmbeddingError(
+                    f"OpenAI API unavailable (HTTP {err.status_code}). Service may be down. "
+                    "Check status at https://status.openai.com and retry in 1-2 minutes."
+                ) from err
+            # Re-raise unexpected status codes for visibility
             raise
-        except requests.exceptions.Timeout as err:
-            raise EmbeddingError("Request timeout after 30s. Check network and retry.") from err
-        except requests.exceptions.ConnectionError as err:
-            raise EmbeddingError("Cannot connect to OpenAI API. Verify network access.") from err
+        except ConfigurationError:
+            # Re-raise configuration errors (e.g., missing API key) so CLI can handle with exit code 4
+            raise
+        except Exception as err:
+            # Safety net for unexpected errors
+            raise EmbeddingError(f"Unexpected error during embedding generation: {err}") from err
 
         # Cache result
         self.store.cache_query_embedding(cache_key, query, query_vector, self.model_name)

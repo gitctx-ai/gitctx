@@ -454,6 +454,236 @@ Each directory has its own CLAUDE.md with context-appropriate guidelines:
 - **Python Version**: 3.11+
 - **Test Isolation**: Mock git config, env vars, and file paths
 
+## Type Safety and mypy Configuration
+
+### The Three-Tier mypy Override Policy
+
+**Motivation**: Type safety prevents bugs and improves code maintainability. mypy overrides should be used strategically, not as a way to silence errors we don't want to fix.
+
+#### Tier 1: External Dependencies (Always Acceptable)
+
+Use `ignore_missing_imports = true` for third-party libraries without type stubs:
+
+```toml
+[[tool.mypy.overrides]]
+module = "lancedb.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+```
+
+**When to use**:
+- Third-party library lacks `py.typed` marker
+- No `@types/` package available on PyPI
+- Not worth creating custom stubs
+
+**No documentation required** - this is standard practice for untyped dependencies.
+
+#### Tier 2: Temporary Overrides (Requires Documentation)
+
+Use for legacy code being gradually typed. **MUST include inline documentation**:
+
+```toml
+[[tool.mypy.overrides]]
+module = "gitctx.legacy_module"
+warn_unused_ignores = false
+disallow_any_unimported = false
+# Reason: Complex Any types from untyped protobuf library, needs protocol wrappers
+# Ticket: TASK-0001.5.2 (Add type-safe protocol layer)
+# Target: 2025-Q2 (EPIC-0001.5 completion)
+```
+
+**Required documentation format**:
+- **Reason**: Specific technical reason for the override (e.g., "Complex Any types from protobuf", "Legacy code with dynamic attrs")
+- **Ticket**: Link to tracking ticket (TASK/STORY/EPIC ID) with brief description
+- **Target**: Date or milestone for removal (e.g., "2025-Q2", "EPIC-0002 completion")
+
+**Required actions**:
+1. Add inline comment with Reason/Ticket/Target to `pyproject.toml`
+2. Create tracking ticket if doesn't exist
+3. Review in quarterly mypy audit (see below)
+4. Remove override when fixed
+
+**Quarterly Audit Process**:
+
+```bash
+# Review all overrides with Target dates
+rg "Target:" pyproject.toml
+
+# For each expired override:
+# 1. Attempt to remove override and run mypy
+uv run mypy src
+
+# 2. If mypy fails, update Target date and Ticket with progress notes
+# 3. If mypy passes, remove override entirely and commit
+```
+
+Schedule audits for: Q1 (March), Q2 (June), Q3 (September), Q4 (December)
+
+#### Tier 3: Never Acceptable
+
+❌ **NEVER silence errors in new code:**
+
+```toml
+# ❌ Bad: Hiding type errors instead of fixing them
+[[tool.mypy.overrides]]
+module = "gitctx.new_feature"
+disallow_any_unimported = false
+warn_unused_ignores = false
+```
+
+**If mypy fails on new code**: Fix the types, don't silence warnings!
+
+**Common fixes**:
+- **Missing return type**: Add `-> ReturnType` annotation
+- **Missing parameter types**: Add `: ParamType` annotations
+- **`Any` from untyped import**: Use `from typing import TYPE_CHECKING` + forward refs
+- **Complex generic**: Simplify type or use `TypeVar` with bounds
+- **Dynamic attributes**: Use `Protocol` or `@dataclass` instead of runtime `setattr()`
+
+### New Module Checklist
+
+When creating new Python modules, follow these type safety requirements:
+
+1. ✅ Add full type annotations (all parameters, returns, class attributes)
+2. ✅ Use `from __future__ import annotations` for forward reference support
+3. ✅ Pass `uv run mypy src/gitctx/new_module.py` without any overrides
+4. ✅ Avoid `Any` except for truly dynamic data (e.g., raw JSON, user input)
+5. ✅ Use `Protocol` instead of weakening mypy settings
+6. ✅ Add type stubs (`.pyi` files) only as last resort (prefer inline types)
+
+### Protocol Pattern (Strongly Recommended)
+
+Instead of disabling mypy for external types, define protocols:
+
+```python
+# ❌ Bad: Disable mypy for whole module
+# In pyproject.toml: disallow_any_unimported = false
+
+# ✅ Good: Define protocol for external type
+from typing import Protocol
+import numpy as np  # Untyped library
+
+class ArrayLike(Protocol):
+    """Type-safe interface for array-like objects."""
+    shape: tuple[int, ...]
+
+    def tolist(self) -> list[float]: ...
+    def __len__(self) -> int: ...
+
+def process_array(arr: ArrayLike) -> list[float]:
+    """Process array with full type safety."""
+    return arr.tolist()
+
+# Works with numpy arrays, pandas Series, etc., but statically typed!
+result = process_array(np.array([1.0, 2.0]))
+```
+
+**Benefits**:
+- Full type safety without mypy overrides
+- Documents expected interface
+- Works with any compatible type (numpy, pandas, torch, etc.)
+- Refactoring-safe (mypy catches breaking changes)
+
+### Progressive Type Safety Strategy
+
+**For new features** (post-INIT-0001):
+- Start with strict mypy (no overrides except Tier 1)
+- Use protocols for external types
+- Aim for 100% type coverage
+
+**For existing code**:
+- Add Tier 2 overrides with documentation
+- Fix during quarterly audits
+- Prioritize hot paths and public APIs
+
+**Measuring progress**:
+
+```bash
+# Count Tier 2 overrides (goal: reduce over time)
+rg -c "Reason:" pyproject.toml
+
+# Check mypy coverage (goal: increase over time)
+uv run mypy src --html-report mypy-report
+open mypy-report/index.html
+```
+
+Track mypy override count in each Epic's completion criteria.
+
+### Common mypy Patterns
+
+**Pattern 1: TYPE_CHECKING for circular imports**
+
+```python
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gitctx.storage.lancedb_store import LanceDBStore  # Only for type checking
+
+class QueryEmbedder:
+    def __init__(self, store: LanceDBStore) -> None:  # Forward reference works!
+        self.store = store
+```
+
+**Pattern 2: TypeVar for generic return types**
+
+```python
+from typing import TypeVar, Protocol
+
+T = TypeVar("T", bound="Comparable")
+
+class Comparable(Protocol):
+    def __lt__(self, other: object) -> bool: ...
+
+def max_value(items: list[T]) -> T:
+    """Return max with proper type inference."""
+    return max(items)
+
+result = max_value([1, 2, 3])  # Type: int (inferred correctly!)
+```
+
+**Pattern 3: Literal for string enums**
+
+```python
+from typing import Literal
+
+OutputMode = Literal["terse", "verbose", "mcp"]
+
+def format_output(mode: OutputMode) -> str:
+    """Type-safe output formatting."""
+    if mode == "terse":
+        return "..."
+    # mypy catches typos: mode == "verbos" → error!
+```
+
+### Pre-commit Hook Enforcement
+
+**Planned** (TASK-0001.X.X): Add automated validation:
+
+```yaml
+# .pre-commit-config.yaml
+- id: check-mypy-overrides
+  name: Verify mypy Tier 2 overrides have documentation
+  entry: python scripts/check_mypy_overrides.py
+  language: python
+  pass_filenames: false
+```
+
+This script validates that all Tier 2 overrides have required Reason/Ticket/Target comments.
+
+### Emergency Override Process
+
+If you're blocked by mypy on critical work:
+
+1. **First**, try the fixes above (Protocol, TYPE_CHECKING, TypeVar)
+2. **If still blocked**, add Tier 2 override with full documentation
+3. **Create ticket** immediately for fixing the type issue
+4. **Set Target** within same EPIC or next quarter (whichever is sooner)
+5. **Get approval** from tech lead in PR review
+
+**Never commit undocumented overrides** - they create permanent tech debt.
+
 ## Quick Reference Commands
 
 ```bash

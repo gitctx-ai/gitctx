@@ -367,6 +367,15 @@ class LanceDBStore:
     ) -> None:
         """Store query embedding with metadata.
 
+        Concurrency: LanceDB operations are atomic at the operation level (each `table.add()`
+        completes fully or not at all). However, LanceDB does NOT support concurrent writes
+        from multiple processes - if multiple processes try to write simultaneously, some
+        operations may fail. For query caching, this is acceptable: failures are rare and
+        users can simply retry their query.
+
+        Note: There is no explicit transaction API in LanceDB Python SDK. The atomicity
+        guarantee applies to individual operations only.
+
         Args:
             cache_key: SHA256 hash for lookup
             query_text: Original query (for debugging)
@@ -391,7 +400,8 @@ class LanceDBStore:
             )
             table = self.db.create_table("query_embeddings", schema=query_schema)
 
-        # Insert (last-write-wins for concurrent access)
+        # Insert with atomic operation (completes fully or fails)
+        # Multiple concurrent processes may conflict, but this is rare for cache usage
         table.add(
             [
                 {

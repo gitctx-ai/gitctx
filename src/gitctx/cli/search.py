@@ -83,17 +83,30 @@ def search_command(
         settings = GitCtxSettings()
         repo_path = Path.cwd()
         store = LanceDBStore(repo_path / ".gitctx" / "db" / "lancedb")
+        embedder = QueryEmbedder(settings, store)
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            # Phase 1: Generate query embedding
-            embed_task = progress.add_task("[cyan]Generating query embedding...[/cyan]", total=None)
-            embedder = QueryEmbedder(settings, store)
-            query_vector = embedder.embed_query(query_text)  # noqa: F841 (will be used in STORY-0001.3.2)
-            progress.update(embed_task, description="[green]✓[/green] Query embedding generated")
+        # Check cache first to avoid showing spinner for instant cache hits
+        cache_key = embedder.get_cache_key(query_text)
+        cached_vector = store.get_query_embedding(cache_key)
+
+        if cached_vector is not None:
+            # Cache hit - instant result
+            console.print("[green]✓[/green] Using cached query embedding")
+            query_vector = cached_vector
+        else:
+            # Cache miss - show progress for API call
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                embed_task = progress.add_task(
+                    "[cyan]Generating query embedding...[/cyan]", total=None
+                )
+                query_vector = embedder.embed_query(query_text)  # noqa: F841 (will be used in STORY-0001.3.2)
+                progress.update(
+                    embed_task, description="[green]✓[/green] Query embedding generated"
+                )
 
         # Success message
         console.print(
@@ -182,7 +195,7 @@ def search_command(
     \"\"\"Test successful authentication.\"\"\"
     response = client.post("/api/login", json={
         "username": "testuser",
-        "password": "testpass123"  # pragma: allowlist secret
+        "password": "<redacted>"
     })
     assert response.status_code == 200""",
         },

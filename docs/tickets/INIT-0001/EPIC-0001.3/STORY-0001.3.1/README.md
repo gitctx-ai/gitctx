@@ -36,8 +36,9 @@ So that I can perform semantic code search based on meaning rather than exact te
   - Schema: `{cache_key: str (SHA256), query_text: str, embedding: vector[3072], model_name: str, created_at: timestamp}`
   - Cache key: `SHA256(query_text + model_name)`
   - No TTL (cache indefinitely until `gitctx clear`)
-  - Concurrent writes: last-write-wins (LanceDB atomic writes, no locking)
-  - Read-during-write: May return stale data (acceptable for cache, eventual consistency)
+  - Concurrency: Each `table.add()` operation is atomic (completes fully or fails)
+  - Multiple concurrent processes may conflict, but failures are rare for CLI usage
+  - No explicit locking - acceptable for cache where failures can be retried
 
 ## BDD Scenarios
 

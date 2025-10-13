@@ -7,7 +7,6 @@ from unittest.mock import Mock, patch
 import numpy as np
 import openai
 import pytest
-import requests.exceptions
 
 from gitctx.search.errors import EmbeddingError, ValidationError
 from gitctx.storage.lancedb_store import LanceDBStore
@@ -168,11 +167,11 @@ def test_generated_embedding_cached(settings: Mock) -> None:
             "OpenAI API unavailable",
         ),
         (
-            requests.exceptions.Timeout(),
-            "Request timeout after 30s",
+            openai.APITimeoutError(request=Mock()),
+            "Request timeout after 30 seconds",
         ),
         (
-            requests.exceptions.ConnectionError(),
+            openai.APIConnectionError(request=Mock()),
             "Cannot connect to OpenAI API",
         ),
     ],
