@@ -89,10 +89,17 @@ def search_command(
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task("Generating query embedding...", total=None)
+            # Phase 1: Generate query embedding
+            embed_task = progress.add_task("[cyan]Generating query embedding...[/cyan]", total=None)
             embedder = QueryEmbedder(settings, store)
             query_vector = embedder.embed_query(query_text)  # noqa: F841 (will be used in STORY-0001.3.2)
-            progress.update(task, completed=True)
+            progress.update(embed_task, description="[green]✓[/green] Query embedding generated")
+
+        # Success message
+        console.print(
+            f"[green]✓[/green] Query embedded successfully ({query_vector.shape[0]} dimensions)"
+        )
+        console.print("[dim]Note: Full search results coming in STORY-0001.3.2[/dim]")
 
     except ValidationError as err:
         console_err = Console(stderr=True)

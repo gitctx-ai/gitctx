@@ -1,9 +1,9 @@
 # STORY-0001.3.1: Query Embedding Generation
 
 **Parent Epic**: [EPIC-0001.3](../README.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 4
-**Progress**: ████████░░ 80%
+**Progress**: ████████████████████ 100%
 
 ## User Story
 
@@ -402,7 +402,7 @@ def test_concurrent_cache_writes():
 | [TASK-0001.3.1.1](./TASK-0001.3.1.1.md) | Write BDD scenarios for query embedding | ✅ Complete | 3 | 0/5 → 0/5 (all failing, red phase) |
 | [TASK-0001.3.1.2](./TASK-0001.3.1.2.md) | Model registry and provider infrastructure | ✅ Complete | 3 | 0/5 → 0/5 (infra complete, BDD deferred to TASK-3) |
 | [TASK-0001.3.1.3](./TASK-0001.3.1.3.md) | Core query embedding implementation (TDD) | ✅ Complete | 9 | 0/5 → 0/5 (BDD stubs for TASK-4) |
-| [TASK-0001.3.1.4](./TASK-0001.3.1.4.md) | Integration and E2E verification | 🔵 Not Started | 2 | 0/5 → 5/5 (all passing ✅) |
+| [TASK-0001.3.1.4](./TASK-0001.3.1.4.md) | Integration and E2E verification | ✅ Complete | 2 | 5/5 (all passing ✅) |
 
 **Total Estimated Hours**: 21-22 hours (≈5 story points at 4h/point)
 
