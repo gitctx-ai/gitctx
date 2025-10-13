@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from gitctx.core.models import BlobLocation, Embedding
+from gitctx.git.types import BlobLocation
+from gitctx.indexing.types import Embedding
 
 
 @pytest.fixture
@@ -40,15 +41,16 @@ def mock_embedding() -> Callable[[str, str, int], Embedding]:
     ) -> Embedding:
         return Embedding(
             vector=[0.1] * 3072,  # 3072-dim vector for text-embedding-3-large
-            chunk_content=content,
             token_count=len(content.split()),
+            model="text-embedding-3-large",
+            cost_usd=0.00001,
             blob_sha=blob_sha,
             chunk_index=chunk_index,
+            chunk_content=content,
             start_line=1,
             end_line=2,
             total_chunks=1,
             language=language,
-            model="text-embedding-3-large",
         )
 
     return _create_embedding

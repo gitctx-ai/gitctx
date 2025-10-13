@@ -11,7 +11,8 @@ from typing import Any
 import pytest
 from pytest_bdd import given, parsers, then, when
 
-from gitctx.core.models import BlobLocation, Embedding
+from gitctx.git.types import BlobLocation
+from gitctx.indexing.types import Embedding
 from gitctx.storage.lancedb_store import LanceDBStore
 
 
@@ -69,15 +70,16 @@ def create_mock_embeddings(
             embeddings.append(
                 Embedding(
                     vector=[0.1 + blob_idx * 0.01 + chunk_idx * 0.001] * 3072,
-                    chunk_content=f"Code content from blob {blob_idx} chunk {chunk_idx}",
                     token_count=50 + chunk_idx,
+                    model="text-embedding-3-large",
+                    cost_usd=0.00001,
                     blob_sha=blob_sha,
                     chunk_index=chunk_idx,
+                    chunk_content=f"Code content from blob {blob_idx} chunk {chunk_idx}",
                     start_line=1 + chunk_idx * 10,
                     end_line=10 + chunk_idx * 10,
                     total_chunks=chunks_for_this_blob,
                     language=language,
-                    model="text-embedding-3-large",
                 )
             )
 
@@ -312,15 +314,16 @@ def new_chunks_from_blobs(count: int, blob_count: int, context: dict[str, Any]):
             new_embeddings.append(
                 Embedding(
                     vector=[0.5 + blob_idx * 0.01] * 3072,
-                    chunk_content=f"New code content {blob_idx} chunk {chunk_idx}",
                     token_count=50,
+                    model="text-embedding-3-large",
+                    cost_usd=0.00001,
                     blob_sha=blob_sha,
                     chunk_index=chunk_idx,
+                    chunk_content=f"New code content {blob_idx} chunk {chunk_idx}",
                     start_line=1 + chunk_idx * 10,
                     end_line=10 + chunk_idx * 10,
                     total_chunks=chunks_for_blob,
                     language="python",
-                    model="text-embedding-3-large",
                 )
             )
 
@@ -449,7 +452,7 @@ def existing_index_with_dimensions(dims: int, context: dict[str, Any], tmp_path:
 @when(parsers.parse("I attempt to insert {dims:d}-dimensional vectors"))
 def attempt_insert_different_dimensions(dims: int, context: dict[str, Any]):
     """Attempt to insert vectors with different dimensions."""
-    from gitctx.core.exceptions import DimensionMismatchError
+    from gitctx.models.errors import DimensionMismatchError
 
     try:
         # Try to open store with different dimensions
@@ -518,15 +521,16 @@ def index_with_chunks_and_files(chunks: int, files: int, context: dict[str, Any]
             embeddings.append(
                 Embedding(
                     vector=[0.1 + file_idx * 0.01] * 3072,
-                    chunk_content=f"Code from file {file_idx} chunk {chunk_idx}",
                     token_count=50,
+                    model="text-embedding-3-large",
+                    cost_usd=0.00001,
                     blob_sha=blob_sha,
                     chunk_index=chunk_idx,
+                    chunk_content=f"Code from file {file_idx} chunk {chunk_idx}",
                     start_line=1 + chunk_idx * 10,
                     end_line=10 + chunk_idx * 10,
                     total_chunks=chunks_per_file,
                     language=language,
-                    model="text-embedding-3-large",
                 )
             )
 

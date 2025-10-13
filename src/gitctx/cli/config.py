@@ -8,7 +8,7 @@ from rich.console import Console
 
 from gitctx.cli.symbols import SYMBOLS
 from gitctx.cli.tips import is_first_run, show_tip
-from gitctx.core.config import GitCtxSettings, init_repo_config
+from gitctx.config.settings import GitCtxSettings, init_repo_config
 
 console = Console()
 console_err = Console(stderr=True)

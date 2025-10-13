@@ -11,8 +11,9 @@ from typing import Any
 import lancedb
 import pyarrow as pa
 
-from gitctx.core.exceptions import DimensionMismatchError
-from gitctx.core.models import BlobLocation, Embedding
+from gitctx.git.types import BlobLocation
+from gitctx.indexing.types import Embedding
+from gitctx.models.errors import DimensionMismatchError
 from gitctx.storage.schema import CHUNK_SCHEMA
 
 logger = logging.getLogger(__name__)

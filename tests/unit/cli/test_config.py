@@ -368,7 +368,7 @@ def test_config_set_verbose_mode(isolated_cli_runner):
 
 def test_config_set_file_not_found_error(isolated_cli_runner, monkeypatch):
     """Test config set shows helpful error when .gitctx doesn't exist."""
-    from gitctx.core.config import GitCtxSettings
+    from gitctx.config.settings import GitCtxSettings
 
     # Don't run init - try to set config without .gitctx existing
     # Mock settings.set to raise FileNotFoundError
@@ -417,7 +417,7 @@ def test_config_get_quiet_mode_with_value(isolated_cli_runner):
 
 def test_config_get_attribute_error_on_navigation(isolated_cli_runner, monkeypatch):
     """Test config get AttributeError path when getattr fails during navigation."""
-    from gitctx.core.config import GitCtxSettings
+    from gitctx.config.settings import GitCtxSettings
 
     isolated_cli_runner.invoke(app, ["config", "init"])
 
@@ -434,7 +434,7 @@ def test_config_get_attribute_error_on_navigation(isolated_cli_runner, monkeypat
 
 def test_config_list_truly_empty(isolated_cli_runner, monkeypatch):
     """Test config list when no API keys or config values are set."""
-    from gitctx.core.config import GitCtxSettings
+    from gitctx.config.settings import GitCtxSettings
 
     # Mock settings to have completely empty config
     original_init = GitCtxSettings.__init__
