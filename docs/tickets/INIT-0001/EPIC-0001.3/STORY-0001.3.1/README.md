@@ -3,7 +3,7 @@
 **Parent Epic**: [EPIC-0001.3](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 4
-**Progress**: ██░░░░░░░░ 20%
+**Progress**: ████░░░░░░ 40%
 
 ## User Story
 
@@ -399,7 +399,7 @@ def test_concurrent_cache_writes():
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
 | [TASK-0001.3.1.0](./TASK-0001.3.1.0.md) | Architecture refactor for clean module boundaries | ✅ Complete | 5-6 | 0/5 → 0/5 (no BDD, pure refactor) |
-| [TASK-0001.3.1.1](./TASK-0001.3.1.1.md) | Write BDD scenarios for query embedding | 🔵 Not Started | 3 | 0/5 → 0/5 (all failing, red phase) |
+| [TASK-0001.3.1.1](./TASK-0001.3.1.1.md) | Write BDD scenarios for query embedding | ✅ Complete | 3 | 0/5 → 0/5 (all failing, red phase) |
 | [TASK-0001.3.1.2](./TASK-0001.3.1.2.md) | Model registry and provider infrastructure | 🔵 Not Started | 3 | 0/5 → 1/5 (first scenario with VCR) |
 | [TASK-0001.3.1.3](./TASK-0001.3.1.3.md) | Core query embedding implementation (TDD) | 🔵 Not Started | 8 | 1/5 → 4/5 (validation, cache, errors) |
 | [TASK-0001.3.1.4](./TASK-0001.3.1.4.md) | Integration and E2E verification | 🔵 Not Started | 2 | 4/5 → 5/5 (all passing ✅) |
