@@ -6,6 +6,7 @@ Following TDD workflow:
 3. Refactor if needed
 """
 
+from gitctx.git.types import WalkStats
 from gitctx.indexing.types import CodeChunk
 
 
@@ -67,3 +68,45 @@ class TestCodeChunk:
         # ASSERT
         assert chunk.metadata == {}
         assert chunk.content == "x = 1"
+
+
+class TestWalkStats:
+    """Test suite for WalkStats dataclass."""
+
+    def test_walk_stats_initializes_errors_list(self):
+        """Test WalkStats __post_init__ initializes errors list when None."""
+        # ARRANGE & ACT - Create WalkStats without providing errors parameter
+        stats = WalkStats(commits_seen=5, blobs_indexed=10, blobs_skipped=2)
+
+        # ASSERT - errors should be initialized to empty list
+        assert stats.errors == []
+        assert isinstance(stats.errors, list)
+        assert stats.commits_seen == 5
+        assert stats.blobs_indexed == 10
+        assert stats.blobs_skipped == 2
+
+    def test_walk_stats_preserves_provided_errors(self):
+        """Test WalkStats preserves errors list when provided."""
+        # ARRANGE
+        from gitctx.git.types import WalkError
+
+        error = WalkError(
+            error_type="filter",
+            blob_sha="def456",
+            commit_sha="abc123",
+            message="Test error",
+        )
+
+        # ACT
+        stats = WalkStats(
+            commits_seen=3,
+            blobs_indexed=5,
+            blobs_skipped=1,
+            errors=[error],
+        )
+
+        # ASSERT - provided errors list should be preserved
+        assert len(stats.errors) == 1
+        assert stats.errors[0] == error
+        assert stats.errors[0].commit_sha == "abc123"
+        assert stats.errors[0].blob_sha == "def456"

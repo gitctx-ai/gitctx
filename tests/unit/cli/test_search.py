@@ -188,3 +188,168 @@ def test_search_mcp_and_verbose_are_mutually_exclusive(cli_runner):
     assert result.exit_code == 2
     output = result.stdout + result.stderr
     assert "mutually exclusive" in output.lower() or "Error" in output
+
+
+def test_search_validation_error_exits_with_code_2(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """Verify ValidationError is caught and exits with code 2."""
+    # ARRANGE - Set up minimal repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # Mock settings
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+
+    # ACT & ASSERT - Mock QueryEmbedder to raise ValidationError
+    from gitctx.search.errors import ValidationError
+
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
+    ):
+        mock_embedder = Mock()
+        mock_embedder.embed_query = Mock(side_effect=ValidationError("Query is too long"))
+        mock_embedder_class.return_value = mock_embedder
+
+        result = isolated_cli_runner.invoke(app, ["search", "test"])
+
+        assert result.exit_code == 2
+        output = result.stdout + result.stderr
+        assert "Query is too long" in output
+
+
+def test_search_configuration_error_exits_with_code_4(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """Verify ConfigurationError is caught and exits with code 4."""
+    # ARRANGE - Set up minimal repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # ACT & ASSERT - Mock GitCtxSettings to raise ConfigurationError
+    from gitctx.config.errors import ConfigurationError
+
+    with patch(
+        "gitctx.cli.search.GitCtxSettings",
+        side_effect=ConfigurationError("Missing API key in configuration"),
+    ):
+        result = isolated_cli_runner.invoke(app, ["search", "test"])
+
+        assert result.exit_code == 4
+        output = result.stdout + result.stderr
+        assert "Missing API key" in output
+
+
+def test_search_embedding_error_exits_with_code_5(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """Verify EmbeddingError is caught and exits with code 5."""
+    # ARRANGE - Set up minimal repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # Mock settings
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+
+    # ACT & ASSERT - Mock QueryEmbedder to raise EmbeddingError
+    from gitctx.search.errors import EmbeddingError
+
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
+    ):
+        mock_embedder = Mock()
+        mock_embedder.embed_query = Mock(
+            side_effect=EmbeddingError("API rate limit exceeded")
+        )
+        mock_embedder_class.return_value = mock_embedder
+
+        result = isolated_cli_runner.invoke(app, ["search", "test"])
+
+        assert result.exit_code == 5
+        output = result.stdout + result.stderr
+        assert "API rate limit" in output
