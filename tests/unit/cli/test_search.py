@@ -343,9 +343,7 @@ def test_search_embedding_error_exits_with_code_5(
         patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
     ):
         mock_embedder = Mock()
-        mock_embedder.embed_query = Mock(
-            side_effect=EmbeddingError("API rate limit exceeded")
-        )
+        mock_embedder.embed_query = Mock(side_effect=EmbeddingError("API rate limit exceeded"))
         mock_embedder_class.return_value = mock_embedder
 
         result = isolated_cli_runner.invoke(app, ["search", "test"])
