@@ -293,9 +293,23 @@ class LanceDBStore:
 
         # Batch insert
         if records:
+            import sys
+
+            if sys.platform == "win32":
+                with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                    f.write(
+                        f"\n[DEBUG] add_chunks_batch(): About to insert {len(records)} records\n"
+                    )
+
             assert self.chunks_table is not None
             self.chunks_table.add(records)
             logger.info(f"Inserted {len(records)} chunks into LanceDB")
+
+            if sys.platform == "win32":
+                with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                    f.write(
+                        f"[DEBUG] add_chunks_batch(): Insert succeeded, count = {self.chunks_table.count_rows()}\n"
+                    )
 
     def optimize(self) -> None:
         """Create IVF-PQ index for fast vector search.
