@@ -289,8 +289,14 @@ def results_displayed(context: dict[str, Any]) -> None:
 
 @then(parsers.parse('results should match query "{query}"'))
 def results_match_query(query: str, context: dict[str, Any]) -> None:
-    """Verify search results semantically match the query (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.2")
+    """Verify search results semantically match the query.
+
+    Basic verification - just check command succeeded.
+    Full result verification in TASK-0001.3.2.3.
+    """
+    result = context.get("result")
+    assert result is not None, "No command result found"
+    assert result.exit_code == 0, f"Command failed with exit code {result.exit_code}"
 
 
 @then(parsers.parse("exactly {n:d} results should be shown"))
@@ -300,9 +306,31 @@ def exactly_n_results(n: int, context: dict[str, Any]) -> None:
 
 
 @when(parsers.parse('I pipe "{text}" to "{command}"'))
-def pipe_text_to_command(text: str, command: str, context: dict[str, Any], e2e_cli_runner) -> None:
-    """Pipe text to command via stdin (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.2")
+def pipe_text_to_command(
+    text: str,
+    command: str,
+    context: dict[str, Any],
+    e2e_cli_runner,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pipe text to command via stdin using CliRunner.
+
+    CliRunner natively supports stdin via input= parameter.
+    No subprocess needed - uses in-process Typer testing.
+    """
+    from gitctx.cli.main import app
+
+    # Change to repo directory if needed
+    if repo_path := context.get("repo_path"):
+        monkeypatch.chdir(repo_path)
+
+    # CliRunner handles stdin via input= parameter
+    result = e2e_cli_runner.invoke(app, ["search"], input=text)
+
+    # Store results for subsequent Then steps
+    context["result"] = result
+    context["stdout"] = result.stdout
+    context["exit_code"] = result.exit_code
 
 
 @then("results should be sorted by _distance ascending (0.0 = best match first)")

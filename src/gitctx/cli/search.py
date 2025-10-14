@@ -1,5 +1,6 @@
 """Search command for gitctx CLI."""
 
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -15,6 +16,7 @@ from gitctx.search.errors import EmbeddingError, ValidationError
 from gitctx.storage.lancedb_store import LanceDBStore
 
 console = Console()
+console_err = Console(stderr=True)
 
 
 def register(app: typer.Typer) -> None:
@@ -22,11 +24,46 @@ def register(app: typer.Typer) -> None:
     app.command(name="search")(search_command)
 
 
+def _get_query_text(query: list[str] | None) -> str:
+    """Extract query text from CLI args or stdin.
+
+    Args:
+        query: CLI arguments after 'gitctx search' (e.g., ['auth', 'middleware'])
+
+    Returns:
+        str: Query text joined with spaces (e.g., 'auth middleware')
+
+    Raises:
+        typer.Exit(2): If no query provided (neither args nor stdin)
+    """
+    # If query provided as args, join and return early
+    if query:
+        return " ".join(query)
+
+    # No args provided - check stdin
+    if sys.stdin.isatty():
+        # Interactive terminal with no piped input
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)"
+        )
+        raise typer.Exit(2)
+
+    # Read from piped stdin
+    query_text = sys.stdin.read().strip()
+    if not query_text:
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)"
+        )
+        raise typer.Exit(2)
+
+    return query_text
+
+
 def search_command(
     query: Annotated[
-        list[str],
+        list[str] | None,
         typer.Argument(help="The search query to find relevant code and documentation"),
-    ],
+    ] = None,
     limit: int = typer.Option(
         10,
         "--limit",
@@ -67,12 +104,11 @@ def search_command(
         # MCP mode (structured markdown for AI)
         $ gitctx search "authentication" --mcp
     """
-    # Join variadic query words into single string
-    query_text = " ".join(query)
+    # Get query text from args or stdin
+    query_text = _get_query_text(query)
 
     # Validate mutually exclusive output modes
     if verbose and mcp:
-        console_err = Console(stderr=True)
         console_err.print(
             f"[red]{SYMBOLS['error']}[/red] Error: --verbose and --mcp are mutually exclusive"
         )
@@ -115,17 +151,14 @@ def search_command(
         console.print("[dim]Note: Full search results coming in STORY-0001.3.2[/dim]")
 
     except ValidationError as err:
-        console_err = Console(stderr=True)
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
         raise typer.Exit(code=2) from err
 
     except ConfigurationError as err:
-        console_err = Console(stderr=True)
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
         raise typer.Exit(code=4) from err
 
     except EmbeddingError as err:
-        console_err = Console(stderr=True)
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
         raise typer.Exit(code=5) from err
 
