@@ -366,8 +366,7 @@ def e2e_indexed_repo_factory(
         # NOTE: Can't use monkeypatch in closure (scope issue), so use os.chdir with try/finally
         original_dir = os.getcwd()
         try:
-            # Resolve path for Windows compatibility (handles symlinks, junctions, relative paths)
-            os.chdir(repo_path.resolve())
+            os.chdir(repo_path)
 
             # Set API key in context for auto-merge by e2e_cli_runner
             context["custom_env"] = {"OPENAI_API_KEY": e2e_session_api_key}
@@ -384,8 +383,7 @@ def e2e_indexed_repo_factory(
             # Restore directory (pytest's autouse fixture will handle final cleanup)
             os.chdir(original_dir)
 
-        # Return resolved path for consistent reference across platforms
-        return repo_path.resolve()
+        return repo_path
 
     return _make_indexed_repo
 
@@ -469,6 +467,9 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
     - e2e_git_isolation_env: Environment for git operations
     """
 
+    # Counter for unique repo names within a test
+    _counter = {"value": 0}
+
     def _make_repo(
         files: dict[str, str] | None = None,
         num_commits: int = 1,
@@ -476,7 +477,10 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
         add_gitignore: bool = True,
     ) -> Path:
         """Create a git repository with specified structure."""
-        repo_path = tmp_path / f"test_repo_{id(files)}"  # Unique name per call
+        # Use short counter to avoid Windows MAX_PATH (260 char limit)
+        # tmp_path is already unique per test, counter ensures uniqueness within test
+        _counter["value"] += 1
+        repo_path = tmp_path / f"r{_counter['value']}"
         repo_path.mkdir(exist_ok=True)
 
         # Initialize git with isolation and set default branch to 'main'

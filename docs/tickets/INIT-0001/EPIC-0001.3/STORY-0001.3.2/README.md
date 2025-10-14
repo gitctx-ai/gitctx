@@ -11,7 +11,9 @@ As a developer
 I want to search my indexed codebase using semantic similarity
 So that I can find relevant code based on meaning rather than exact keyword matches
 
-## BDD Progress: 12/13 scenarios passing ✅ (11 E2E + 1 unit test, 1 @performance excluded from regular runs)
+## BDD Progress: 11/11 scenarios passing ✅ (11 E2E + 1 unit test)
+
+**Note**: Performance testing (p95 latency <2s goal) deferred to [STORY-0001.3.4](../STORY-0001.3.4/README.md) for dedicated optimization work.
 
 ## Acceptance Criteria
 
@@ -40,13 +42,11 @@ So that I can find relevant code based on meaning rather than exact keyword matc
 - [x] Empty result set (exit code 0):
   - Display: `"0 results in {duration:.2f}s"`
   - No error, successful completion
-- [x] Search performance (validated in separate @performance CI workflow):
-  - p95 latency <2.0 seconds for 10K vector index (100 queries)
-    - Calculate using `numpy.percentile(latencies, 95)`
-    - Test fails if p95 >= 2.0 seconds
-  - All requests complete within 5.0 seconds
-  - Uses VCR cassettes (no real API calls in CI)
-- [x] Memory usage: peak <500MB for 100K vectors (measured with `memory_profiler`)
+
+**Performance criteria deferred to STORY-0001.3.4:**
+- [ ] Search performance (p95 latency <2.0s for realistic codebase)
+- [ ] Memory usage optimization (peak <500MB for large indexes)
+- [ ] Performance regression testing in CI
 
 ## BDD Scenarios
 

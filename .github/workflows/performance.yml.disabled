@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main              # Run on main commits
-      - STORY-0001.3.2    # TEMPORARY: Run on this PR to validate performance tests
 
 jobs:
   performance:
@@ -26,5 +25,5 @@ jobs:
           uv sync --all-extras
 
       - name: Run performance tests
-        run: uv run pytest -m performance -v
+        run: uv run pytest -m performance -v --no-cov
         # No OPENAI_API_KEY needed - uses VCR cassettes!
