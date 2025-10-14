@@ -254,15 +254,24 @@ class LanceDBStore:
             embeddings: List of Embedding objects from embedder
             blob_locations: Map of blob_sha -> BlobLocation list (from walker)
         """
+        import sys
         from datetime import UTC, datetime
+
+        if sys.platform == "win32":
+            with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                f.write("\n[DEBUG] add_chunks_batch() called:\n")
+                f.write(f"  embeddings count: {len(embeddings)}\n")
+                f.write(f"  blob_locations count: {len(blob_locations)}\n")
 
         records = []
 
+        skipped_count = 0
         for emb in embeddings:
             # Get BlobLocation for this chunk's blob
             locations = blob_locations.get(emb.blob_sha, [])
             if not locations:
                 logger.warning(f"No location found for blob {emb.blob_sha[:8]}... - skipping chunk")
+                skipped_count += 1
                 continue
 
             # Use most recent location by commit_date (when blob appears in multiple commits)
@@ -292,14 +301,15 @@ class LanceDBStore:
             records.append(record)
 
         # Batch insert
-        if records:
-            import sys
+        if sys.platform == "win32":
+            with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                f.write(f"  records built: {len(records)}\n")
+                f.write(f"  skipped (no location): {skipped_count}\n")
 
+        if records:
             if sys.platform == "win32":
                 with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write(
-                        f"\n[DEBUG] add_chunks_batch(): About to insert {len(records)} records\n"
-                    )
+                    f.write(f"[DEBUG] add_chunks_batch(): About to insert {len(records)} records\n")
 
             assert self.chunks_table is not None
             self.chunks_table.add(records)
@@ -310,6 +320,10 @@ class LanceDBStore:
                     f.write(
                         f"[DEBUG] add_chunks_batch(): Insert succeeded, count = {self.chunks_table.count_rows()}\n"
                     )
+        else:
+            if sys.platform == "win32":
+                with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                    f.write("[DEBUG] add_chunks_batch(): No records to insert!\n")
 
     def optimize(self) -> None:
         """Create IVF-PQ index for fast vector search.
