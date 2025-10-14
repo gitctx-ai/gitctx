@@ -142,6 +142,12 @@ jobs:
         run: |
           uv sync --all-extras
 
+      # Pre-warm tiktoken cache to avoid download during VCR cassette replay
+      # Windows CI needs this because tiktoken cache isn't pre-populated
+      - name: Pre-warm tiktoken cache
+        run: |
+          python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
+
       # VCR.py cassettes are recorded on developer machines with real API keys
       # CI only replays pre-recorded cassettes - no OPENAI_API_KEY needed
       # Note: basetemp is set automatically on Windows via conftest.py to avoid MAX_PATH
