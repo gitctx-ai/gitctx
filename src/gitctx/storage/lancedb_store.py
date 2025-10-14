@@ -64,23 +64,25 @@ class LanceDBStore:
         # Use as_posix() for cross-platform compatibility (LanceDB is Rust-based, prefers forward slashes)
         connect_path = str(db_path.as_posix())
 
-        # Windows debugging
+        # Windows debugging - write to file since CliRunner captures stdout
         import os
         import sys
 
         if sys.platform == "win32":
-            print("[DEBUG] LanceDBStore connecting:")
-            print(f"  db_path input: {db_path}")
-            print(f"  db_path.as_posix(): {db_path.as_posix()}")
-            print(f"  connect_path: {connect_path}")
-            print(f"  os.getcwd(): {os.getcwd()}")
+            with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                f.write("\n[DEBUG] LanceDBStore.__init__ connecting:\n")
+                f.write(f"  db_path input: {db_path}\n")
+                f.write(f"  db_path.as_posix(): {db_path.as_posix()}\n")
+                f.write(f"  connect_path: {connect_path}\n")
+                f.write(f"  os.getcwd(): {os.getcwd()}\n")
 
         self.db = lancedb.connect(connect_path)
 
         # Windows debugging - verify connection
         if sys.platform == "win32":
-            print("  lancedb.connect() succeeded")
-            print(f"  db.table_names(): {self.db.table_names()}")
+            with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                f.write("  lancedb.connect() succeeded\n")
+                f.write(f"  db.table_names(): {self.db.table_names()}\n")
 
         # Table names
         self.chunks_table_name = "code_chunks"
@@ -172,19 +174,22 @@ class LanceDBStore:
 
         if self.chunks_table is None:
             if sys.platform == "win32":
-                print("[DEBUG] count(): chunks_table is None")
+                with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                    f.write("[DEBUG] count(): chunks_table is None\n")
             return 0
 
         try:
             # LanceDB count is fast (metadata operation)
             row_count = self.chunks_table.count_rows()
             if sys.platform == "win32":
-                print(f"[DEBUG] count(): chunks_table.count_rows() = {row_count}")
+                with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                    f.write(f"[DEBUG] count(): chunks_table.count_rows() = {row_count}\n")
             return row_count
         except Exception as e:
             # If table is empty or has issues, return 0
             if sys.platform == "win32":
-                print(f"[DEBUG] count(): Exception during count_rows(): {e}")
+                with open("C:\\t\\lancedb_debug.txt", "a") as f:
+                    f.write(f"[DEBUG] count(): Exception during count_rows(): {e}\n")
             return 0
 
     def get_statistics(self) -> dict[str, Any]:

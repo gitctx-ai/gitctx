@@ -161,6 +161,17 @@ jobs:
           fi
         shell: bash
 
+      - name: Show Windows debug log
+        if: runner.os == 'Windows' && always()
+        run: |
+          if [ -f "C:\\t\\lancedb_debug.txt" ]; then
+            echo "=== LanceDB Debug Log ==="
+            cat "C:\\t\\lancedb_debug.txt"
+          else
+            echo "Debug log not found at C:\\t\\lancedb_debug.txt"
+          fi
+        shell: bash
+
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         uses: codecov/codecov-action@v4
