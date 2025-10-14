@@ -53,23 +53,6 @@ def run_command(
         assert cwd.exists(), f"Repo path {cwd} doesn't exist"
         monkeypatch.chdir(cwd)
 
-    # Windows debugging - show directory state before command
-    import os
-    import sys
-    from pathlib import Path
-
-    if sys.platform == "win32":
-        print(f"\n[DEBUG] Windows directory state before running '{command}':")
-        print(f"  os.getcwd(): {os.getcwd()}")
-        print(f"  context['repo_path']: {context.get('repo_path')}")
-        gitctx_path = Path(os.getcwd()) / ".gitctx"
-        print(f"  .gitctx exists: {gitctx_path.exists()}")
-        if gitctx_path.exists():
-            db_path = gitctx_path / "db" / "lancedb"
-            print(f"  lancedb exists: {db_path.exists()}")
-            if db_path.exists():
-                print(f"  lancedb contents: {list(db_path.iterdir())}")
-
     # Run CLI in-process with CliRunner
     # Environment automatically merged from context["custom_env"] by fixture
     result = e2e_cli_runner.invoke(app, args)

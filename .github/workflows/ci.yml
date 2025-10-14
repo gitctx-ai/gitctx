@@ -153,23 +153,7 @@ jobs:
       # Note: basetemp is set automatically on Windows via conftest.py to avoid MAX_PATH
       - name: Run tests with coverage
         run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            # DEBUG: Only run the failing test on Windows for faster feedback
-            uv run pytest tests/e2e/test_search_features.py::test_search_with_result_limit -xvs --no-cov
-          else
-            uv run pytest --cov=src/gitctx --cov-report=xml --cov-report=term
-          fi
-        shell: bash
-
-      - name: Show Windows debug log
-        if: runner.os == 'Windows' && always()
-        run: |
-          if [ -f "C:\\t\\lancedb_debug.txt" ]; then
-            echo "=== LanceDB Debug Log ==="
-            cat "C:\\t\\lancedb_debug.txt"
-          else
-            echo "Debug log not found at C:\\t\\lancedb_debug.txt"
-          fi
+          uv run pytest --cov=src/gitctx --cov-report=xml --cov-report=term
         shell: bash
 
       - name: Upload coverage to Codecov

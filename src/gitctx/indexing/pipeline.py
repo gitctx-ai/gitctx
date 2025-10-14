@@ -99,17 +99,7 @@ async def index_repository(
         # Phase 2: Chunk and embed
         reporter.phase("Generating embeddings")
 
-        # Windows debugging
-        if sys.platform == "win32":
-            with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                f.write("\n[DEBUG] Pipeline: Starting blob processing loop\n")
-                f.write(f"  blob_records count: {len(blob_records)}\n")
-
         for blob_record in blob_records:
-            # Windows debugging
-            if sys.platform == "win32":
-                with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write(f"\n[DEBUG] Pipeline: Processing blob {blob_record.sha[:8]}\n")
             try:
                 # Decode blob content
                 content = blob_record.content.decode("utf-8")
@@ -161,22 +151,10 @@ async def index_repository(
                 # Store embeddings with blob metadata
                 blob_locations = {blob_record.sha: blob_record.locations}
 
-                # Windows debugging
-                if sys.platform == "win32":
-                    with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                        f.write("[DEBUG] Pipeline: About to call add_chunks_batch\n")
-                        f.write(f"  storage_embeddings count: {len(storage_embeddings)}\n")
-                        f.write(f"  blob_locations keys: {list(blob_locations.keys())}\n")
-
                 store.add_chunks_batch(
                     embeddings=storage_embeddings,
                     blob_locations=blob_locations,
                 )
-
-                # Windows debugging
-                if sys.platform == "win32":
-                    with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                        f.write("[DEBUG] Pipeline: add_chunks_batch completed\n")
 
             except UnicodeDecodeError:
                 # Skip binary files (expected for non-text content)
@@ -188,10 +166,6 @@ async def index_repository(
                     file_path,
                     exc_info=True,
                 )
-                # Windows debugging
-                if sys.platform == "win32":
-                    with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                        f.write(f"[DEBUG] Pipeline: UnicodeDecodeError for {file_path}\n")
                 reporter.record_error()
                 continue
             except Exception as e:
@@ -205,10 +179,6 @@ async def index_repository(
                     blob_record.sha,
                     exc_info=True,
                 )
-                # Windows debugging
-                if sys.platform == "win32":
-                    with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                        f.write(f"[DEBUG] Pipeline: Exception for {file_path}: {e}\n")
                 print(f"Error processing {file_path}: {e}", file=sys.stderr)
                 reporter.record_error()
                 continue

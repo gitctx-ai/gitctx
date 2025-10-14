@@ -63,26 +63,7 @@ class LanceDBStore:
         # Connect to LanceDB
         # Use as_posix() for cross-platform compatibility (LanceDB is Rust-based, prefers forward slashes)
         connect_path = str(db_path.as_posix())
-
-        # Windows debugging - write to file since CliRunner captures stdout
-        import os
-        import sys
-
-        if sys.platform == "win32":
-            with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                f.write("\n[DEBUG] LanceDBStore.__init__ connecting:\n")
-                f.write(f"  db_path input: {db_path}\n")
-                f.write(f"  db_path.as_posix(): {db_path.as_posix()}\n")
-                f.write(f"  connect_path: {connect_path}\n")
-                f.write(f"  os.getcwd(): {os.getcwd()}\n")
-
         self.db = lancedb.connect(connect_path)
-
-        # Windows debugging - verify connection
-        if sys.platform == "win32":
-            with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                f.write("  lancedb.connect() succeeded\n")
-                f.write(f"  db.table_names(): {self.db.table_names()}\n")
 
         # Table names
         self.chunks_table_name = "code_chunks"
@@ -170,26 +151,14 @@ class LanceDBStore:
         Returns:
             Number of chunks stored
         """
-        import sys
-
         if self.chunks_table is None:
-            if sys.platform == "win32":
-                with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write("[DEBUG] count(): chunks_table is None\n")
             return 0
 
         try:
             # LanceDB count is fast (metadata operation)
-            row_count = self.chunks_table.count_rows()
-            if sys.platform == "win32":
-                with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write(f"[DEBUG] count(): chunks_table.count_rows() = {row_count}\n")
-            return row_count
-        except Exception as e:
+            return self.chunks_table.count_rows()
+        except Exception:
             # If table is empty or has issues, return 0
-            if sys.platform == "win32":
-                with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write(f"[DEBUG] count(): Exception during count_rows(): {e}\n")
             return 0
 
     def get_statistics(self) -> dict[str, Any]:
@@ -254,17 +223,9 @@ class LanceDBStore:
             embeddings: List of Embedding objects from embedder
             blob_locations: Map of blob_sha -> BlobLocation list (from walker)
         """
-        import sys
         from datetime import UTC, datetime
 
-        if sys.platform == "win32":
-            with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                f.write("\n[DEBUG] add_chunks_batch() called:\n")
-                f.write(f"  embeddings count: {len(embeddings)}\n")
-                f.write(f"  blob_locations count: {len(blob_locations)}\n")
-
         records = []
-
         skipped_count = 0
         for emb in embeddings:
             # Get BlobLocation for this chunk's blob
@@ -301,29 +262,12 @@ class LanceDBStore:
             records.append(record)
 
         # Batch insert
-        if sys.platform == "win32":
-            with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                f.write(f"  records built: {len(records)}\n")
-                f.write(f"  skipped (no location): {skipped_count}\n")
-
         if records:
-            if sys.platform == "win32":
-                with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write(f"[DEBUG] add_chunks_batch(): About to insert {len(records)} records\n")
-
             assert self.chunks_table is not None
             self.chunks_table.add(records)
             logger.info(f"Inserted {len(records)} chunks into LanceDB")
-
-            if sys.platform == "win32":
-                with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write(
-                        f"[DEBUG] add_chunks_batch(): Insert succeeded, count = {self.chunks_table.count_rows()}\n"
-                    )
-        else:
-            if sys.platform == "win32":
-                with open("C:\\t\\lancedb_debug.txt", "a") as f:
-                    f.write("[DEBUG] add_chunks_batch(): No records to insert!\n")
+        elif skipped_count > 0:
+            logger.warning(f"Skipped {skipped_count} chunks with no blob location")
 
     def optimize(self) -> None:
         """Create IVF-PQ index for fast vector search.

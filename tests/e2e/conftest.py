@@ -379,16 +379,6 @@ def e2e_indexed_repo_factory(
         try:
             os.chdir(repo_path)
 
-            # Windows debugging - show directory state before indexing
-            import sys
-            from pathlib import Path
-
-            if sys.platform == "win32":
-                print("\n[DEBUG] Factory: Windows directory state before indexing:")
-                print(f"  repo_path: {repo_path}")
-                print(f"  os.getcwd(): {os.getcwd()}")
-                print(f"  repo exists: {repo_path.exists()}")
-
             # Set API key in context for auto-merge by e2e_cli_runner
             context["custom_env"] = {"OPENAI_API_KEY": e2e_session_api_key}
 
@@ -400,17 +390,6 @@ def e2e_indexed_repo_factory(
 
             if result.exit_code != 0:
                 pytest.fail(f"Failed to index repo: {result.output}")
-
-            # Windows debugging - verify index was created
-            if sys.platform == "win32":
-                index_path = Path(os.getcwd()) / ".gitctx" / "db" / "lancedb"
-                print("[DEBUG] Factory: After indexing:")
-                print(f"  os.getcwd(): {os.getcwd()}")
-                print(f"  index exists: {index_path.exists()}")
-                if index_path.exists():
-                    print(f"  index contents: {list(index_path.iterdir())}")
-                print(f"  Will return repo_path: {repo_path}")
-                print(f"  About to restore dir to: {original_dir}")
         finally:
             # Restore directory (caller will chdir again for test)
             os.chdir(original_dir)
