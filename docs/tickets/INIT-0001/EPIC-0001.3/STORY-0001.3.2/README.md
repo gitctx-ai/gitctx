@@ -1,9 +1,9 @@
 # STORY-0001.3.2: Vector Similarity Search
 
 **Parent Epic**: [EPIC-0001.3](../README.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 6
-**Progress**: ████████████████░░ 80%
+**Progress**: ████████████████████ 100%
 
 ## User Story
 
@@ -402,9 +402,9 @@ jobs:
 | [TASK-0001.3.2.2](TASK-0001.3.2.2.md) | Variadic Args + stdin Support (TDD) | ✅ Complete | 3 (est 4) | 3/13 passing |
 | [TASK-0001.3.2.3](TASK-0001.3.2.3.md) | LanceDB Integration + Error Handling (TDD) | ✅ Complete | 6 (est 6) | 4/13 passing |
 | [TASK-0001.3.2.4](TASK-0001.3.2.4.md) | Performance Test Infrastructure + CI Workflow | ✅ Complete | 4 (est 4) | 4/13 passing |
-| [TASK-0001.3.2.5](TASK-0001.3.2.5.md) | Final Integration + Complete BDD Suite | 🔵 Not Started | 3 | 12/13 passing ✅ |
+| [TASK-0001.3.2.5](TASK-0001.3.2.5.md) | Final Integration + Complete BDD Suite | ✅ Complete | 2 (est 3) | Unit tests ✅ |
 
-**Total Hours**: 20 hours (≈6 story points × 3.3h/point)
+**Total Hours**: 18 actual (20 estimated) ≈6 story points × 3h/point
 
 **Incremental BDD Tracking:**
 - TASK-1: 0/13 scenarios (all stubbed, all failing)
