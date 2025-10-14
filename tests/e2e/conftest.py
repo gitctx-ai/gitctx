@@ -510,9 +510,6 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
             ["git", "config", "user.name", "Test User"],
             ["git", "config", "user.email", "test@example.com"],
             ["git", "config", "commit.gpgsign", "false"],
-            # Normalize line endings to LF for cross-platform VCR cassette matching
-            # Without this, Windows uses CRLF which changes embedding request bodies
-            ["git", "config", "core.autocrlf", "input"],
         ]:
             subprocess.run(cmd, cwd=repo_path, env=e2e_git_isolation_env, check=True)
 
@@ -563,6 +560,56 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
 # === VCR.py Configuration for API Response Recording ===
 
 
+def _filter_security_headers(headers: dict[str, Any]) -> dict[str, Any]:
+    """Remove security-sensitive headers from VCR cassettes.
+
+    These headers contain secrets (API keys, auth tokens) that should
+    never be committed to git, even in test cassettes.
+
+    Args:
+        headers: Request headers dictionary
+
+    Returns:
+        dict: Headers with security-sensitive entries removed
+    """
+    security_headers = [
+        "authorization",
+        "api-key",
+        "x-api-key",
+        "openai-organization",
+    ]
+    filtered = headers.copy()
+    for header in security_headers:
+        filtered.pop(header, None)
+    return filtered
+
+
+def _filter_platform_headers(headers: dict[str, Any]) -> dict[str, Any]:
+    """Remove platform/OS-specific headers for cross-platform cassette replay.
+
+    These headers vary between macOS/Linux/Windows and would cause
+    cassette match failures when replaying on different platforms.
+
+    Args:
+        headers: Request headers dictionary
+
+    Returns:
+        dict: Headers with platform-specific entries removed
+    """
+    platform_headers = [
+        "user-agent",
+        "x-stainless-os",
+        "x-stainless-runtime",
+        "x-stainless-runtime-version",
+        "x-stainless-arch",
+        "x-stainless-package-version",
+    ]
+    filtered = headers.copy()
+    for header in platform_headers:
+        filtered.pop(header, None)
+    return filtered
+
+
 @pytest.fixture(scope="module")
 def vcr_config():
     """VCR configuration for E2E tests.
@@ -578,20 +625,27 @@ def vcr_config():
     Returns:
         dict: VCR configuration parameters
     """
+    # Combine all headers to filter (both security and platform)
+    all_filtered_headers = [
+        # Security headers
+        "authorization",
+        "x-api-key",
+        "api-key",
+        "openai-organization",
+        # Platform headers
+        "user-agent",
+        "x-stainless-os",
+        "x-stainless-runtime",
+        "x-stainless-runtime-version",
+        "x-stainless-arch",
+        "x-stainless-package-version",
+    ]
+
     return {
         "cassette_library_dir": "tests/e2e/cassettes",
         "record_mode": "once",  # Record once, then replay
         "match_on": ["method", "scheme", "host", "port", "path", "query", "body"],
-        "filter_headers": [
-            "authorization",  # Strip API keys from cassettes
-            "x-api-key",
-            "api-key",
-            # OS/platform-specific headers (allow cross-platform cassette replay)
-            "x-stainless-os",  # Linux/Windows/MacOS differences
-            "x-stainless-arch",  # x64/arm64/etc differences
-            "x-stainless-runtime-version",  # Python version differences
-            "user-agent",  # May contain OS/Python version info
-        ],
+        "filter_headers": all_filtered_headers,
         "filter_post_data_parameters": [
             "api_key",
         ],

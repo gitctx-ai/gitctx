@@ -61,7 +61,7 @@ class LanceDBStore:
         self.db_path.mkdir(parents=True, exist_ok=True)
 
         # Connect to LanceDB
-        # Use as_posix() for cross-platform compatibility (LanceDB is Rust-based, prefers forward slashes)
+        # Use as_posix() to ensure cross-platform path compatibility
         connect_path = str(db_path.as_posix())
         self.db = lancedb.connect(connect_path)
 

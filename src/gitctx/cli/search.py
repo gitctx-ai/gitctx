@@ -20,10 +20,18 @@ from gitctx.storage.lancedb_store import LanceDBStore
 console = Console()
 console_err = Console(stderr=True)
 
+# Search limit constants
+MIN_SEARCH_LIMIT = 1
+MAX_SEARCH_LIMIT = 100
+DEFAULT_SEARCH_LIMIT = 10
+
+# OpenAI embedding token limits
+MAX_QUERY_TOKENS = 8191  # text-embedding-3-* model limit
+
 
 def register(app: typer.Typer) -> None:
     """Register the search command with the CLI app."""
-    app.command(name="search")(search_command)
+    app.command(name="search", help="Search indexed code using semantic similarity")(search_command)
 
 
 def _get_query_text(query: list[str] | None) -> str:
@@ -37,26 +45,42 @@ def _get_query_text(query: list[str] | None) -> str:
 
     Raises:
         typer.Exit(2): If no query provided (neither args nor stdin)
+        typer.Exit(2): If query exceeds MAX_QUERY_TOKENS token limit
     """
     # If query provided as args, join and return early
     if query:
-        return " ".join(query)
-
-    # No args provided - check stdin
-    if sys.stdin.isatty():
-        # Interactive terminal with no piped input
+        query_text = " ".join(query)
+    elif sys.stdin.isatty():
+        # No args provided and interactive terminal with no piped input
         console_err.print(
             f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)"
         )
         raise typer.Exit(2)
+    else:
+        # Read from piped stdin
+        query_text = sys.stdin.read().strip()
+        if not query_text:
+            console_err.print(
+                f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)"
+            )
+            raise typer.Exit(2)
 
-    # Read from piped stdin
-    query_text = sys.stdin.read().strip()
-    if not query_text:
-        console_err.print(
-            f"[red]{SYMBOLS['error']}[/red] Error: Query required (from args or stdin)"
-        )
-        raise typer.Exit(2)
+    # Validate query token length
+    try:
+        import tiktoken
+
+        encoding = tiktoken.get_encoding("cl100k_base")
+        token_count = len(encoding.encode(query_text))
+
+        if token_count > MAX_QUERY_TOKENS:
+            console_err.print(
+                f"[red]{SYMBOLS['error']}[/red] Error: Query exceeds {MAX_QUERY_TOKENS} tokens "
+                f"(got {token_count})\nTry a shorter query or break it into multiple searches."
+            )
+            raise typer.Exit(2)
+    except ImportError:
+        # If tiktoken not available, skip validation (don't block functionality)
+        pass
 
     return query_text
 
@@ -67,12 +91,12 @@ def search_command(
         typer.Argument(help="The search query to find relevant code and documentation"),
     ] = None,
     limit: int = typer.Option(
-        10,
+        DEFAULT_SEARCH_LIMIT,
         "--limit",
         "-n",
-        help="Maximum number of results to return",
-        min=1,
-        max=100,
+        help=f"Maximum number of results to return ({MIN_SEARCH_LIMIT}-{MAX_SEARCH_LIMIT})",
+        min=MIN_SEARCH_LIMIT,
+        max=MAX_SEARCH_LIMIT,
     ),
     verbose: bool = typer.Option(
         False,
