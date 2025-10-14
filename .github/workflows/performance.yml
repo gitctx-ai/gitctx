@@ -1,0 +1,28 @@
+name: Performance Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:      # Manual trigger
+  push:
+    branches: [main]      # Run on main commits
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --all-extras
+
+      - name: Run performance tests
+        run: uv run pytest -m performance -v
+        # No OPENAI_API_KEY needed - uses VCR cassettes!

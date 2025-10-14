@@ -410,18 +410,52 @@ def output_contains(text: str, context: dict[str, Any]) -> None:
 
 
 @when(parsers.parse('I run search {count:d} times with query "{query}"'))
-def run_search_n_times(count: int, query: str, context: dict[str, Any], e2e_cli_runner) -> None:
-    """Run search command N times for performance testing (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.4")
+def run_search_n_times(
+    count: int,
+    query: str,
+    context: dict[str, Any],
+    e2e_cli_runner,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Run search command N times for performance testing."""
+    import time
+
+    from gitctx.cli.main import app
+
+    # Change to repo directory if needed
+    if repo_path := context.get("repo_path"):
+        monkeypatch.chdir(repo_path)
+
+    # Run search N times and collect latencies
+    latencies = []
+    for _ in range(count):
+        start = time.time()
+        result = e2e_cli_runner.invoke(app, ["search", query])
+        latencies.append(time.time() - start)
+        assert result.exit_code == 0, f"Search failed: {result.output}"
+
+    # Store results for subsequent Then steps
+    context["latencies"] = latencies
+    context["result"] = result  # Store last result
 
 
 @then(parsers.parse("p95 response time should be under {threshold:f} seconds"))
 def p95_under_threshold(threshold: float, context: dict[str, Any]) -> None:
-    """Verify p95 latency meets threshold (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.4")
+    """Verify p95 latency meets threshold."""
+    import numpy as np
+
+    latencies = context.get("latencies")
+    assert latencies is not None, "No latencies found. Did 'I run search N times' step run?"
+
+    p95 = np.percentile(latencies, 95)
+    assert p95 < threshold, f"p95 latency {p95:.3f}s exceeds {threshold}s threshold"
 
 
 @then(parsers.parse("all requests should complete within {max_time:f} seconds"))
 def all_requests_within_time(max_time: float, context: dict[str, Any]) -> None:
-    """Verify max latency meets threshold (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.4")
+    """Verify max latency meets threshold."""
+    latencies = context.get("latencies")
+    assert latencies is not None, "No latencies found. Did 'I run search N times' step run?"
+
+    max_latency = max(latencies)
+    assert max_latency < max_time, f"Max latency {max_latency:.3f}s exceeds {max_time}s threshold"
