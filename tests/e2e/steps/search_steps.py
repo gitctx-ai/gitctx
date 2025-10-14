@@ -303,6 +303,9 @@ def indexed_repo_with_keyword_chunks(
     e2e_indexed_repo_factory,
 ) -> None:
     """Create indexed repository with keyword chunks."""
+    import os
+    import sys
+
     # Generate 25 files to ensure 20+ chunks after chunking
     files = {
         f"file{i}.py": (
@@ -317,8 +320,27 @@ def indexed_repo_with_keyword_chunks(
     # Pass monkeypatch to avoid os.chdir/monkeypatch.chdir mixing (Windows issue)
     repo_path = e2e_indexed_repo_factory(files=files, monkeypatch=monkeypatch)
 
+    # Windows debugging - show directory state
+    if sys.platform == "win32":
+        print("\n[DEBUG] Windows directory state after factory:")
+        print(f"  repo_path: {repo_path}")
+        print(f"  os.getcwd(): {os.getcwd()}")
+        print(f"  repo exists: {repo_path.exists()}")
+        index_path = repo_path / ".gitctx" / "db" / "lancedb"
+        print(f"  index path: {index_path}")
+        print(f"  index exists: {index_path.exists()}")
+        if index_path.exists():
+            print(f"  index contents: {list(index_path.iterdir())}")
+
     # Factory already changed to repo via monkeypatch, just store path
     context["repo_path"] = repo_path
+
+    # Windows debugging - show state after chdir
+    if sys.platform == "win32":
+        monkeypatch.chdir(repo_path)
+        print(f"[DEBUG] After monkeypatch.chdir({repo_path}):")
+        print(f"  os.getcwd(): {os.getcwd()}")
+        print(f"  .gitctx exists here: {(Path(os.getcwd()) / '.gitctx').exists()}")
 
 
 @given("no index exists at .gitctx/db/lancedb/")
