@@ -117,6 +117,23 @@ def search_command(
 
     # Check index directory exists
     db_path = Path.cwd() / ".gitctx" / "db" / "lancedb"
+
+    # Windows debugging - show path resolution
+    import os
+    import sys
+
+    if sys.platform == "win32":
+        console_err.print("\n[DEBUG] search.py Path resolution:")
+        console_err.print(f"  Path.cwd(): {Path.cwd()}")
+        console_err.print(f"  os.getcwd(): {os.getcwd()}")
+        console_err.print(f"  db_path: {db_path}")
+        console_err.print(f"  db_path.exists(): {db_path.exists()}")
+        if not db_path.exists():
+            # Try with os.getcwd() instead
+            alt_db_path = Path(os.getcwd()) / ".gitctx" / "db" / "lancedb"
+            console_err.print(f"  alt_db_path (os.getcwd): {alt_db_path}")
+            console_err.print(f"  alt_db_path.exists(): {alt_db_path.exists()}")
+
     if not db_path.exists():
         console_err.print(f"[red]{SYMBOLS['error']}[/red] Error: No index found\nRun: gitctx index")
         raise typer.Exit(8)
