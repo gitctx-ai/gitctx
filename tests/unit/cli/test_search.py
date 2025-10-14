@@ -447,8 +447,8 @@ def test_corrupted_index_missing_table(
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
         patch("gitctx.cli.search.LanceDBStore") as mock_store_class,
     ):
-        # LanceDB raises generic exceptions with table names in message
-        mock_store_class.side_effect = Exception("Table 'code_chunks' not found in database")
+        # LanceDB raises ValueError when table not found
+        mock_store_class.side_effect = ValueError("Table 'code_chunks' not found in database")
 
         result = isolated_cli_runner.invoke(app, ["search", "test"])
 

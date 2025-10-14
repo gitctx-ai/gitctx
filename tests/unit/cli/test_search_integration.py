@@ -68,13 +68,13 @@ def test_search_corrupted_index_missing_table(isolated_cli_runner, tmp_path, mon
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
-    # ACT - Mock Exception with "code_chunks" in error message
+    # ACT - Mock ValueError with "code_chunks" in error message (LanceDB behavior)
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
         patch("gitctx.cli.search.LanceDBStore") as mock_store_class,
     ):
-        # Simulate generic exception with table name in message (caught by except Exception)
-        mock_store_class.side_effect = Exception("Failed to open table code_chunks")
+        # Simulate ValueError with table name in message (LanceDB raises ValueError for missing tables)
+        mock_store_class.side_effect = ValueError("Failed to open table code_chunks")
 
         result = isolated_cli_runner.invoke(app, ["search", "test"])
 

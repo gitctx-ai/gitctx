@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import Annotated
 
+import pyarrow as pa
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -136,8 +137,9 @@ def search_command(
                     f"[red]{SYMBOLS['error']}[/red] Error: No index found\nRun: gitctx index"
                 )
                 raise typer.Exit(8)
-        except Exception as err:
-            # Handle corrupted index (missing tables, schema issues, etc.)
+        except (ValueError, pa.lib.ArrowException) as err:
+            # ValueError: Table not found (from LanceDB)
+            # ArrowException: Schema/corruption issues (from PyArrow)
             if "code_chunks" in str(err).lower() or "table" in str(err).lower():
                 console_err.print(
                     f"[red]{SYMBOLS['error']}[/red] Error: Index corrupted (missing code_chunks table)\n"
