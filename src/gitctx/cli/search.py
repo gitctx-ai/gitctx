@@ -1,6 +1,7 @@
 """Search command for gitctx CLI."""
 
 import sys
+import time
 from pathlib import Path
 from typing import Annotated
 
@@ -114,11 +115,37 @@ def search_command(
         )
         raise typer.Exit(code=2)
 
+    # Check index directory exists
+    db_path = Path.cwd() / ".gitctx" / "db" / "lancedb"
+    if not db_path.exists():
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] Error: No index found\nRun: gitctx index")
+        raise typer.Exit(8)
+
     # Generate query embedding
     try:
         settings = GitCtxSettings()
-        repo_path = Path.cwd()
-        store = LanceDBStore(repo_path / ".gitctx" / "db" / "lancedb")
+
+        # Initialize store with error handling
+        try:
+            store = LanceDBStore(db_path)
+
+            # Check for empty index
+            if store.count() == 0:
+                console_err.print(
+                    f"[red]{SYMBOLS['error']}[/red] Error: No index found\nRun: gitctx index"
+                )
+                raise typer.Exit(8)
+        except Exception as err:
+            # Handle corrupted index (missing tables, schema issues, etc.)
+            if "code_chunks" in str(err).lower() or "table" in str(err).lower():
+                console_err.print(
+                    f"[red]{SYMBOLS['error']}[/red] Error: Index corrupted (missing code_chunks table)\n"
+                    f"Fix with: gitctx clear && gitctx index"
+                )
+                raise typer.Exit(1) from err
+            # Re-raise other exceptions
+            raise
+
         embedder = QueryEmbedder(settings, store)
 
         # Check cache first to avoid showing spinner for instant cache hits
@@ -139,16 +166,15 @@ def search_command(
                 embed_task = progress.add_task(
                     "[cyan]Generating query embedding...[/cyan]", total=None
                 )
-                query_vector = embedder.embed_query(query_text)  # noqa: F841 (will be used in STORY-0001.3.2)
+                query_vector = embedder.embed_query(query_text)
                 progress.update(
                     embed_task, description="[green]✓[/green] Query embedding generated"
                 )
 
-        # Success message
-        console.print(
-            f"[green]✓[/green] Query embedded successfully ({query_vector.shape[0]} dimensions)"
-        )
-        console.print("[dim]Note: Full search results coming in STORY-0001.3.2[/dim]")
+        # Search LanceDB with timing
+        start_time = time.time()
+        results = store.search(query_vector=query_vector, limit=limit, filter_head_only=False)
+        duration = time.time() - start_time
 
     except ValidationError as err:
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
@@ -162,11 +188,11 @@ def search_command(
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
         raise typer.Exit(code=5) from err
 
-    # Mock implementation: query_vector will be used for actual semantic search in STORY-0001.3.2
-    # TODO: Replace mock results with actual vector search: retriever.search(query_vector, limit=limit)
+    # Display results count (formatting deferred to STORY-0001.3.3)
+    console.print(f"\n{len(results)} results in {duration:.2f}s")
 
-    # Mock search results: demonstrate both git history AND HEAD
-    # TUI_GUIDE.md lines 404-411 (default), 417-465 (verbose)
+    # TODO (STORY-0001.3.3): Add result formatting (terse, verbose, MCP modes)
+    # Mock results below kept for reference during STORY-0001.3.3 implementation:
     mock_results = [
         {
             "file": "src/auth/login.py",
