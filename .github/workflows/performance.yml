@@ -5,7 +5,9 @@ on:
     - cron: '0 2 * * *'  # Daily at 2 AM UTC
   workflow_dispatch:      # Manual trigger
   push:
-    branches: [main]      # Run on main commits
+    branches:
+      - main              # Run on main commits
+      - STORY-0001.3.2    # TEMPORARY: Run on this PR to validate performance tests
 
 jobs:
   performance:

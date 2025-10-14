@@ -366,7 +366,8 @@ def e2e_indexed_repo_factory(
         # NOTE: Can't use monkeypatch in closure (scope issue), so use os.chdir with try/finally
         original_dir = os.getcwd()
         try:
-            os.chdir(repo_path)
+            # Resolve path for Windows compatibility (handles symlinks, junctions, relative paths)
+            os.chdir(repo_path.resolve())
 
             # Set API key in context for auto-merge by e2e_cli_runner
             context["custom_env"] = {"OPENAI_API_KEY": e2e_session_api_key}
@@ -383,7 +384,8 @@ def e2e_indexed_repo_factory(
             # Restore directory (pytest's autouse fixture will handle final cleanup)
             os.chdir(original_dir)
 
-        return repo_path
+        # Return resolved path for consistent reference across platforms
+        return repo_path.resolve()
 
     return _make_indexed_repo
 
