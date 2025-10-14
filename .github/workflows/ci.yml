@@ -144,9 +144,10 @@ jobs:
 
       # VCR.py cassettes are recorded on developer machines with real API keys
       # CI only replays pre-recorded cassettes - no OPENAI_API_KEY needed
+      # Note: basetemp is set automatically on Windows via conftest.py to avoid MAX_PATH
       - name: Run tests with coverage
         run: |
-          uv run pytest -m "not performance" --cov=src/gitctx --cov-report=xml --cov-report=term
+          uv run pytest --cov=src/gitctx --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
