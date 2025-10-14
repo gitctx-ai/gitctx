@@ -69,13 +69,18 @@ class LanceDBStore:
         import sys
 
         if sys.platform == "win32":
-            logger.info("[DEBUG] LanceDBStore connecting:")
-            logger.info(f"  db_path input: {db_path}")
-            logger.info(f"  db_path.as_posix(): {db_path.as_posix()}")
-            logger.info(f"  connect_path: {connect_path}")
-            logger.info(f"  os.getcwd(): {os.getcwd()}")
+            print("[DEBUG] LanceDBStore connecting:")
+            print(f"  db_path input: {db_path}")
+            print(f"  db_path.as_posix(): {db_path.as_posix()}")
+            print(f"  connect_path: {connect_path}")
+            print(f"  os.getcwd(): {os.getcwd()}")
 
         self.db = lancedb.connect(connect_path)
+
+        # Windows debugging - verify connection
+        if sys.platform == "win32":
+            print("  lancedb.connect() succeeded")
+            print(f"  db.table_names(): {self.db.table_names()}")
 
         # Table names
         self.chunks_table_name = "code_chunks"
@@ -163,14 +168,23 @@ class LanceDBStore:
         Returns:
             Number of chunks stored
         """
+        import sys
+
         if self.chunks_table is None:
+            if sys.platform == "win32":
+                print("[DEBUG] count(): chunks_table is None")
             return 0
 
         try:
             # LanceDB count is fast (metadata operation)
-            return self.chunks_table.count_rows()
-        except Exception:
+            row_count = self.chunks_table.count_rows()
+            if sys.platform == "win32":
+                print(f"[DEBUG] count(): chunks_table.count_rows() = {row_count}")
+            return row_count
+        except Exception as e:
             # If table is empty or has issues, return 0
+            if sys.platform == "win32":
+                print(f"[DEBUG] count(): Exception during count_rows(): {e}")
             return 0
 
     def get_statistics(self) -> dict[str, Any]:
