@@ -314,10 +314,10 @@ def indexed_repo_with_keyword_chunks(
     }
 
     # Factory handles: repo creation, git init, indexing, VCR recording
-    repo_path = e2e_indexed_repo_factory(files=files)
+    # Pass monkeypatch to avoid os.chdir/monkeypatch.chdir mixing (Windows issue)
+    repo_path = e2e_indexed_repo_factory(files=files, monkeypatch=monkeypatch)
 
-    # Change to repo and store path
-    monkeypatch.chdir(repo_path)
+    # Factory already changed to repo via monkeypatch, just store path
     context["repo_path"] = repo_path
 
 
@@ -381,9 +381,10 @@ def indexed_repo_with_n_chunks(
         for i in range(num_files)
     }
 
-    repo_path = e2e_indexed_repo_factory(files=files)
+    # Pass monkeypatch to avoid os.chdir/monkeypatch.chdir mixing (Windows issue)
+    repo_path = e2e_indexed_repo_factory(files=files, monkeypatch=monkeypatch)
 
-    monkeypatch.chdir(repo_path)
+    # Factory already changed to repo via monkeypatch, just store path
     context["repo_path"] = repo_path
 
 

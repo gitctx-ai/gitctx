@@ -351,8 +351,18 @@ def e2e_indexed_repo_factory(
             monkeypatch.chdir(repo)  # Caller changes directory if needed
     """
 
-    def _make_indexed_repo(files=None, num_commits=1, branches=None, add_gitignore=True):
-        """Create and index a repository with custom structure."""
+    def _make_indexed_repo(
+        files=None, num_commits=1, branches=None, add_gitignore=True, monkeypatch=None
+    ):
+        """Create and index a repository with custom structure.
+
+        Args:
+            files: Dict of {filename: content}
+            num_commits: Number of commits to create
+            branches: List of branch names to create
+            add_gitignore: Whether to add .gitignore
+            monkeypatch: Unused (kept for backward compatibility)
+        """
         import os
 
         from gitctx.cli.main import app
@@ -363,7 +373,8 @@ def e2e_indexed_repo_factory(
         )
 
         # Temporarily change to repo for indexing
-        # NOTE: Can't use monkeypatch in closure (scope issue), so use os.chdir with try/finally
+        # Use os.chdir (works consistently on all platforms)
+        # Don't use monkeypatch - caller will chdir separately to persist for test
         original_dir = os.getcwd()
         try:
             os.chdir(repo_path)
@@ -380,7 +391,7 @@ def e2e_indexed_repo_factory(
             if result.exit_code != 0:
                 pytest.fail(f"Failed to index repo: {result.output}")
         finally:
-            # Restore directory (pytest's autouse fixture will handle final cleanup)
+            # Restore directory (caller will chdir again for test)
             os.chdir(original_dir)
 
         return repo_path

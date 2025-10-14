@@ -341,7 +341,7 @@ def test_e2e_indexed_repo_factory_custom_files(e2e_indexed_repo_factory, monkeyp
         "custom1.py": "def foo(): pass",
         "custom2.py": "def bar(): pass",
     }
-    repo = e2e_indexed_repo_factory(files=files)
+    repo = e2e_indexed_repo_factory(files=files, monkeypatch=monkeypatch)
 
     assert (repo / "custom1.py").exists()
     assert (repo / "custom2.py").exists()
@@ -369,7 +369,7 @@ def test_e2e_indexed_repo_factory_num_commits(e2e_indexed_repo_factory, monkeypa
     """Verify factory respects num_commits parameter."""
     import subprocess
 
-    repo = e2e_indexed_repo_factory(num_commits=5)
+    repo = e2e_indexed_repo_factory(num_commits=5, monkeypatch=monkeypatch)
 
     # Count commits
     result = subprocess.run(
