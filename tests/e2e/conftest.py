@@ -604,6 +604,11 @@ def vcr_config():
             "authorization",  # Strip API keys from cassettes
             "x-api-key",
             "api-key",
+            # OS/platform-specific headers (allow cross-platform cassette replay)
+            "x-stainless-os",  # Linux/Windows/MacOS differences
+            "x-stainless-arch",  # x64/arm64/etc differences
+            "x-stainless-runtime-version",  # Python version differences
+            "user-agent",  # May contain OS/Python version info
         ],
         "filter_post_data_parameters": [
             "api_key",
