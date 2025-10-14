@@ -43,7 +43,7 @@ Feature: CLI Foundation
 
   Scenario: Search command help
     When I run "gitctx search --help"
-    Then the output should contain "Search the indexed repository"
+    Then the output should contain "Search indexed code using semantic similarity"
     And the exit code should be 0
 
   Scenario: Search with conflicting output modes
