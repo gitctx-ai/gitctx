@@ -456,3 +456,86 @@ def test_corrupted_index_missing_table(
         output = result.stdout + result.stderr
         assert "Error: Index corrupted" in output
         assert "gitctx clear && gitctx index" in output
+
+
+def test_search_no_query_interactive_tty():
+    """Test that interactive TTY with no query shows proper error message."""
+    # ARRANGE - Import the function to test directly
+    import typer
+
+    from gitctx.cli.search import _get_query_text
+
+    # ARRANGE - Patch stdin.isatty to return True (interactive terminal)
+    with patch("sys.stdin.isatty", return_value=True):
+        # ACT & ASSERT - Should raise typer.Exit(2)
+        with pytest.raises(typer.Exit) as exc_info:
+            _get_query_text(None)
+
+        assert exc_info.value.exit_code == 2
+
+
+def test_search_cache_hit_shows_message(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+):
+    """Test that cache hit displays success message."""
+    # ARRANGE - Set up minimal git repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # Mock settings
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+
+    # Mock LanceDBStore with cache HIT
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    cached_vector = test_embedding_vector()
+    mock_store.get_query_embedding = Mock(return_value=cached_vector)  # Cache HIT!
+    mock_store.search = Mock(return_value=[])
+
+    # ACT - Search with cache hit
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
+        patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
+    ):
+        mock_embedder = Mock()
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder_class.return_value = mock_embedder
+
+        result = isolated_cli_runner.invoke(app, ["search", "test", "query"])
+
+        # ASSERT
+        assert result.exit_code == 0
+        output = result.stdout + result.stderr
+        assert "Using cached query embedding" in output
+        # Embedder should NOT be called since we have a cache hit
+        mock_embedder.embed_query.assert_not_called()
