@@ -61,7 +61,8 @@ class LanceDBStore:
         self.db_path.mkdir(parents=True, exist_ok=True)
 
         # Connect to LanceDB
-        self.db = lancedb.connect(str(db_path))
+        # Use as_posix() for cross-platform compatibility (LanceDB is Rust-based, prefers forward slashes)
+        self.db = lancedb.connect(str(db_path.as_posix()))
 
         # Table names
         self.chunks_table_name = "code_chunks"
