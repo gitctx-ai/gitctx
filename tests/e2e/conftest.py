@@ -531,6 +531,9 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
             ["git", "config", "user.name", "Test User"],
             ["git", "config", "user.email", "test@example.com"],
             ["git", "config", "commit.gpgsign", "false"],
+            # Normalize line endings to LF for cross-platform VCR cassette matching
+            # Without this, Windows uses CRLF which changes embedding request bodies
+            ["git", "config", "core.autocrlf", "input"],
         ]:
             subprocess.run(cmd, cwd=repo_path, env=e2e_git_isolation_env, check=True)
 
