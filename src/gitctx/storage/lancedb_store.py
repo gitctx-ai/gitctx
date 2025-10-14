@@ -227,12 +227,14 @@ class LanceDBStore:
 
         records = []
         skipped_count = 0
+        skipped_blob_shas = []
         for emb in embeddings:
             # Get BlobLocation for this chunk's blob
             locations = blob_locations.get(emb.blob_sha, [])
             if not locations:
                 logger.warning(f"No location found for blob {emb.blob_sha[:8]}... - skipping chunk")
                 skipped_count += 1
+                skipped_blob_shas.append(emb.blob_sha[:8])
                 continue
 
             # Use most recent location by commit_date (when blob appears in multiple commits)
@@ -267,7 +269,10 @@ class LanceDBStore:
             self.chunks_table.add(records)
             logger.info(f"Inserted {len(records)} chunks into LanceDB")
         elif skipped_count > 0:
-            logger.warning(f"Skipped {skipped_count} chunks with no blob location")
+            logger.warning(
+                f"Skipped {skipped_count} chunks with no blob location: "
+                f"{', '.join(skipped_blob_shas)}"
+            )
 
     def optimize(self) -> None:
         """Create IVF-PQ index for fast vector search.
