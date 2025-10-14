@@ -62,7 +62,20 @@ class LanceDBStore:
 
         # Connect to LanceDB
         # Use as_posix() for cross-platform compatibility (LanceDB is Rust-based, prefers forward slashes)
-        self.db = lancedb.connect(str(db_path.as_posix()))
+        connect_path = str(db_path.as_posix())
+
+        # Windows debugging
+        import os
+        import sys
+
+        if sys.platform == "win32":
+            logger.info("[DEBUG] LanceDBStore connecting:")
+            logger.info(f"  db_path input: {db_path}")
+            logger.info(f"  db_path.as_posix(): {db_path.as_posix()}")
+            logger.info(f"  connect_path: {connect_path}")
+            logger.info(f"  os.getcwd(): {os.getcwd()}")
+
+        self.db = lancedb.connect(connect_path)
 
         # Table names
         self.chunks_table_name = "code_chunks"
