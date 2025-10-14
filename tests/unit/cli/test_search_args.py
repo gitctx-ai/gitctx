@@ -3,13 +3,11 @@
 import subprocess
 from unittest.mock import Mock, patch
 
-import numpy as np
-
 from gitctx.cli.main import app
 
 
 def test_search_variadic_args_joined(
-    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
 ):
     """Test that variadic args are joined with spaces: 'auth middleware' → 'auth middleware'."""
     # ARRANGE - Set up minimal git repo
@@ -48,13 +46,21 @@ def test_search_variadic_args_joined(
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
+    # Mock LanceDBStore
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)  # Cache miss
+    mock_store.search = Mock(return_value=[])
+
     # ACT - Search with multiple unquoted args
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
         patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
     ):
         mock_embedder = Mock()
-        mock_embedder.embed_query = Mock(return_value=np.random.rand(3072))
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder.embed_query = Mock(return_value=test_embedding_vector())
         mock_embedder_class.return_value = mock_embedder
 
         result = isolated_cli_runner.invoke(app, ["search", "auth", "middleware"])
@@ -67,7 +73,9 @@ def test_search_variadic_args_joined(
         assert call_args[0] == "auth middleware"
 
 
-def test_search_flags_before_args(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base):
+def test_search_flags_before_args(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+):
     """Test that flags can appear before query terms: '--limit 5 auth' parses correctly."""
     # ARRANGE - Set up minimal git repo
     repo = tmp_path / "test_repo"
@@ -105,13 +113,21 @@ def test_search_flags_before_args(isolated_cli_runner, tmp_path, monkeypatch, gi
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
+    # Mock LanceDBStore
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)  # Cache miss
+    mock_store.search = Mock(return_value=[])
+
     # ACT - Search with flags before query terms
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
         patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
     ):
         mock_embedder = Mock()
-        mock_embedder.embed_query = Mock(return_value=np.random.rand(3072))
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder.embed_query = Mock(return_value=test_embedding_vector())
         mock_embedder_class.return_value = mock_embedder
 
         result = isolated_cli_runner.invoke(app, ["search", "--limit", "5", "auth"])
@@ -124,7 +140,9 @@ def test_search_flags_before_args(isolated_cli_runner, tmp_path, monkeypatch, gi
         assert call_args[0] == "auth"
 
 
-def test_search_stdin_pipe(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base):
+def test_search_stdin_pipe(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+):
     """Test that search reads from stdin when no args provided (piped input)."""
     # ARRANGE - Set up minimal git repo
     repo = tmp_path / "test_repo"
@@ -162,13 +180,21 @@ def test_search_stdin_pipe(isolated_cli_runner, tmp_path, monkeypatch, git_isola
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
+    # Mock LanceDBStore
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)  # Cache miss
+    mock_store.search = Mock(return_value=[])
+
     # ACT - Search with stdin input (CliRunner simulates piped input automatically)
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
         patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
     ):
         mock_embedder = Mock()
-        mock_embedder.embed_query = Mock(return_value=np.random.rand(3072))
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder.embed_query = Mock(return_value=test_embedding_vector())
         mock_embedder_class.return_value = mock_embedder
 
         # CliRunner with input= simulates piped stdin (non-TTY)

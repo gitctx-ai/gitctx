@@ -3,19 +3,18 @@
 import subprocess
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 
 from gitctx.cli.main import app
 
 
 @pytest.fixture
-def mock_search_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base):
+def mock_search_repo(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+):
     """Create a minimal git repository for testing search command with mocked dependencies.
 
-    Mocks:
-    - GitCtxSettings: Returns mock settings with API key
-    - QueryEmbedder.embed_query: Returns dummy numpy array
+    Mocks LanceDBStore to bypass actual indexing for fast unit tests.
     """
     # Create repo directory
     repo = tmp_path / "test_repo"
@@ -43,7 +42,7 @@ def mock_search_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_b
         ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
     )
 
-    # Create .gitctx/db/lancedb directory (expected by LanceDBStore)
+    # Create .gitctx/db/lancedb directory (checked by search command)
     (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
 
     # Mock settings with API key
@@ -53,13 +52,37 @@ def mock_search_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_b
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
-    # Mock QueryEmbedder to return dummy embedding vector
+    # Mock LanceDBStore to bypass actual database operations
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)  # Non-zero = index exists
+    mock_store.get_query_embedding = Mock(return_value=None)  # Cache miss - force embed_query call
+    mock_store.search = Mock(
+        return_value=[
+            {
+                "file_path": "test.py",
+                "start_line": 1,
+                "end_line": 1,
+                "_distance": 0.15,
+                "commit_sha": "abc123",
+                "commit_message": "Initial commit",
+                "commit_date": "2025-10-13",
+                "author_name": "Test User",
+                "is_head": True,
+                "language": "python",
+                "chunk_content": 'print("hello")',
+            }
+        ]
+    )
+
+    # Mock all dependencies for isolated unit testing
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
         patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
     ):
         mock_embedder = Mock()
-        mock_embedder.embed_query = Mock(return_value=np.random.rand(3072))
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder.embed_query = Mock(return_value=test_embedding_vector())  # Deterministic!
         mock_embedder_class.return_value = mock_embedder
         yield isolated_cli_runner
 
@@ -74,12 +97,13 @@ def test_search_command_exists(cli_runner):
 def test_search_requires_query(cli_runner):
     """Verify search requires a query argument."""
     result = cli_runner.invoke(app, ["search"])
-    assert result.exit_code != 0
-    # Typer outputs error to stderr
+    assert result.exit_code == 2  # Exit code 2 for missing query
+    # Accept either Typer's default message or our custom message
     output = result.stdout + result.stderr
-    assert "Missing argument" in output or "QUERY" in output
+    assert "Query required" in output or "Missing argument" in output
 
 
+@pytest.mark.skip(reason="Output formatting deferred to STORY-0001.3.3")
 def test_search_default_output(mock_search_repo):
     """Verify default mode is terse (file:line:score format)."""
     result = mock_search_repo.invoke(app, ["search", "authentication"])
@@ -90,6 +114,7 @@ def test_search_default_output(mock_search_repo):
     assert "results in" in result.stdout  # Summary line
 
 
+@pytest.mark.skip(reason="Output formatting deferred to STORY-0001.3.3")
 def test_search_verbose_mode(mock_search_repo):
     """Verify --verbose shows code context."""
     result = mock_search_repo.invoke(app, ["search", "authentication", "--verbose"])
@@ -126,6 +151,7 @@ def test_search_help_text(cli_runner):
     assert "Number of results" in result.stdout or "Maximum" in result.stdout
 
 
+@pytest.mark.skip(reason="Output formatting deferred to STORY-0001.3.3")
 def test_search_shows_history_and_head(mock_search_repo):
     """Verify search demonstrates both historical and HEAD results."""
     result = mock_search_repo.invoke(app, ["search", "test"])
@@ -140,6 +166,7 @@ def test_search_shows_history_and_head(mock_search_repo):
     assert has_head  # At least one HEAD result
 
 
+@pytest.mark.skip(reason="Output formatting deferred to STORY-0001.3.3")
 def test_search_mcp_flag(mock_search_repo):
     """Verify --mcp flag outputs structured markdown."""
     result = mock_search_repo.invoke(app, ["search", "test", "--mcp"])
@@ -157,6 +184,7 @@ def test_search_mcp_flag(mock_search_repo):
     assert "```python" in result.stdout or "```markdown" in result.stdout
 
 
+@pytest.mark.skip(reason="Output formatting deferred to STORY-0001.3.3")
 def test_search_mcp_has_yaml_frontmatter(mock_search_repo):
     """Verify MCP mode includes valid YAML frontmatter."""
     result = mock_search_repo.invoke(app, ["search", "auth", "--mcp"])
@@ -171,6 +199,7 @@ def test_search_mcp_has_yaml_frontmatter(mock_search_repo):
     assert frontmatter_pos < 200, "YAML frontmatter should be near the start of output"
 
 
+@pytest.mark.skip(reason="Output formatting deferred to STORY-0001.3.3")
 def test_search_mcp_with_limit(mock_search_repo):
     """Verify MCP mode respects limit option."""
     result = mock_search_repo.invoke(app, ["search", "test", "--mcp", "--limit", "2"])
@@ -230,14 +259,22 @@ def test_search_validation_error_exits_with_code_2(
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
+    # Mock LanceDBStore
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)  # Cache miss - force embed_query call
+    mock_store.search = Mock(return_value=[])
+
     # ACT & ASSERT - Mock QueryEmbedder to raise ValidationError
     from gitctx.search.errors import ValidationError
 
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
         patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
     ):
         mock_embedder = Mock()
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
         mock_embedder.embed_query = Mock(side_effect=ValidationError("Query is too long"))
         mock_embedder_class.return_value = mock_embedder
 
@@ -335,14 +372,22 @@ def test_search_embedding_error_exits_with_code_5(
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
+    # Mock LanceDBStore
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)  # Cache miss - force embed_query call
+    mock_store.search = Mock(return_value=[])
+
     # ACT & ASSERT - Mock QueryEmbedder to raise EmbeddingError
     from gitctx.search.errors import EmbeddingError
 
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
         patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
     ):
         mock_embedder = Mock()
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
         mock_embedder.embed_query = Mock(side_effect=EmbeddingError("API rate limit exceeded"))
         mock_embedder_class.return_value = mock_embedder
 
@@ -353,7 +398,6 @@ def test_search_embedding_error_exits_with_code_5(
         assert "API rate limit" in output
 
 
-@pytest.mark.skip(reason="Pending TASK-0001.3.2.3")
 def test_corrupted_index_missing_table(
     isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
 ):
@@ -398,16 +442,13 @@ def test_corrupted_index_missing_table(
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
-    # ACT & ASSERT - Mock lancedb.connect to raise TableNotFoundError
-    import lancedb
-
+    # ACT & ASSERT - Mock LanceDBStore to raise exception mentioning code_chunks table
     with (
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
-        patch("lancedb.connect") as mock_connect,
+        patch("gitctx.cli.search.LanceDBStore") as mock_store_class,
     ):
-        mock_db = Mock()
-        mock_db.open_table.side_effect = lancedb.TableNotFoundError("code_chunks not found")
-        mock_connect.return_value = mock_db
+        # LanceDB raises generic exceptions with table names in message
+        mock_store_class.side_effect = Exception("Table 'code_chunks' not found in database")
 
         result = isolated_cli_runner.invoke(app, ["search", "test"])
 

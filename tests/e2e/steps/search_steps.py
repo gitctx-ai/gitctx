@@ -1,6 +1,5 @@
 """Step definitions for search command E2E tests."""
 
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -8,89 +7,24 @@ import pytest
 import tiktoken
 from pytest_bdd import given, parsers, then, when
 
-
-@pytest.fixture
-def search_context() -> dict[str, Any]:
-    """Store search test context between steps.
-
-    Context keys used:
-    - repo_path: Path - Path to test repository
-    - query_cache: dict - Cached queries
-    - api_key: str - OpenAI API key
-    - custom_env: dict - Custom environment variables
-    """
-    return {}
-
-
 # ===== Given Steps =====
 
 
 @given("an indexed repository")
 def indexed_repository(
-    e2e_git_isolation_env: dict[str, Any],
-    search_context: dict[str, Any],
+    e2e_indexed_repo: Path,
     context: dict[str, Any],
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch,
 ) -> None:
-    """Create and index a test repository with sample files.
+    """Use indexed repo fixture with proper directory change.
 
-    Creates a temporary git repository with Python files and runs gitctx index.
-    The VCR cassettes will record the OpenAI API calls during indexing.
+    The fixture creates and indexes the repo. This step changes to it
+    and stores path for subsequent steps.
     """
-    # Create a test repository
-    repo_path = tmp_path / "test_repo"
-    repo_path.mkdir()
-
-    # Add sample Python files
-    (repo_path / "auth.py").write_text(
-        "def authenticate(user, password):\n"
-        '    """Authenticate a user against the database."""\n'
-        "    return check_credentials(user, password)\n"
-    )
-    (repo_path / "middleware.py").write_text(
-        "def authentication_middleware(request):\n"
-        '    """Authentication middleware for requests."""\n'
-        '    token = request.headers.get("Authorization")\n'
-        "    return validate_token(token)\n"
-    )
-    (repo_path / "database.py").write_text(
-        "def database_setup():\n"
-        '    """Set up database connection."""\n'
-        "    return create_connection()\n"
-    )
-
-    # Initialize git repository
-    subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Initial commit"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-        env={
-            **e2e_git_isolation_env,
-            "GIT_AUTHOR_NAME": "Test",
-            "GIT_AUTHOR_EMAIL": "test@test.com",
-            "GIT_COMMITTER_NAME": "Test",
-            "GIT_COMMITTER_EMAIL": "test@test.com",
-        },
-    )
-
-    # Note: We don't actually run `gitctx index` here because:
-    # 1. For query validation tests (empty query, token limits), we don't need a real index
-    # 2. The search command shows mock results when no index exists
-    # 3. Query embedding tests will work fine without an actual index
-    #
-    # Real indexing with VCR cassettes will be tested in integration scenarios
-    # that specifically test the full search pipeline (STORY-0001.3.2)
-
+    # Store repo path for later use
+    context["repo_path"] = e2e_indexed_repo
     # Change to repo directory for subsequent commands
-    monkeypatch.chdir(repo_path)
-
-    # Store repo path for subsequent steps
-    context["repo_path"] = repo_path
-    search_context["repo_path"] = repo_path
+    monkeypatch.chdir(e2e_indexed_repo)
 
 
 # Environment variable steps are handled by cli_steps.py:
@@ -102,9 +36,7 @@ def indexed_repository(
 def query_previously_searched(
     query_text: str,
     e2e_git_isolation_env: dict[str, Any],
-    search_context: dict[str, Any],
     context: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
     e2e_cli_runner,
 ) -> None:
     """Pre-populate query cache by running search once.
@@ -112,35 +44,41 @@ def query_previously_searched(
     Runs gitctx search with the specified query to cache the embedding.
     VCR will record the API call. Subsequent searches will hit cache.
     """
+    import os
+
     from gitctx.cli.main import app
 
-    repo_path = context.get("repo_path") or search_context.get("repo_path")
+    repo_path = context.get("repo_path")
 
     if not repo_path:
         pytest.fail("No repository path found. Ensure 'an indexed repository' step runs first.")
 
-    # Change to repo directory using monkeypatch
-    monkeypatch.chdir(repo_path)
+    # Change to repo directory using os.chdir (required for CliRunner)
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(repo_path)
 
-    # Run search once to populate cache (VCR will record the API call)
-    # Environment automatically merged from context["custom_env"] by fixture
-    e2e_cli_runner.invoke(app, ["search", query_text])
-    # First search should succeed (or fail gracefully if API key missing, but cache the intent)
-    # Don't assert here - let the actual scenario verify behavior
+        # Run search once to populate cache (VCR will record the API call)
+        # Environment automatically merged from context["custom_env"] by fixture
+        e2e_cli_runner.invoke(app, ["search", query_text])
+        # First search should succeed (or fail gracefully if API key missing, but cache the intent)
+        # Don't assert here - let the actual scenario verify behavior
 
-    # Don't clear custom_env here - it may be needed by subsequent steps
+        # Don't clear custom_env here - it may be needed by subsequent steps
 
-    # Track that we've cached this query
-    if "cached_queries" not in search_context:
-        search_context["cached_queries"] = set()
-    search_context["cached_queries"].add(query_text)
+        # Track that we've cached this query
+        if "cached_queries" not in context:
+            context["cached_queries"] = set()
+        context["cached_queries"].add(query_text)
+    finally:
+        os.chdir(original_cwd)
 
 
 @given(parsers.parse('a file "{file_path}" with {token_count:d} tokens'))
 def file_with_tokens(
     file_path: str,
     token_count: int,
-    search_context: dict[str, Any],
+    context: dict[str, Any],
 ) -> None:
     """Create a fixture file with exactly the specified token count.
 
@@ -192,8 +130,8 @@ def file_with_tokens(
     file_path_obj.write_text(text)
 
     # Store in context for later steps
-    search_context["long_query_file"] = file_path_obj
-    search_context["long_query_tokens"] = token_count
+    context["long_query_file"] = file_path_obj
+    context["long_query_tokens"] = token_count
 
 
 # ===== When Steps =====
@@ -208,7 +146,6 @@ def run_gitctx_with_query_from_file(
     file_path: str,
     e2e_git_isolation_env: dict[str, Any],
     context: dict[str, Any],
-    search_context: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
     e2e_cli_runner,
 ) -> None:
@@ -229,7 +166,7 @@ def run_gitctx_with_query_from_file(
     query_text = query_file.read_text()
 
     # Get repo path
-    repo_path = context.get("repo_path") or search_context.get("repo_path")
+    repo_path = context.get("repo_path")
     if not repo_path:
         pytest.fail("No repository path found. Ensure 'an indexed repository' step runs first.")
 
@@ -362,12 +299,26 @@ def each_result_shows_score(min: float, max: float, context: dict[str, Any]) -> 
 def indexed_repo_with_keyword_chunks(
     keyword: str,
     context: dict[str, Any],
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    e2e_git_isolation_env: dict[str, Any],
+    e2e_indexed_repo_factory,
 ) -> None:
-    """Create indexed repository with 20+ chunks containing keyword (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.3")
+    """Create indexed repository with keyword chunks."""
+    # Generate 25 files to ensure 20+ chunks after chunking
+    files = {
+        f"file{i}.py": (
+            f"def function_{i}():\n"
+            f'    """{keyword} functionality for testing."""\n'
+            f"    return process_{keyword}()\n"
+        )
+        for i in range(25)
+    }
+
+    # Factory handles: repo creation, git init, indexing, VCR recording
+    repo_path = e2e_indexed_repo_factory(files=files)
+
+    # Change to repo and store path
+    monkeypatch.chdir(repo_path)
+    context["repo_path"] = repo_path
 
 
 @given("no index exists at .gitctx/db/lancedb/")
@@ -383,21 +334,57 @@ def no_index_exists(
 
 
 @when(parsers.parse('I run "{command}" with empty stdin in non-interactive terminal'))
-def run_with_empty_stdin(command: str, context: dict[str, Any], e2e_cli_runner) -> None:
-    """Run command with empty stdin in non-interactive mode (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.2")
+def run_with_empty_stdin(
+    command: str, context: dict[str, Any], e2e_cli_runner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Run command with empty stdin in non-interactive mode.
+
+    CliRunner with input="" simulates piped empty stdin (non-interactive).
+    """
+    from gitctx.cli.main import app
+
+    # Change to repo if available
+    if repo_path := context.get("repo_path"):
+        monkeypatch.chdir(repo_path)
+
+    # CliRunner input="" = empty piped stdin (not interactive terminal)
+    result = e2e_cli_runner.invoke(app, ["search"], input="")
+
+    context["result"] = result
+    context["stdout"] = result.stdout
+    context["exit_code"] = result.exit_code
 
 
 @given(parsers.parse("an indexed repository with {chunk_count:d} chunks"))
 def indexed_repo_with_n_chunks(
     chunk_count: int,
     context: dict[str, Any],
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    e2e_git_isolation_env: dict[str, Any],
+    e2e_indexed_repo_factory,
 ) -> None:
-    """Create indexed repository with exactly N chunks (stub)."""
-    raise NotImplementedError("Pending TASK-0001.3.2.4")
+    """Create indexed repository with exactly N chunks."""
+    # Estimate files needed: ~10 chunks per 500-token file
+    num_files = max(1, chunk_count // 10)
+
+    files = {
+        f"file{i}.py": "\n".join(
+            "\n".join(
+                [
+                    f"def function_{i}_{j}():",
+                    f'    """Function {i}.{j} for testing."""',
+                    f"    return {i} * {j}",
+                    "",
+                ]
+            )
+            for j in range(5)
+        )  # 5 functions per file ≈ 10 chunks
+        for i in range(num_files)
+    }
+
+    repo_path = e2e_indexed_repo_factory(files=files)
+
+    monkeypatch.chdir(repo_path)
+    context["repo_path"] = repo_path
 
 
 @then(parsers.parse('the output should contain "{text}"'))

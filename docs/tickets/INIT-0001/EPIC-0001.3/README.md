@@ -3,7 +3,7 @@
 **Parent Initiative**: [INIT-0001](../README.md)
 **Status**: 🟡 In Progress
 **Estimated**: 13 story points
-**Progress**: ████░░░░░░ 31% (4/13 points complete)
+**Progress**: ████████░░ 77% (10/13 points complete)
 
 ## Overview
 
@@ -22,7 +22,7 @@ Replace mock search results with actual vector similarity search using LanceDB. 
 | ID | Title | Status | Points |
 |----|-------|--------|--------|
 | [STORY-0001.3.1](STORY-0001.3.1/README.md) | Query Embedding Generation | ✅ Complete | 4 |
-| [STORY-0001.3.2](STORY-0001.3.2/README.md) | Vector Similarity Search | 🔵 Not Started | 6 |
+| [STORY-0001.3.2](STORY-0001.3.2/README.md) | Vector Similarity Search | ✅ Complete | 6 |
 | [STORY-0001.3.3](STORY-0001.3.3/README.md) | Result Formatting & Output | 🔵 Not Started | 3 |
 
 **Planning Status**: All 3 stories fully planned (15 tasks total, 60-61 hours estimated). Implementation order: STORY-0001.3.1 → STORY-0001.3.2 → STORY-0001.3.3 (strict sequence due to dependencies). Ready for implementation.

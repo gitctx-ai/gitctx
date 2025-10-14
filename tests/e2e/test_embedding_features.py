@@ -9,7 +9,6 @@ from pytest_bdd import scenarios
 
 # Import all necessary step definitions and fixtures
 from tests.e2e.steps.cli_steps import (  # noqa: F401
-    context,
     gitctx_installed,
 )
 

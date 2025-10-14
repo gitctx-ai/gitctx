@@ -6,15 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
 from pytest_bdd import given, parsers, then, when
-
-
-# Store results in pytest context
-@pytest.fixture
-def context() -> dict[str, Any]:
-    """Store test context between steps."""
-    return {}
 
 
 @given("gitctx is installed")
@@ -57,28 +49,22 @@ def run_command(
 
     # Change to repo directory if provided
     cwd = context.get("repo_path")
-    original_cwd = None
     if cwd:
-        original_cwd = Path.cwd()
+        assert cwd.exists(), f"Repo path {cwd} doesn't exist"
         monkeypatch.chdir(cwd)
 
-    try:
-        # Run CLI in-process with CliRunner
-        # Environment automatically merged from context["custom_env"] by fixture
-        result = e2e_cli_runner.invoke(app, args)
+    # Run CLI in-process with CliRunner
+    # Environment automatically merged from context["custom_env"] by fixture
+    result = e2e_cli_runner.invoke(app, args)
 
-        # Clear custom_env after use to prevent leakage to next command
-        context.pop("custom_env", None)
+    # Clear custom_env after use to prevent leakage to next command
+    context.pop("custom_env", None)
 
-        context["result"] = result
-        context["stdout"] = result.stdout
-        # Typer's CliRunner mixes stderr into stdout by default
-        context["stderr"] = result.stderr if hasattr(result, "stderr") and result.stderr else ""
-        context["exit_code"] = result.exit_code
-    finally:
-        # Restore original directory
-        if original_cwd:
-            monkeypatch.chdir(original_cwd)
+    context["result"] = result
+    context["stdout"] = result.stdout
+    # Typer's CliRunner mixes stderr into stdout by default
+    context["stderr"] = result.stderr if hasattr(result, "stderr") and result.stderr else ""
+    context["exit_code"] = result.exit_code
 
 
 @then(parsers.parse('the output should contain "{text}"'))
@@ -127,7 +113,6 @@ def setup_user_config(e2e_git_isolation_env: dict[str, str], content: str) -> No
     CRITICAL: e2e_git_isolation_env["HOME"] already has .gitctx/ directory!
     DO NOT call mkdir() - it's redundant and already exists.
     """
-    from pathlib import Path
 
     home = Path(e2e_git_isolation_env["HOME"])
     config_path = home / ".gitctx" / "config.yml"
@@ -141,7 +126,6 @@ def setup_user_config_with_permissions(e2e_git_isolation_env: dict[str, str], pe
 
     CRITICAL: e2e_git_isolation_env["HOME"] already has .gitctx/ directory!
     """
-    from pathlib import Path
 
     if sys.platform == "win32":
         import pytest
@@ -162,7 +146,6 @@ def setup_repo_config(content: str) -> None:
 
     CRITICAL: isolate_working_directory autouse fixture ensures we're in tmp_path!
     """
-    from pathlib import Path
 
     config_path = Path(".gitctx")
     config_path.mkdir(exist_ok=True)
@@ -170,13 +153,14 @@ def setup_repo_config(content: str) -> None:
 
 
 @given(parsers.re(r'environment variable "(?P<var>[^"]+)" is "(?P<value>.*)"'))
-def setup_env_var(var: str, value: str, context: dict[str, Any]) -> None:
+def setup_env_var(var: str, value: str, context: dict[str, Any], e2e_session_api_key: str) -> None:
     """Set environment variable for next command execution.
 
     CRITICAL: Stores in context["custom_env"] for run_command to use.
     The run_command step will apply these via monkeypatch before invoking CLI.
 
-    Special handling: If value is "$ENV", pulls from os.environ[var]
+    Special handling: If value is "$ENV", pulls from e2e_session_api_key fixture
+    (captured before e2e_cli_runner clears environment)
 
     Uses regex parser to handle empty strings correctly (parsers.parse doesn't work with "").
     """
@@ -184,15 +168,19 @@ def setup_env_var(var: str, value: str, context: dict[str, Any]) -> None:
     if "custom_env" not in context:
         context["custom_env"] = {}
 
-    # Allow pulling from actual environment with $ENV token
+    # Allow pulling from session-captured environment with $ENV token
     if value == "$ENV":
-        actual_value = os.environ.get(var)
-        if actual_value is None:
-            # When $ENV is used but variable is not set, use placeholder for VCR
-            # VCR will intercept API calls and use cassettes (no real API key needed)
-            context["custom_env"][var] = "vcr-test-key"
+        # Use session-scoped API key captured before e2e_cli_runner cleared environment
+        if var == "OPENAI_API_KEY":
+            context["custom_env"][var] = e2e_session_api_key
         else:
-            context["custom_env"][var] = actual_value
+            # For non-API-key env vars, try os.environ (though it may be cleared)
+            actual_value = os.environ.get(var)
+            if actual_value is None:
+                # Fallback for VCR replay when env var not available
+                context["custom_env"][var] = "vcr-test-key"
+            else:
+                context["custom_env"][var] = actual_value
     else:
         context["custom_env"][var] = value
 
@@ -205,7 +193,6 @@ def setup_readonly_repo_config() -> None:
     """
     import platform
     import stat
-    from pathlib import Path
 
     config_path = Path(".gitctx")
     config_path.mkdir(exist_ok=True)
@@ -226,7 +213,6 @@ def setup_invalid_yaml_repo_config(content: str) -> None:
 
     CRITICAL: isolate_working_directory autouse fixture ensures we're in tmp_path!
     """
-    from pathlib import Path
 
     config_path = Path(".gitctx")
     config_path.mkdir(exist_ok=True)
@@ -239,7 +225,6 @@ def check_file_exists(e2e_git_isolation_env: dict[str, str], path: str) -> None:
 
     Handles both absolute paths and ~ expansion (to isolated HOME).
     """
-    from pathlib import Path
 
     if path.startswith("~"):
         home = Path(e2e_git_isolation_env["HOME"])
@@ -253,7 +238,6 @@ def check_file_exists(e2e_git_isolation_env: dict[str, str], path: str) -> None:
 @then(parsers.parse('the file "{path}" should contain "{content}"'))
 def check_file_contains(e2e_git_isolation_env: dict[str, str], path: str, content: str) -> None:
     """Verify file contains specified content."""
-    from pathlib import Path
 
     if path.startswith("~"):
         home = Path(e2e_git_isolation_env["HOME"])
@@ -269,7 +253,6 @@ def check_file_contains(e2e_git_isolation_env: dict[str, str], path: str, conten
 @then(parsers.parse('the file "{path}" should not contain "{content}"'))
 def check_file_not_contains(e2e_git_isolation_env: dict[str, str], path: str, content: str) -> None:
     """Verify file does NOT contain specified content."""
-    from pathlib import Path
 
     if path.startswith("~"):
         home = Path(e2e_git_isolation_env["HOME"])
@@ -293,7 +276,6 @@ def check_user_config_exists(e2e_git_isolation_env: dict[str, str], path: str) -
 @then(parsers.parse('"{filename}" should contain "{content}"'))
 def check_gitignore_content(filename: str, content: str) -> None:
     """Verify .gitctx/.gitignore contains expected content."""
-    from pathlib import Path
 
     file_path = Path(".gitctx") / filename.replace(".gitctx/", "")
     assert file_path.exists(), f"File not found: {file_path}"

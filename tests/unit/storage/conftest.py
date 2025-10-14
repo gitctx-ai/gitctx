@@ -21,7 +21,7 @@ def lancedb_store(tmp_path: Path):
     """
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     return LanceDBStore(db_path)
 
 

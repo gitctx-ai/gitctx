@@ -256,6 +256,182 @@ def test_e2e_env_factory_blocks_security_overrides(e2e_env_factory) -> None:
         e2e_env_factory(SSH_AUTH_SOCK="/tmp/ssh-agent")
 
 
+# === Context Fixture Tests ===
+
+
+def test_e2e_context_fixture_shared(context):
+    """Verify shared context fixture works across steps."""
+    assert isinstance(context, dict)
+    context["test_key"] = "test_value"
+    assert context["test_key"] == "test_value"
+
+
+def test_e2e_context_fixture_empty_by_default(context):
+    """Verify context starts empty for each test."""
+    assert context == {} or len(context) == 0
+
+
+# === Indexed Repo Fixture Tests ===
+
+
+def test_e2e_indexed_repo_structure(e2e_indexed_repo: Path):
+    """Verify indexed repo has expected structure."""
+    assert e2e_indexed_repo.exists()
+    assert (e2e_indexed_repo / ".git").exists()
+    assert (e2e_indexed_repo / "main.py").exists()
+    # Verify index created
+    index_path = e2e_indexed_repo / ".gitctx" / "db" / "lancedb"
+    assert index_path.exists(), f"Index not found at {index_path}"
+    # Verify it's a directory with data
+    assert index_path.is_dir()
+    assert list(index_path.iterdir()), "Index directory is empty"
+
+
+def test_e2e_indexed_repo_isolation(e2e_indexed_repo: Path, e2e_git_isolation_env: dict[str, str]):
+    """SECURITY: Verify indexed repo used isolated environment."""
+    import subprocess
+
+    # Try to add remote
+    subprocess.run(
+        ["git", "remote", "add", "origin", "git@github.com:test/test.git"],
+        cwd=e2e_indexed_repo,
+        env=e2e_git_isolation_env,
+    )
+
+    # Try to push (should fail due to SSH blocking)
+    result = subprocess.run(
+        ["git", "push", "origin", "main"],
+        cwd=e2e_indexed_repo,
+        env=e2e_git_isolation_env,
+        capture_output=True,
+        timeout=2,
+    )
+    assert result.returncode != 0, "Push should fail with isolated environment"
+
+
+def test_e2e_indexed_repo_uses_same_runner(
+    e2e_indexed_repo: Path,
+    e2e_cli_runner,
+):
+    """Verify indexed repo fixture uses same runner instance as test."""
+    # If fixture created separate runner, isolation might be broken
+    # This test verifies the runner's env is still isolated
+    assert e2e_cli_runner.env is not None
+    from tests.conftest import get_platform_ssh_command
+
+    expected_ssh = get_platform_ssh_command()
+    assert e2e_cli_runner.env["GIT_SSH_COMMAND"] == expected_ssh
+
+
+def test_e2e_indexed_repo_no_side_effects(e2e_indexed_repo: Path, tmp_path: Path):
+    """Verify using fixture doesn't pollute working directory."""
+    import os
+
+    cwd = Path(os.getcwd())
+    # Should be in tmp_path due to autouse fixture
+    assert cwd == tmp_path or tmp_path in cwd.parents
+
+
+# === Indexed Repo Factory Tests ===
+
+
+def test_e2e_indexed_repo_factory_custom_files(e2e_indexed_repo_factory, monkeypatch):
+    """Verify factory creates repo with custom files."""
+    files = {
+        "custom1.py": "def foo(): pass",
+        "custom2.py": "def bar(): pass",
+    }
+    repo = e2e_indexed_repo_factory(files=files)
+
+    assert (repo / "custom1.py").exists()
+    assert (repo / "custom2.py").exists()
+    assert (repo / ".gitctx" / "db" / "lancedb").exists()
+
+    # Verify content
+    assert "def foo():" in (repo / "custom1.py").read_text()
+    assert "def bar():" in (repo / "custom2.py").read_text()
+
+
+def test_e2e_indexed_repo_factory_multiple_calls(e2e_indexed_repo_factory):
+    """Verify factory can be called multiple times independently."""
+    repo1 = e2e_indexed_repo_factory(files={"file1.py": "code1"})
+    repo2 = e2e_indexed_repo_factory(files={"file2.py": "code2"})
+
+    # Should create separate repos
+    assert repo1 != repo2
+    assert (repo1 / "file1.py").exists()
+    assert not (repo1 / "file2.py").exists()
+    assert (repo2 / "file2.py").exists()
+    assert not (repo2 / "file1.py").exists()
+
+
+def test_e2e_indexed_repo_factory_num_commits(e2e_indexed_repo_factory, monkeypatch):
+    """Verify factory respects num_commits parameter."""
+    import subprocess
+
+    repo = e2e_indexed_repo_factory(num_commits=5)
+
+    # Count commits
+    result = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    commit_count = int(result.stdout.strip())
+    assert commit_count == 5
+
+
+def test_e2e_indexed_repo_factory_branches(e2e_indexed_repo_factory):
+    """Verify factory creates requested branches."""
+    import subprocess
+
+    repo = e2e_indexed_repo_factory(branches=["feature1", "feature2"])
+
+    # List branches
+    result = subprocess.run(
+        ["git", "branch"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    branches = result.stdout
+    assert "feature1" in branches
+    assert "feature2" in branches
+
+
+def test_e2e_indexed_repo_factory_no_ssh_keys(
+    e2e_indexed_repo_factory, e2e_git_isolation_env: dict[str, str]
+):
+    """SECURITY: Verify SSH keys not accessible during factory indexing."""
+    import subprocess
+
+    repo = e2e_indexed_repo_factory()
+
+    # Try SSH operation in repo's isolated environment
+    result = subprocess.run(
+        ["ssh", "-T", "git@github.com"],
+        cwd=repo,
+        env=e2e_git_isolation_env,
+        capture_output=True,
+        timeout=2,
+    )
+    assert result.returncode != 0, "SSH should be blocked"
+
+
+def test_e2e_indexed_repo_factory_no_directory_pollution(e2e_indexed_repo_factory, tmp_path: Path):
+    """Verify factory doesn't change caller's working directory."""
+    import os
+
+    cwd_before = Path(os.getcwd())
+    _ = e2e_indexed_repo_factory()
+    cwd_after = Path(os.getcwd())
+
+    # Should be back in tmp_path (autouse fixture location)
+    assert cwd_before == cwd_after
+    assert cwd_after == tmp_path or tmp_path in cwd_after.parents
+
+
 # TODO: When adding new e2e_* fixtures, add tests here:
 # def test_e2e_empty_git_repo(e2e_empty_git_repo):
 #     """Verify empty repo has only .git directory."""

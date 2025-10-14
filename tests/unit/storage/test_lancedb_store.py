@@ -11,10 +11,10 @@ import pytest
 
 
 def test_lancedb_store_init_creates_directory(tmp_path: Path, isolated_env):
-    """LanceDBStore creates .gitctx/lancedb/ directory."""
+    """LanceDBStore creates .gitctx/db/lancedb/ directory."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
 
     # Directory should not exist before initialization
     assert not db_path.exists()
@@ -31,7 +31,7 @@ def test_lancedb_store_creates_two_tables(tmp_path: Path, isolated_env):
     """LanceDBStore initializes code_chunks and index_metadata tables."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Verify both tables exist
@@ -44,7 +44,7 @@ def test_empty_index_returns_zero_count(tmp_path: Path, isolated_env):
     """Empty index returns 0 for count()."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Empty index should have 0 chunks
@@ -55,7 +55,7 @@ def test_empty_index_get_statistics(tmp_path: Path, isolated_env):
     """get_statistics() returns zeros for empty index."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     stats = store.get_statistics()
@@ -69,23 +69,23 @@ def test_empty_index_get_statistics(tmp_path: Path, isolated_env):
 
 
 def test_lancedb_store_storage_location(tmp_path: Path, isolated_env):
-    """Verify database is created at correct .gitctx/lancedb/ path."""
+    """Verify database is created at correct .gitctx/db/lancedb/ path."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Verify store's db_path attribute matches expected path
     assert store.db_path == db_path
     # Use path parts to check path components (works on Windows and Unix)
-    assert store.db_path.parts[-2:] == (".gitctx", "lancedb")
+    assert store.db_path.parts[-3:] == (".gitctx", "db", "lancedb")
 
 
 def test_dimension_validation_on_table_open(tmp_path: Path, isolated_env):
     """Dimension validation checks table metadata on initialization."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
 
     # Create store with 3072-dim embeddings
     store = LanceDBStore(db_path, embedding_dimensions=3072)
@@ -106,7 +106,7 @@ def test_table_metadata_includes_embedding_model(tmp_path: Path, isolated_env):
     """Table metadata contains embedding_model field."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     embedding_model = "text-embedding-3-large"
 
     store = LanceDBStore(db_path, embedding_model=embedding_model)
@@ -120,7 +120,7 @@ def test_get_db_size_mb_returns_positive_value(tmp_path: Path, isolated_env):
     """_get_db_size_mb() returns size in megabytes."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Database should have some size (even if minimal)
@@ -134,7 +134,7 @@ def test_dimension_validation_raises_error_on_mismatch(tmp_path: Path, isolated_
     from gitctx.models.errors import DimensionMismatchError
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
 
     # Create store with 3072 dimensions
     store1 = LanceDBStore(db_path, embedding_dimensions=3072)
@@ -155,7 +155,7 @@ def test_count_returns_zero_on_exception(tmp_path: Path, isolated_env):
     """count() returns 0 if count_rows() raises exception."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Mock count_rows to raise exception
@@ -167,7 +167,7 @@ def test_get_statistics_handles_empty_table(tmp_path: Path, isolated_env):
     """get_statistics() returns zeros for empty table."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Empty table from initialization
@@ -183,7 +183,7 @@ def test_get_statistics_handles_exception(tmp_path: Path, isolated_env):
     """get_statistics() returns zeros if to_arrow() raises exception."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Mock to_arrow to raise exception
@@ -207,7 +207,7 @@ def test_add_chunks_batch_denormalizes_blob_location(
     """add_chunks_batch denormalizes BlobLocation metadata into each chunk."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 10 embeddings from 2 blobs
@@ -271,7 +271,7 @@ def test_add_chunks_batch_empty_blob_locations_warning(
     """add_chunks_batch logs warning and skips chunks with missing blob locations."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     blob_sha = "a" * 40
@@ -293,7 +293,7 @@ def test_add_chunks_batch_uses_most_recent_location(tmp_path: Path, isolated_env
     from gitctx.git.types import BlobLocation
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     blob_sha = "a" * 40
@@ -360,7 +360,7 @@ def test_batch_insertion_performance_5000_chunks(
 
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 5000 embeddings from 100 blobs (50 chunks per blob)
@@ -403,7 +403,7 @@ def test_optimize_creates_ivf_pq_index_at_256_vectors(
     """optimize() creates IVF-PQ index when count >= 256."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 256 embeddings (minimum for indexing)
@@ -437,7 +437,7 @@ def test_optimize_skips_indexing_below_256_vectors(
     # Set log level to capture INFO messages
     caplog.set_level(logging.INFO)
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 100 embeddings (below threshold)
@@ -465,7 +465,7 @@ def test_search_returns_denormalized_metadata(
     """search() returns results with all 19 denormalized fields."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 10 embeddings
@@ -518,7 +518,7 @@ def test_search_filter_head_only(tmp_path: Path, isolated_env, mock_embedding, m
     """search() with filter_head_only returns only HEAD chunks."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 10 embeddings: 5 from HEAD, 5 from history
@@ -550,7 +550,7 @@ def test_get_statistics_accuracy(tmp_path: Path, isolated_env, mock_embedding, m
     """get_statistics() returns accurate counts and languages."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 100 chunks from 10 blobs across 5 files
@@ -590,7 +590,7 @@ def test_incremental_updates_preserve_existing_chunks(
     """Incremental updates preserve existing chunks (old data unchanged)."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Insert 10 initial chunks
@@ -644,7 +644,7 @@ def test_save_index_state_stores_metadata(
     """save_index_state() stores complete metadata."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Add some chunks first
@@ -678,7 +678,7 @@ def test_save_index_state_upsert_pattern(
     """save_index_state() replaces old state (upsert)."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Add some chunks first
@@ -704,7 +704,7 @@ def test_save_index_state_empty_table_no_exception(tmp_path: Path, isolated_env)
     """save_index_state() handles empty metadata table gracefully."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Should not raise exception even if table is empty
@@ -720,7 +720,7 @@ def test_query_returns_complete_blob_location_context(
     """Query results include all 11 BlobLocation fields."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create embeddings with complete BlobLocation metadata
@@ -766,7 +766,7 @@ def test_statistics_language_breakdown(
     """get_statistics() returns language counts."""
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create embeddings with different languages: 50 python, 30 javascript, 20 go
@@ -813,7 +813,7 @@ def test_performance_insertion_speed(
 
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 10000 embeddings
@@ -847,7 +847,7 @@ def test_performance_search_latency(
 
     from gitctx.storage.lancedb_store import LanceDBStore
 
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     store = LanceDBStore(db_path)
 
     # Create 1000 embeddings

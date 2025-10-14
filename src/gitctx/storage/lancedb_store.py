@@ -32,7 +32,7 @@ class LanceDBStore:
     - 100x faster than traditional vector stores
 
     Attributes:
-        db_path: Path to .gitctx/lancedb directory
+        db_path: Path to .gitctx/db/lancedb directory
         db: LanceDB connection
         chunks_table: Main table for code chunks with embeddings
         metadata_table: Table for index state tracking
@@ -49,7 +49,7 @@ class LanceDBStore:
         """Initialize LanceDB store.
 
         Args:
-            db_path: Path to .gitctx/lancedb directory
+            db_path: Path to .gitctx/db/lancedb directory
             embedding_model: Model name for metadata tracking
             embedding_dimensions: Vector dimensions for validation
         """
@@ -125,7 +125,7 @@ class LanceDBStore:
                     - The name of the embedding model
                     - A suggested action to delete the LanceDB directory and re-index
                 Example error message:
-                    "Dimension mismatch: existing table has {actual_dims}-dimensional vectors, but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. Action required: Delete .gitctx/lancedb/ and re-index with `gitctx index --force`"
+                    "Dimension mismatch: existing table has {actual_dims}-dimensional vectors, but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. Action required: Delete .gitctx/db/lancedb/ and re-index with `gitctx index --force`"
         """
         # Get vector field from schema
         try:
@@ -140,7 +140,7 @@ class LanceDBStore:
             raise DimensionMismatchError(
                 f"Dimension mismatch: existing table has {actual_dims}-dimensional vectors, "
                 f"but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. "
-                f"Action required: Delete .gitctx/lancedb/ and re-index with `gitctx index --force`"
+                f"Action required: Delete .gitctx/db/lancedb/ and re-index with `gitctx index --force`"
             )
 
     def count(self) -> int:
