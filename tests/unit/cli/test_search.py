@@ -91,7 +91,7 @@ def test_search_command_exists(cli_runner):
     """Verify search command is registered."""
     result = cli_runner.invoke(app, ["search", "--help"])
     assert result.exit_code == 0
-    assert "Search the indexed repository" in result.stdout
+    assert "Search indexed code using semantic similarity" in result.stdout
 
 
 def test_search_requires_query(cli_runner):
