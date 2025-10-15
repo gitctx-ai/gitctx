@@ -87,7 +87,11 @@ def test_search_corrupted_index_missing_table(isolated_cli_runner, tmp_path, mon
 
 
 def test_search_returns_sorted_results(
-    isolated_cli_runner, tmp_path, monkeypatch, test_embedding_vector
+    isolated_cli_runner,
+    tmp_path,
+    monkeypatch,
+    test_embedding_vector,
+    mock_search_result_factory,
 ):
     """Test search returns results sorted by _distance ascending."""
     # ARRANGE
@@ -104,36 +108,33 @@ def test_search_returns_sorted_results(
 
     # Mock results with ascending _distance (all fields required by formatters)
     mock_results = [
-        {
-            "file_path": "file1.py",
-            "start_line": 1,
-            "_distance": 0.1,
-            "commit_sha": "abc123",
-            "commit_date": 1728864000,
-            "author_name": "Alice",
-            "commit_message": "First commit",
-            "is_head": True,
-        },
-        {
-            "file_path": "file2.py",
-            "start_line": 10,
-            "_distance": 0.3,
-            "commit_sha": "def456",
-            "commit_date": 1728864000,
-            "author_name": "Bob",
-            "commit_message": "Second commit",
-            "is_head": True,
-        },
-        {
-            "file_path": "file3.py",
-            "start_line": 20,
-            "_distance": 0.5,
-            "commit_sha": "ghi789",
-            "commit_date": 1728864000,
-            "author_name": "Charlie",
-            "commit_message": "Third commit",
-            "is_head": True,
-        },
+        mock_search_result_factory(
+            file_path="file1.py",
+            start_line=1,
+            distance=0.1,
+            commit_sha="abc123",
+            commit_date=1728864000,
+            author_name="Alice",
+            commit_message="First commit",
+        ),
+        mock_search_result_factory(
+            file_path="file2.py",
+            start_line=10,
+            distance=0.3,
+            commit_sha="def456",
+            commit_date=1728864000,
+            author_name="Bob",
+            commit_message="Second commit",
+        ),
+        mock_search_result_factory(
+            file_path="file3.py",
+            start_line=20,
+            distance=0.5,
+            commit_sha="ghi789",
+            commit_date=1728864000,
+            author_name="Charlie",
+            commit_message="Third commit",
+        ),
     ]
 
     # ACT

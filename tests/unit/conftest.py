@@ -961,3 +961,80 @@ def test_embedding_vector():
         return np.linspace(0, 1, dimension, dtype=np.float32)
 
     return _make_vector
+
+
+@pytest.fixture
+def mock_search_result_factory():
+    """Factory for creating mock search results with all required fields.
+
+    Provides sensible defaults for all formatter fields while allowing
+    customization for specific test scenarios. Reduces duplication across
+    test files and ensures consistency when result schema changes.
+
+    Returns:
+        callable: Factory function(**kwargs) -> dict[str, Any]
+
+    Usage:
+        def test_formatters(mock_search_result_factory):
+            # Default result
+            result = mock_search_result_factory()
+
+            # Custom values
+            result = mock_search_result_factory(
+                file_path="auth.py",
+                distance=0.95,
+                chunk_content="def authenticate(): pass"
+            )
+
+            # List of results
+            results = [
+                mock_search_result_factory(file_path=f"file{i}.py", distance=i*0.1)
+                for i in range(3)
+            ]
+
+    Available parameters (all optional):
+    - file_path: str = "test.py"
+    - start_line: int = 1
+    - end_line: int | None = None (omitted if None)
+    - distance: float = 0.85
+    - commit_sha: str = "abc1234"
+    - commit_date: int = 1760501897 (Unix timestamp)
+    - author_name: str = "TestAuthor"
+    - commit_message: str = "Test commit"
+    - is_head: bool = True
+    - chunk_content: str = "test content"
+    - language: str = "python"
+    """
+    from typing import Any
+
+    def _make_result(
+        file_path: str = "test.py",
+        start_line: int = 1,
+        end_line: int | None = None,
+        distance: float = 0.85,
+        commit_sha: str = "abc1234",
+        commit_date: int = 1760501897,
+        author_name: str = "TestAuthor",
+        commit_message: str = "Test commit",
+        is_head: bool = True,
+        chunk_content: str = "test content",
+        language: str = "python",
+    ) -> dict[str, Any]:
+        """Generate mock search result with specified fields."""
+        result: dict[str, Any] = {
+            "file_path": file_path,
+            "start_line": start_line,
+            "_distance": distance,
+            "commit_sha": commit_sha,
+            "commit_date": commit_date,
+            "author_name": author_name,
+            "commit_message": commit_message,
+            "is_head": is_head,
+            "chunk_content": chunk_content,
+            "language": language,
+        }
+        if end_line is not None:
+            result["end_line"] = end_line
+        return result
+
+    return _make_result

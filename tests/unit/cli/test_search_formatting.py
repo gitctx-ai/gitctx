@@ -12,7 +12,12 @@ from gitctx.cli.main import app
 
 @pytest.fixture
 def mock_formatter_search(
-    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+    isolated_cli_runner,
+    tmp_path,
+    monkeypatch,
+    git_isolation_base,
+    test_embedding_vector,
+    mock_search_result_factory,
 ):
     """Create mock search environment for formatter testing."""
     # Create repo directory
@@ -57,19 +62,17 @@ def mock_formatter_search(
     mock_store.get_query_embedding = Mock(return_value=None)
     mock_store.search = Mock(
         return_value=[
-            {
-                "file_path": "test.py",
-                "start_line": 1,
-                "end_line": 5,
-                "_distance": 0.92,
-                "is_head": True,
-                "commit_sha": "abc1234",  # pragma: allowlist secret
-                "commit_message": "Test commit",
-                "commit_date": 1760501897,  # Unix timestamp for 2025-10-14
-                "author_name": "Alice",
-                "chunk_content": "def test(): pass",
-                "language": "python",
-            }
+            mock_search_result_factory(
+                file_path="test.py",
+                start_line=1,
+                end_line=5,
+                distance=0.92,
+                commit_sha="abc1234",  # pragma: allowlist secret
+                commit_message="Test commit",
+                commit_date=1760501897,  # Unix timestamp for 2025-10-14
+                author_name="Alice",
+                chunk_content="def test(): pass",
+            )
         ]
     )
 
