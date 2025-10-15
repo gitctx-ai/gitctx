@@ -192,3 +192,85 @@ def test_api_errors_transformed(
 
             with pytest.raises(EmbeddingError, match=expected_message):
                 embedder.embed_query("test query")
+
+
+def test_authentication_error_transformation(settings: Mock) -> None:
+    """Test that AuthenticationError is transformed to EmbeddingError."""
+
+    # Mock store with no cache
+    mock_store = Mock()
+    mock_store.get_query_embedding.return_value = None
+
+    # Create AuthenticationError
+    auth_error = openai.AuthenticationError(
+        message="Invalid API key",
+        response=Mock(status_code=401),
+        body=None,
+    )
+
+    # Mock embedder to raise AuthenticationError
+    with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
+        mock_embedder = Mock()
+        mock_embedder.embed_query.side_effect = auth_error
+        MockProvider.return_value = mock_embedder
+
+        with patch("gitctx.models.factory.get_embedder", return_value=mock_embedder):
+            embedder = QueryEmbedder(settings, mock_store)
+
+            # ASSERT - Transformed to EmbeddingError with user-friendly message
+            with pytest.raises(EmbeddingError, match="API key rejected"):
+                embedder.embed_query("test query")
+
+
+def test_non_5xx_api_status_error_reraise(settings: Mock) -> None:
+    """Test that non-5xx APIStatusError is re-raised unchanged."""
+
+    # Mock store with no cache
+    mock_store = Mock()
+    mock_store.get_query_embedding.return_value = None
+
+    # Create 400 Bad Request error (client error, not server error)
+    client_error = openai.APIStatusError(
+        message="Bad request",
+        response=Mock(status_code=400),
+        body=None,
+    )
+
+    # Mock embedder to raise client error
+    with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
+        mock_embedder = Mock()
+        mock_embedder.embed_query.side_effect = client_error
+        MockProvider.return_value = mock_embedder
+
+        with patch("gitctx.models.factory.get_embedder", return_value=mock_embedder):
+            embedder = QueryEmbedder(settings, mock_store)
+
+            # ASSERT - Re-raised as APIStatusError (not transformed)
+            with pytest.raises(openai.APIStatusError):
+                embedder.embed_query("test query")
+
+
+def test_generic_exception_catchall(settings: Mock) -> None:
+    """Test that unexpected exceptions are caught and transformed."""
+
+    # Mock store with no cache
+    mock_store = Mock()
+    mock_store.get_query_embedding.return_value = None
+
+    # Create unexpected error
+    unexpected_error = ValueError("Something unexpected happened")
+
+    # Mock embedder to raise unexpected error
+    with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
+        mock_embedder = Mock()
+        mock_embedder.embed_query.side_effect = unexpected_error
+        MockProvider.return_value = mock_embedder
+
+        with patch("gitctx.models.factory.get_embedder", return_value=mock_embedder):
+            embedder = QueryEmbedder(settings, mock_store)
+
+            # ASSERT - Transformed to EmbeddingError with original message
+            with pytest.raises(
+                EmbeddingError, match="Unexpected error during embedding generation"
+            ):
+                embedder.embed_query("test query")

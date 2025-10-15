@@ -253,13 +253,11 @@ class TestEdgeCasesUnicode:
         config_file = isolated_env / ".gitctx" / "config.yml"
         config_file.write_text(
             "api_keys:\n  openai: sk-العربية123\n",
-            encoding="utf-8",  # ruff: noqa: RUF001
+            encoding="utf-8",
         )
 
         config = UserConfig()
-        assert (
-            config.api_keys.openai.get_secret_value() == "sk-العربية123"  # ruff: noqa: RUF001
-        )
+        assert config.api_keys.openai.get_secret_value() == "sk-العربية123"
 
 
 class TestFilesystemEdgeCases:
@@ -281,3 +279,54 @@ class TestFilesystemEdgeCases:
         config_file = new_home / ".gitctx" / "config.yml"
         assert config_file.exists()
         assert "sk-test123" in config_file.read_text()
+
+
+class TestMaskedSecretStr:
+    """Test MaskedSecretStr display behavior."""
+
+    def test_short_secret_masking(self):
+        """Secrets with 6 or fewer characters show *** (not partial reveal)."""
+        from gitctx.config.settings import (  # noqa: PLC0415 # Test isolation - avoid side effects from top-level import
+            MaskedSecretStr,
+        )
+
+        # Test secrets of various short lengths
+        for secret_value in ["abc", "ab", "a", "123456"]:
+            secret = MaskedSecretStr(secret_value)
+
+            # ASSERT - Short secrets completely masked
+            assert str(secret) == "***"
+            assert repr(secret) == "MaskedSecretStr('***')"
+
+    def test_long_secret_partial_masking(self):
+        """Secrets longer than 6 characters show first 3 and last 3."""
+        from gitctx.config.settings import (  # noqa: PLC0415 # Test isolation - avoid side effects from top-level import
+            MaskedSecretStr,
+        )
+
+        secret = MaskedSecretStr("sk-test1234567890")
+
+        # ASSERT - Long secrets show first/last 3 chars
+        assert str(secret) == "sk-...890"
+        assert repr(secret) == "MaskedSecretStr('sk-...890')"
+
+
+class TestGitCtxSettings:
+    """Test GitCtxSettings aggregator routing."""
+
+    def test_secret_str_unwrap_with_none(self, tmp_path, monkeypatch):
+        """Test that _get_from_user handles None gracefully."""
+        from gitctx.config.settings import GitCtxSettings  # noqa: PLC0415
+
+        # ARRANGE - Clean environment
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        new_home = tmp_path / "test_home"
+        monkeypatch.setenv("HOME", str(new_home))
+
+        # ACT - Get None API key
+        settings = GitCtxSettings()
+        result = settings.get("api_keys.openai")
+
+        # ASSERT - Returns None (doesn't crash unwrapping)
+        assert result is None

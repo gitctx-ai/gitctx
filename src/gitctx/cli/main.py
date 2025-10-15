@@ -111,8 +111,8 @@ def search_command_wrapper(
         max=1.0,
         rich_help_panel="Result Filtering",
     ),
-    output_format: str = typer.Option(
-        "terse",
+    output_format: str | None = typer.Option(
+        None,
         "--format",
         help="Output format (terse, verbose, mcp)",
     ),

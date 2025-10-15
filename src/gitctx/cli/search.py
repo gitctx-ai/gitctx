@@ -98,9 +98,13 @@ def search_command(
         min=MIN_SEARCH_LIMIT,
         max=MAX_SEARCH_LIMIT,
     ),
-    min_similarity: float = 0.5,
-    output_format: str = typer.Option(
-        "terse",
+    min_similarity: float = typer.Option(
+        0.5,
+        "--min-similarity",
+        help="Minimum similarity threshold (0.0-1.0)",
+    ),
+    output_format: str | None = typer.Option(
+        None,
         "--format",
         help="Output format (terse, verbose, mcp)",
     ),
@@ -181,32 +185,33 @@ def search_command(
     query_text = _get_query_text(query)
 
     # Validate mutually exclusive output modes
-    # Check for conflicts between boolean flags and --format flag
     if verbose and mcp:
         console_err.print(
             f"[red]{SYMBOLS['error']}[/red] Error: --verbose and --mcp are mutually exclusive"
         )
         raise typer.Exit(code=2)
 
-    if verbose and output_format == "mcp":
+    if output_format is not None and verbose:
         console_err.print(
-            f"[red]{SYMBOLS['error']}[/red] Error: "
-            "--verbose and --format mcp are mutually exclusive"
+            f"[red]{SYMBOLS['error']}[/red] Error: --format cannot be used with --verbose"
         )
         raise typer.Exit(code=2)
 
-    if mcp and output_format == "verbose":
+    if output_format is not None and mcp:
         console_err.print(
-            f"[red]{SYMBOLS['error']}[/red] Error: "
-            "--mcp and --format verbose are mutually exclusive"
+            f"[red]{SYMBOLS['error']}[/red] Error: --format cannot be used with --mcp"
         )
         raise typer.Exit(code=2)
 
-    # Resolve format from flags (--verbose and --mcp override --format)
+    # Resolve format from flags and options
     if verbose:
-        output_format = "verbose"
+        resolved_format = "verbose"
     elif mcp:
-        output_format = "mcp"
+        resolved_format = "mcp"
+    elif output_format is not None:
+        resolved_format = output_format
+    else:
+        resolved_format = "terse"  # Default
 
     # Check index directory exists
     db_path = Path.cwd() / ".gitctx" / "db" / "lancedb"
@@ -302,7 +307,7 @@ def search_command(
 
     # Format and display results
     try:
-        formatter = get_formatter(output_format)
+        formatter = get_formatter(resolved_format)
         formatter.format(results, console, theme=resolved_theme)
     except ValueError as err:
         # Unknown formatter name

@@ -298,3 +298,59 @@ def test_search_query_exceeds_token_limit(isolated_cli_runner):
     output = result.stdout + (result.stderr if hasattr(result, "stderr") else "")
     assert "exceeds 8191 tokens" in output
     assert "Try a shorter query" in output
+
+
+def test_format_and_verbose_mutually_exclusive(isolated_cli_runner):
+    """Test that --format and --verbose are mutually exclusive."""
+    # ACT - Try to use both --format and --verbose
+    result = isolated_cli_runner.invoke(app, ["search", "query", "--format", "terse", "--verbose"])
+
+    # ASSERT
+    assert result.exit_code == 2
+    output = result.stdout + (result.stderr if hasattr(result, "stderr") else "")
+    assert "--format cannot be used with --verbose" in output
+
+
+def test_format_and_mcp_mutually_exclusive(isolated_cli_runner):
+    """Test that --format and --mcp are mutually exclusive."""
+    # ACT - Try to use both --format and --mcp
+    result = isolated_cli_runner.invoke(app, ["search", "query", "--format", "terse", "--mcp"])
+
+    # ASSERT
+    assert result.exit_code == 2
+    output = result.stdout + (result.stderr if hasattr(result, "stderr") else "")
+    assert "--format cannot be used with --mcp" in output
+
+
+def test_format_and_verbose_any_value(isolated_cli_runner):
+    """Test that --format (any value) and --verbose are mutually exclusive."""
+    # ACT - Try to use --format mcp with --verbose
+    result = isolated_cli_runner.invoke(app, ["search", "query", "--format", "mcp", "--verbose"])
+
+    # ASSERT - Format value doesn't matter, still mutually exclusive
+    assert result.exit_code == 2
+    output = result.stdout + (result.stderr if hasattr(result, "stderr") else "")
+    assert "--format cannot be used with --verbose" in output
+
+
+def test_tiktoken_import_error_fallback():
+    """Test that query validation gracefully handles missing tiktoken."""
+    from unittest.mock import patch  # noqa: PLC0415 # Test-specific import for mocking
+
+    from gitctx.cli.search import (  # noqa: PLC0415 # Import private function for testing
+        _get_query_text,
+    )
+
+    # Create a very long query that would exceed token limit if tiktoken was available
+    long_query = ["authentication"] * 11000
+
+    # Mock tiktoken import to fail
+    with (
+        patch.dict("sys.modules", {"tiktoken": None}),
+        patch("builtins.__import__", side_effect=ImportError("tiktoken not installed")),
+    ):
+        # ACT - Should not raise even with long query (validation skipped)
+        result = _get_query_text(long_query)
+
+        # ASSERT - Query accepted without validation
+        assert result == " ".join(long_query)
