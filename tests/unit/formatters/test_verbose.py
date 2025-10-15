@@ -129,7 +129,8 @@ def test_verbose_formatter_head_marker_in_header() -> None:
     formatter.format(results, console)
 
     result = output.getvalue()
-    assert "●" in result
+    # Platform-aware: modern terminals use ●, legacy Windows uses [HEAD]
+    assert "●" in result or "[HEAD]" in result
 
 
 def test_verbose_formatter_commit_sha_in_header() -> None:
