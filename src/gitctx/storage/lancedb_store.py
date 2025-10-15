@@ -378,6 +378,15 @@ class LanceDBStore:
         # Post-filter by distance (LanceDB doesn't support WHERE on _distance)
         # Use abs() to handle rare floating-point precision issues
         # Reference: https://github.com/lancedb/lancedb/issues/745
+        #
+        # Performance: This post-filtering approach is acceptable because:
+        # - limit is capped at 100 (SearchSettings validation), so max 100 results
+        # - In-memory filtering on small lists is negligible (<1ms)
+        # - Alternative would require fetching limit*2 results (wasteful network/disk I/O)
+        #
+        # Future optimization: When LanceDB adds WHERE support for _distance:
+        # - Use: query.where(f"_distance <= {max_distance}").limit(limit)
+        # - Track: https://github.com/lancedb/lancedb/issues/745
         filtered_results = [r for r in results if abs(r["_distance"]) <= max_distance]
 
         return filtered_results
