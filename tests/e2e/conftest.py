@@ -9,6 +9,7 @@ Future Expansion: See roadmap in comments below
 
 Author: gitctx team
 """
+# ruff: noqa: PLC0415 # Inline imports in fixtures for test isolation
 
 import os
 import subprocess
@@ -18,7 +19,10 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from tests.conftest import strip_ansi  # noqa: F401 - Re-exported for E2E tests
+from tests.conftest import (
+    StrippedResult,
+    strip_ansi,  # noqa: F401 - Re-exported for E2E tests
+)
 
 # === PHASE 1: Core E2E Fixtures (Current) ===
 
@@ -38,7 +42,7 @@ def context() -> dict[str, Any]:
     return {}
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True)
 def auto_isolate_e2e_working_directory(tmp_path: Path, monkeypatch):
     """
     Automatically isolate E2E test working directory.
@@ -52,7 +56,7 @@ def auto_isolate_e2e_working_directory(tmp_path: Path, monkeypatch):
     No conditional logic - explicit and obvious behavior.
     """
     monkeypatch.chdir(tmp_path)
-    yield tmp_path
+    return tmp_path
 
 
 @pytest.fixture(scope="session")
@@ -65,7 +69,6 @@ def e2e_session_api_key() -> str:
     Returns:
         str: API key from environment, or "sk-test-key" if not set
     """
-    import os
 
     # Use `or` to handle both None and empty string
     return os.environ.get("OPENAI_API_KEY") or "sk-test-key"
@@ -237,7 +240,6 @@ def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch, request) 
 
         # Invoke and wrap result to strip ANSI codes
         result = original_invoke(*args, **kwargs)
-        from tests.conftest import StrippedResult
 
         return StrippedResult(result)
 
@@ -267,6 +269,7 @@ def e2e_git_repo(e2e_git_isolation_env: dict[str, str], tmp_path: Path) -> Path:
     # Initialize git with isolation and set default branch to 'main'
     result = subprocess.run(
         ["git", "init", "-b", "main"],
+        check=False,
         cwd=repo_path,
         env=e2e_git_isolation_env,
         capture_output=True,
@@ -519,6 +522,7 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
         # Initialize git with isolation and set default branch to 'main'
         result = subprocess.run(
             ["git", "init", "-b", "main"],
+            check=False,
             cwd=repo_path,
             env=e2e_git_isolation_env,
             capture_output=True,

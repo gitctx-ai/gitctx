@@ -1,10 +1,13 @@
 """Unit tests for indexing pipeline signal handling and cost estimation."""
+# ruff: noqa: PLC0415 # Inline imports for test isolation
 
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from gitctx.indexing.pipeline import index_repository
+from gitctx.indexing.types import CodeChunk
+from gitctx.indexing.types import Embedding as ProtocolEmbedding
 
 
 def create_mock_blob_location(
@@ -260,7 +263,6 @@ async def test_indexing_processes_single_blob(tmp_path, capsys):
     )
 
     # Create mock chunks
-    from gitctx.indexing.types import CodeChunk
 
     mock_chunk = CodeChunk(
         content="def authenticate(user):\n    pass",
@@ -271,7 +273,6 @@ async def test_indexing_processes_single_blob(tmp_path, capsys):
     )
 
     # Create mock protocol embedding
-    from gitctx.indexing.types import Embedding as ProtocolEmbedding
 
     mock_proto_embedding = ProtocolEmbedding(
         vector=[0.1] * 1536,
@@ -425,8 +426,6 @@ async def test_indexing_processes_multiple_chunks(tmp_path):
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob
-    from gitctx.indexing.types import CodeChunk
-    from gitctx.indexing.types import Embedding as ProtocolEmbedding
 
     mock_blob = create_mock_blob_record(
         sha="large_file",

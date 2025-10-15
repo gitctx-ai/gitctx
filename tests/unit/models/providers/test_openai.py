@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+from gitctx.models.providers.openai import OpenAIProvider
+
 # Import will be added after implementation
 # from gitctx.models.providers.openai import OpenAIProvider
 
@@ -18,7 +20,6 @@ def mock_openai_embeddings():
 
 def test_openai_provider_init(mock_openai_embeddings):
     """Test OpenAIProvider initialization."""
-    from gitctx.models.providers.openai import OpenAIProvider
 
     provider = OpenAIProvider("text-embedding-3-large", "fake-key")
     assert provider.model_name == "text-embedding-3-large"
@@ -30,7 +31,6 @@ def test_openai_provider_init(mock_openai_embeddings):
 
 def test_embed_query_shape(mock_openai_embeddings):
     """Test embed_query returns correct numpy array shape."""
-    from gitctx.models.providers.openai import OpenAIProvider
 
     # Mock embed_query to return list of floats
     mock_client = MagicMock()
@@ -42,12 +42,11 @@ def test_embed_query_shape(mock_openai_embeddings):
 
     assert isinstance(result, np.ndarray)
     assert result.shape == (3072,)
-    assert result.dtype == np.float64 or result.dtype == np.float32
+    assert result.dtype in (np.float64, np.float32)
 
 
 def test_embed_documents_shape(mock_openai_embeddings):
     """Test embed_documents returns list of numpy arrays."""
-    from gitctx.models.providers.openai import OpenAIProvider
 
     # Mock embed_documents to return list of lists
     mock_client = MagicMock()
@@ -67,7 +66,6 @@ def test_embed_documents_shape(mock_openai_embeddings):
 
 def test_openai_provider_uses_base_provider(mock_openai_embeddings):
     """Test that OpenAIProvider extends BaseProvider."""
-    from gitctx.models.providers.openai import OpenAIProvider
 
     provider = OpenAIProvider("text-embedding-3-small", "fake-key")
 
@@ -79,7 +77,6 @@ def test_openai_provider_uses_base_provider(mock_openai_embeddings):
 
 def test_openai_provider_passes_api_key(mock_openai_embeddings):
     """Test that API key is passed to LangChain."""
-    from gitctx.models.providers.openai import OpenAIProvider
 
     OpenAIProvider("text-embedding-3-large", "test-api-key-123")
 

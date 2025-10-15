@@ -2,6 +2,8 @@
 
 import contextlib
 
+from gitctx.config.settings import GitCtxSettings, init_repo_config
+
 
 class TestGitCtxSettingsRouting:
     """Test GitCtxSettings routes config by key pattern."""
@@ -9,7 +11,6 @@ class TestGitCtxSettingsRouting:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_gitctx_settings_routes_api_keys_to_user(self, temp_home, monkeypatch):
         """API keys should be routed to user config."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -30,7 +31,6 @@ class TestGitCtxSettingsRouting:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_gitctx_settings_routes_settings_to_repo(self, tmp_path, monkeypatch):
         """Repo settings should be routed to repo config."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -54,7 +54,6 @@ class TestGitCtxSettingsRouting:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_set_api_key_persists_to_user_config(self, temp_home, monkeypatch):
         """Setting API key should save to user config file."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -74,7 +73,6 @@ class TestGitCtxSettingsRouting:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_set_repo_setting_persists_to_repo_config(self, tmp_path, monkeypatch):
         """Setting repo setting should save to repo config file."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -99,7 +97,6 @@ class TestGetSource:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_get_source_openai_api_key_env_var(self, temp_home, monkeypatch):
         """Should detect OPENAI_API_KEY env var as source."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -117,7 +114,6 @@ class TestGetSource:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_get_source_user_config(self, temp_home, monkeypatch):
         """Should detect user config file as source."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -138,7 +134,6 @@ class TestGetSource:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_get_source_gitctx_env_var(self, tmp_path, monkeypatch):
         """Should detect GITCTX_* env var as source."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -157,7 +152,6 @@ class TestGetSource:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_get_source_repo_config(self, tmp_path, monkeypatch):
         """Should detect repo config file as source."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -181,7 +175,6 @@ class TestGetSource:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_get_source_default(self, tmp_path, monkeypatch):
         """Should detect default as source when no override."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -203,7 +196,6 @@ class TestInitRepoConfig:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_init_repo_config_creates_structure(self, tmp_path, monkeypatch):
         """Should create .gitctx/ directory with config.yml and .gitignore."""
-        from gitctx.config.settings import init_repo_config
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -231,7 +223,6 @@ class TestInitRepoConfig:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_gitignore_content(self, tmp_path, monkeypatch):
         """Should create .gitignore with correct content."""
-        from gitctx.config.settings import init_repo_config
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -255,7 +246,6 @@ class TestInitRepoConfig:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_init_repo_config_idempotent(self, tmp_path, monkeypatch):
         """Should be safe to call multiple times."""
-        from gitctx.config.settings import init_repo_config
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -275,7 +265,6 @@ class TestSecuritySeparation:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_api_keys_never_in_repo_config(self, temp_home, tmp_path, monkeypatch):
         """API keys should NEVER be saved to repo config."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -301,7 +290,6 @@ class TestSecuritySeparation:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_repo_settings_never_in_user_config(self, temp_home, tmp_path, monkeypatch):
         """Repo settings should NEVER be saved to user config."""
-        from gitctx.config.settings import GitCtxSettings
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -330,7 +318,6 @@ class TestConfigErrorHandling:
 
     def test_get_from_user_handles_missing_intermediate(self, temp_home, monkeypatch):
         """Test handling of None intermediate values in user config."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.setenv("HOME", str(temp_home))
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -343,7 +330,6 @@ class TestConfigErrorHandling:
 
     def test_set_in_repo_invalid_key_format(self, temp_home, monkeypatch, tmp_path):
         """Test setting repo config with invalid key format."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.setenv("HOME", str(temp_home))
@@ -356,7 +342,6 @@ class TestConfigErrorHandling:
 
     def test_get_source_edge_case_matching_default(self, tmp_path, monkeypatch):
         """Test get_source when value exists but matches default."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.setenv("HOME", str(tmp_path / "home"))
@@ -375,7 +360,6 @@ class TestConfigErrorHandling:
 
     def test_get_from_user_returns_secret_value(self, temp_home, monkeypatch):
         """Test _get_from_user returns secret value for MaskedSecretStr."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.setenv("HOME", str(temp_home))
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -391,7 +375,6 @@ class TestConfigErrorHandling:
 
     def test_get_from_repo_returns_none_for_missing(self, tmp_path, monkeypatch):
         """Test _get_from_repo returns None for missing intermediate values."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.setenv("HOME", str(tmp_path / "home"))
@@ -404,7 +387,6 @@ class TestConfigErrorHandling:
 
     def test_get_source_user_config_yaml_error(self, temp_home, monkeypatch):
         """Test get_source handles YAML parsing errors in user config."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.setenv("HOME", str(temp_home))
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -424,7 +406,6 @@ class TestConfigErrorHandling:
 
     def test_get_source_repo_config_missing_nested_key(self, tmp_path, monkeypatch):
         """Test get_source when nested dict navigation fails in repo config."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.setenv("HOME", str(tmp_path / "home"))
@@ -443,7 +424,6 @@ class TestConfigErrorHandling:
 
     def test_get_source_repo_config_yaml_error(self, tmp_path, monkeypatch):
         """Test get_source handles YAML parsing errors in repo config."""
-        from gitctx.config.settings import GitCtxSettings
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.setenv("HOME", str(tmp_path / "home"))

@@ -1,4 +1,6 @@
 """Search command for gitctx CLI."""
+# Inline imports for fast --version; complex CLI validation/formatting orchestration
+# ruff: noqa: PLC0415, PLR0912, PLR0913, PLR0915
 
 import sys
 import time
@@ -188,13 +190,15 @@ def search_command(
 
     if verbose and output_format == "mcp":
         console_err.print(
-            f"[red]{SYMBOLS['error']}[/red] Error: --verbose and --format mcp are mutually exclusive"
+            f"[red]{SYMBOLS['error']}[/red] Error: "
+            "--verbose and --format mcp are mutually exclusive"
         )
         raise typer.Exit(code=2)
 
     if mcp and output_format == "verbose":
         console_err.print(
-            f"[red]{SYMBOLS['error']}[/red] Error: --mcp and --format verbose are mutually exclusive"
+            f"[red]{SYMBOLS['error']}[/red] Error: "
+            "--mcp and --format verbose are mutually exclusive"
         )
         raise typer.Exit(code=2)
 
@@ -233,8 +237,9 @@ def search_command(
             # ArrowException: Schema/corruption issues (from PyArrow)
             if "code_chunks" in str(err).lower() or "table" in str(err).lower():
                 console_err.print(
-                    f"[red]{SYMBOLS['error']}[/red] Error: Index corrupted (missing code_chunks table)\n"
-                    f"Fix with: gitctx clear && gitctx index"
+                    f"[red]{SYMBOLS['error']}[/red] Error: "
+                    "Index corrupted (missing code_chunks table)\n"
+                    "Fix with: gitctx clear && gitctx index"
                 )
                 raise typer.Exit(1) from err
             # Re-raise other exceptions
@@ -270,8 +275,8 @@ def search_command(
         # Convert similarity to distance: cosine_distance = 1 - cosine_similarity
         # LanceDB returns distances (0-2), users specify similarity (0-1)
         # Formula: max_distance = 1.0 - min_similarity
-        # - min_similarity=0.0 (default) → max_distance=1.0 (filter out negative similarity)
-        # - min_similarity=0.5 → max_distance=0.5 (show moderately similar results)
+        # - min_similarity=0.5 (default) → max_distance=0.5 (show moderately similar results)
+        # - min_similarity=0.0 → max_distance=1.0 (filter out negative similarity)
         # - min_similarity=0.7 → max_distance=0.3 (show highly similar results)
         # Reference: https://lancedb.com/docs/search/vector-search/
         max_distance = 1.0 - min_similarity
@@ -309,6 +314,7 @@ def search_command(
 
     if len(results) == 0 and min_similarity > 0.0:
         console.print(
-            f"\n[yellow]💡 Tip:[/yellow] No results above similarity threshold ({min_similarity:.1f}).\n"
-            f"   Try a broader query or use [cyan]--min-similarity 0.0[/cyan] to see all results."
+            f"\n[yellow]💡 Tip:[/yellow] No results above similarity threshold "
+            f"({min_similarity:.1f}).\n"
+            "   Try a broader query or use [cyan]--min-similarity 0.0[/cyan] to see all results."
         )

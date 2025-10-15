@@ -1,6 +1,6 @@
 """Unit tests for provider factory."""
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -43,7 +43,6 @@ def test_get_embedder_unknown_provider():
     This test covers the case where a model exists in the registry but has
     a provider that isn't implemented (e.g., "anthropic", "cohere", etc.).
     """
-    from unittest.mock import patch
 
     mock_settings = Mock()
     mock_settings.get.return_value = "fake-api-key"

@@ -1,6 +1,15 @@
 """Unit tests for user configuration (API keys only)."""
 
 import os
+import platform
+import stat
+from pathlib import Path
+
+import pytest
+from pydantic import SecretStr
+
+from gitctx.config.settings import ApiKeys, UserConfig
+from tests.conftest import is_windows
 
 
 class TestUserConfigLoading:
@@ -11,7 +20,6 @@ class TestUserConfigLoading:
 
         NOTE: isolated_env provides temp_home with .gitctx/ subdirectory!
         """
-        from gitctx.config.settings import UserConfig
 
         # isolated_env already sets HOME and clears OPENAI_API_KEY
         # Write config (isolated_env / ".gitctx" already exists!)
@@ -26,7 +34,6 @@ class TestUserConfigLoading:
 
     def test_openai_api_key_env_var_precedence(self, temp_home, monkeypatch):
         """OPENAI_API_KEY should override YAML."""
-        from gitctx.config.settings import UserConfig
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -44,7 +51,6 @@ class TestUserConfigLoading:
 
     def test_yaml_used_when_no_env_vars(self, isolated_env):
         """YAML should be used when no env vars are set."""
-        from gitctx.config.settings import UserConfig
 
         # isolated_env provides HOME and clears OPENAI_API_KEY
         # Write config
@@ -63,7 +69,6 @@ class TestUserConfigLoading:
         Note: isolated_env fixture is required for test isolation (sets HOME, clears env vars)
         even though it's not directly referenced in the test body.
         """
-        from gitctx.config.settings import UserConfig
 
         # isolated_env provides HOME and clears OPENAI_API_KEY (used implicitly)
         # Act - no config file exists
@@ -75,12 +80,8 @@ class TestUserConfigLoading:
     def test_insecure_permissions_shows_warning(self, isolated_env, capsys):
         """Config should warn when file has insecure permissions."""
 
-        from gitctx.config.settings import UserConfig
-        from tests.conftest import is_windows
-
         if is_windows():
             # Skip on Windows - permissions work differently
-            import pytest
 
             pytest.skip("Permission checks not applicable on Windows")
 
@@ -101,13 +102,6 @@ class TestUserConfigLoading:
 
     def test_windows_acl_file_permissions(self, isolated_env):
         """Windows: User config file should be accessible by owner only."""
-        import os
-        import platform
-
-        import pytest
-        from pydantic import SecretStr
-
-        from gitctx.config.settings import UserConfig
 
         if platform.system() != "Windows":
             pytest.skip("Windows-only test")
@@ -126,10 +120,6 @@ class TestUserConfigLoading:
 
     def test_windows_userprofile_path_expansion(self):
         """Windows: %USERPROFILE% should expand correctly via Path.home()."""
-        import platform
-        from pathlib import Path
-
-        import pytest
 
         if platform.system() != "Windows":
             pytest.skip("Windows-only test")
@@ -150,9 +140,6 @@ class TestUserConfigPersistence:
 
     def test_user_config_saves_to_yaml(self, isolated_env):
         """Config.save() should persist to YAML file with 0600 permissions."""
-        from pydantic import SecretStr
-
-        from gitctx.config.settings import UserConfig
 
         # isolated_env provides HOME and clears OPENAI_API_KEY
         # Create config
@@ -172,9 +159,6 @@ class TestUserConfigPersistence:
         assert "sk-test123" in content
 
         # Assert - file permissions are 0600 (Unix) or just readable/writable (Windows)
-        import stat
-
-        from tests.conftest import is_windows
 
         if is_windows():
             # Windows uses ACLs, not Unix permissions - just verify file is accessible
@@ -187,7 +171,6 @@ class TestUserConfigPersistence:
 
     def test_user_config_directory_already_exists(self, temp_home, monkeypatch):
         """Config should work when ~/.gitctx/ already exists."""
-        from gitctx.config.settings import UserConfig
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -211,7 +194,6 @@ class TestSecretStrMasking:
 
     def test_secret_str_masks_api_keys(self):
         """SecretStr should mask API keys in string representation."""
-        from gitctx.config.settings import ApiKeys
 
         # Act
         api_keys = ApiKeys(openai="sk-test123456")
@@ -229,7 +211,6 @@ class TestCrossPlatform:
 
     def test_user_config_windows_path(self, temp_home, monkeypatch):
         """Path.home() should work correctly on all platforms."""
-        from gitctx.config.settings import UserConfig
 
         # Setup
         monkeypatch.setenv("HOME", str(temp_home))
@@ -253,14 +234,9 @@ class TestEdgeCasesUnicode:
 
     def test_unicode_chinese_in_api_key(self, isolated_env):
         """API key can contain Chinese characters."""
-        import platform
-
-        import pytest
 
         if platform.system() == "Windows":
             pytest.skip("Unicode test skipped on Windows (YAML encoding differences)")
-
-        from gitctx.config.settings import UserConfig
 
         config_file = isolated_env / ".gitctx" / "config.yml"
         config_file.write_text("api_keys:\n  openai: 密钥-sk-abc123\n", encoding="utf-8")
@@ -270,20 +246,20 @@ class TestEdgeCasesUnicode:
 
     def test_unicode_rtl_in_api_key(self, isolated_env):
         """API key can contain RTL (Arabic) text."""
-        import platform
-
-        import pytest
 
         if platform.system() == "Windows":
             pytest.skip("Unicode test skipped on Windows (YAML encoding differences)")
 
-        from gitctx.config.settings import UserConfig
-
         config_file = isolated_env / ".gitctx" / "config.yml"
-        config_file.write_text("api_keys:\n  openai: sk-العربية123\n", encoding="utf-8")
+        config_file.write_text(
+            "api_keys:\n  openai: sk-العربية123\n",
+            encoding="utf-8",  # ruff: noqa: RUF001
+        )
 
         config = UserConfig()
-        assert config.api_keys.openai.get_secret_value() == "sk-العربية123"
+        assert (
+            config.api_keys.openai.get_secret_value() == "sk-العربية123"  # ruff: noqa: RUF001
+        )
 
 
 class TestFilesystemEdgeCases:
@@ -291,9 +267,6 @@ class TestFilesystemEdgeCases:
 
     def test_save_creates_missing_parent_directories(self, tmp_path, monkeypatch):
         """save() creates ~/.gitctx/ if missing."""
-        from pydantic import SecretStr
-
-        from gitctx.config.settings import UserConfig
 
         # Set HOME to a path that doesn't exist yet
         new_home = tmp_path / "nonexistent" / "user" / "home"

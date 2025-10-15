@@ -6,10 +6,11 @@ from io import StringIO
 
 from rich.console import Console
 
+from gitctx.formatters.verbose import VerboseFormatter
+
 
 def test_verbose_formatter_has_name_and_description() -> None:
     """Test that VerboseFormatter has required name and description attributes."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     formatter = VerboseFormatter()
 
@@ -20,7 +21,6 @@ def test_verbose_formatter_has_name_and_description() -> None:
 
 def test_verbose_formatter_multiline_format() -> None:
     """Test that VerboseFormatter outputs multiple lines per result."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -49,7 +49,6 @@ def test_verbose_formatter_multiline_format() -> None:
 
 def test_verbose_formatter_header_with_line_range() -> None:
     """Test that header includes file path with line range."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -77,7 +76,6 @@ def test_verbose_formatter_header_with_line_range() -> None:
 
 def test_verbose_formatter_score_in_header() -> None:
     """Test that score appears in header with 2 decimal places."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -106,7 +104,6 @@ def test_verbose_formatter_score_in_header() -> None:
 
 def test_verbose_formatter_head_marker_in_header() -> None:
     """Test that HEAD marker appears in header for HEAD commits."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -135,7 +132,6 @@ def test_verbose_formatter_head_marker_in_header() -> None:
 
 def test_verbose_formatter_commit_sha_in_header() -> None:
     """Test that commit SHA (7 chars) appears in header."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -164,7 +160,6 @@ def test_verbose_formatter_commit_sha_in_header() -> None:
 
 def test_verbose_formatter_metadata_line_dimmed() -> None:
     """Test that metadata line contains commit message."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -192,7 +187,6 @@ def test_verbose_formatter_metadata_line_dimmed() -> None:
 
 def test_verbose_formatter_syntax_highlighting() -> None:
     """Test that syntax highlighting is applied (ANSI codes present)."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -222,7 +216,6 @@ def test_verbose_formatter_syntax_highlighting() -> None:
 
 def test_verbose_formatter_line_numbers_enabled() -> None:
     """Test that line numbers are shown in code block."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -251,7 +244,6 @@ def test_verbose_formatter_line_numbers_enabled() -> None:
 
 def test_verbose_formatter_start_line_offset() -> None:
     """Test that line numbers start at correct offset."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -280,7 +272,6 @@ def test_verbose_formatter_start_line_offset() -> None:
 
 def test_verbose_formatter_theme_monokai() -> None:
     """Test that monokai theme is used (implicit - just verify no crash)."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -308,7 +299,6 @@ def test_verbose_formatter_theme_monokai() -> None:
 
 def test_verbose_formatter_language_from_result() -> None:
     """Test that language is taken from result metadata."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -337,7 +327,6 @@ def test_verbose_formatter_language_from_result() -> None:
 
 def test_verbose_formatter_language_fallback_markdown() -> None:
     """Test that unknown/missing language falls back to markdown."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -366,7 +355,6 @@ def test_verbose_formatter_language_fallback_markdown() -> None:
 
 def test_verbose_formatter_blank_line_separator() -> None:
     """Test that results are separated by blank lines."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -409,7 +397,6 @@ def test_verbose_formatter_blank_line_separator() -> None:
 
 def test_verbose_formatter_custom_theme() -> None:
     """Test that custom theme is used for syntax highlighting."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {
@@ -440,7 +427,6 @@ def test_verbose_formatter_custom_theme() -> None:
 
 def test_verbose_formatter_default_theme() -> None:
     """Test that default theme (monokai) is used when not specified."""
-    from gitctx.formatters.verbose import VerboseFormatter
 
     results = [
         {

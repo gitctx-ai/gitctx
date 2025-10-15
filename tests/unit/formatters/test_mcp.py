@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from io import StringIO
 
+import yaml
 from rich.console import Console
+
+from gitctx.formatters.mcp import MCPFormatter
 
 
 def test_mcp_formatter_has_name_and_description() -> None:
     """Test that MCPFormatter has required name and description attributes."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     formatter = MCPFormatter()
 
@@ -20,7 +23,6 @@ def test_mcp_formatter_has_name_and_description() -> None:
 
 def test_mcp_formatter_starts_with_yaml_delimiter() -> None:
     """Test that output starts with YAML frontmatter delimiter."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -46,7 +48,6 @@ def test_mcp_formatter_starts_with_yaml_delimiter() -> None:
 
 def test_mcp_formatter_yaml_has_results_key() -> None:
     """Test that YAML frontmatter has 'results:' key."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -72,7 +73,6 @@ def test_mcp_formatter_yaml_has_results_key() -> None:
 
 def test_mcp_formatter_yaml_array_structure() -> None:
     """Test that results are formatted as YAML array with list items."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -99,7 +99,6 @@ def test_mcp_formatter_yaml_array_structure() -> None:
 
 def test_mcp_formatter_yaml_has_file_path() -> None:
     """Test that YAML contains file_path field."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -125,7 +124,6 @@ def test_mcp_formatter_yaml_has_file_path() -> None:
 
 def test_mcp_formatter_yaml_has_line_numbers() -> None:
     """Test that YAML contains line_numbers field with range."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -151,7 +149,6 @@ def test_mcp_formatter_yaml_has_line_numbers() -> None:
 
 def test_mcp_formatter_yaml_has_score_three_decimals() -> None:
     """Test that YAML score has 3 decimal places."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -178,7 +175,6 @@ def test_mcp_formatter_yaml_has_score_three_decimals() -> None:
 
 def test_mcp_formatter_yaml_has_commit_sha() -> None:
     """Test that YAML contains full commit SHA."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -204,9 +200,6 @@ def test_mcp_formatter_yaml_has_commit_sha() -> None:
 
 def test_mcp_formatter_yaml_parses_successfully() -> None:
     """Test that YAML frontmatter is valid and parseable."""
-    import yaml
-
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -243,7 +236,6 @@ def test_mcp_formatter_yaml_parses_successfully() -> None:
 
 def test_mcp_formatter_markdown_headers() -> None:
     """Test that markdown body contains headers with file:line."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -269,7 +261,6 @@ def test_mcp_formatter_markdown_headers() -> None:
 
 def test_mcp_formatter_metadata_line() -> None:
     """Test that markdown body contains metadata line with score and commit."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -296,7 +287,6 @@ def test_mcp_formatter_metadata_line() -> None:
 
 def test_mcp_formatter_code_blocks_with_language() -> None:
     """Test that code blocks include language tags."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -324,7 +314,6 @@ def test_mcp_formatter_code_blocks_with_language() -> None:
 
 def test_mcp_formatter_language_fallback_markdown() -> None:
     """Test that missing language falls back to markdown."""
-    from gitctx.formatters.mcp import MCPFormatter
 
     results = [
         {
@@ -352,11 +341,6 @@ def test_mcp_formatter_language_fallback_markdown() -> None:
 
 def test_mcp_formatter_escapes_yaml_special_chars() -> None:
     """Test that file paths with YAML special chars are properly escaped."""
-    import re
-
-    import yaml
-
-    from gitctx.formatters.mcp import MCPFormatter
 
     # Test paths with YAML special characters
     results = [

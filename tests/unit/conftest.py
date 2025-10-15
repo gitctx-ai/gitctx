@@ -3,7 +3,9 @@
 This file contains fixtures specific to unit tests that don't require
 subprocess isolation. For E2E fixtures, see tests/e2e/conftest.py.
 """
+# ruff: noqa: PLC0415 # Inline imports in fixtures for test isolation
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -58,7 +60,6 @@ def _get_main_branch_name(repo_path, git_isolation_base) -> str:
     Returns:
         str: Name of the default branch (main, master, trunk, develop, etc.)
     """
-    import subprocess
 
     result = subprocess.run(
         ["git", "branch", "--list"],
@@ -89,7 +90,6 @@ def _create_two_way_merge(repo_path, git_isolation_base, num_commits: int) -> No
         git_isolation_base: Git isolation environment
         num_commits: Total number of commits (for commit message)
     """
-    import subprocess
 
     # Create feature branch from current HEAD
     subprocess.run(
@@ -158,7 +158,6 @@ def _create_octopus_merge(repo_path, git_isolation_base, num_commits: int) -> No
         git_isolation_base: Git isolation environment
         num_commits: Total number of commits (for commit message)
     """
-    import subprocess
 
     # Create feature1 branch
     subprocess.run(
@@ -261,7 +260,6 @@ def _create_fast_forward_merge(repo_path, git_isolation_base) -> None:
         repo_path: Path to git repository
         git_isolation_base: Git isolation environment
     """
-    import subprocess
 
     # Create feature branch
     subprocess.run(
@@ -447,7 +445,6 @@ def partial_clone_repo(tmp_path, git_isolation_base):
     Partial clones have .git/objects/info/alternates file, which indicates
     the repo is missing some objects and relies on a remote.
     """
-    import subprocess
 
     repo_path = tmp_path / "partial_repo"
     repo_path.mkdir()
@@ -476,7 +473,6 @@ def shallow_clone_repo(tmp_path, git_isolation_base):
 
     Shallow clones have .git/shallow file containing SHAs of shallow commits.
     """
-    import subprocess
 
     repo_path = tmp_path / "shallow_repo"
     repo_path.mkdir()
@@ -536,7 +532,6 @@ def shallow_clone_repo(tmp_path, git_isolation_base):
 @pytest.fixture
 def bare_repo(tmp_path, git_isolation_base):
     """Create bare git repository (no working tree) with commits."""
-    import subprocess
 
     # First create a regular repo with commits
     source_repo = tmp_path / "source_repo"

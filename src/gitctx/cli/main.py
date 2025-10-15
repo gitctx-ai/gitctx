@@ -1,4 +1,5 @@
 """Main CLI application."""
+# ruff: noqa: PLC0415, PLR0913 # Inline imports for fast --version; CLI commands need many options
 
 from typing import Annotated
 
@@ -101,8 +102,11 @@ def search_command_wrapper(
         0.5,
         "--min-similarity",
         "-s",
-        help="Minimum similarity score (-1.0 to 1.0) for context engineering quality. "
-        "Default: 0.5 (balanced). Use 0.7 for high precision, -1.0 to see all results (including opposite meaning).",
+        help=(
+            "Minimum similarity score (-1.0 to 1.0) for context engineering quality. "
+            "Default: 0.5 (balanced). Use 0.7 for high precision, "
+            "-1.0 to see all results (including opposite meaning)."
+        ),
         min=-1.0,
         max=1.0,
         rich_help_panel="Result Filtering",
@@ -126,7 +130,10 @@ def search_command_wrapper(
     theme: str | None = typer.Option(
         None,
         "--theme",
-        help="Syntax highlighting theme (monokai, github-dark, solarized-light, etc.). Overrides user config.",
+        help=(
+            "Syntax highlighting theme (monokai, github-dark, solarized-light, etc.). "
+            "Overrides user config."
+        ),
         rich_help_panel="Output Formatting",
     ),
 ) -> None:

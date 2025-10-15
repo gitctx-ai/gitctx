@@ -5,10 +5,11 @@ When adding new fixtures to tests/conftest.py, add corresponding
 tests here to verify behavior.
 """
 
+from tests.conftest import get_platform_null_device, get_platform_ssh_command
+
 
 def test_git_isolation_base(git_isolation_base: dict[str, str]) -> None:
     """Verify git isolation base contains security vars."""
-    from tests.conftest import get_platform_null_device, get_platform_ssh_command
 
     expected_ssh_cmd = get_platform_ssh_command()
     expected_null_device = get_platform_null_device()

@@ -3,6 +3,7 @@
 This module provides a LanceDB-based vector store with denormalized schema for
 optimal read performance in semantic code search.
 """
+# ruff: noqa: PLC0415 # Lazy load LanceDB/pyarrow (heavy dependencies)
 
 import logging
 from pathlib import Path
@@ -127,7 +128,10 @@ class LanceDBStore:
                     - The name of the embedding model
                     - A suggested action to delete the LanceDB directory and re-index
                 Example error message:
-                    "Dimension mismatch: existing table has {actual_dims}-dimensional vectors, but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. Action required: Delete .gitctx/db/lancedb/ and re-index with `gitctx index --force`"
+                    "Dimension mismatch: existing table has {actual_dims}-dimensional vectors,
+                    but current model '{self.embedding_model}' produces
+                    {self.embedding_dimensions}-dimensional vectors. Action required: Delete
+                    .gitctx/db/lancedb/ and re-index with `gitctx index --force`"
         """
         # Get vector field from schema
         try:
@@ -141,8 +145,10 @@ class LanceDBStore:
         if actual_dims != self.embedding_dimensions:
             raise DimensionMismatchError(
                 f"Dimension mismatch: existing table has {actual_dims}-dimensional vectors, "
-                f"but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. "
-                f"Action required: Delete .gitctx/db/lancedb/ and re-index with `gitctx index --force`"
+                f"but current model '{self.embedding_model}' produces "
+                f"{self.embedding_dimensions}-dimensional vectors. "
+                f"Action required: Delete .gitctx/db/lancedb/ and re-index with "
+                f"`gitctx index --force`"
             )
 
     def count(self) -> int:
@@ -280,10 +286,13 @@ class LanceDBStore:
         Only creates index if we have enough vectors (>=256).
         Index params are adaptive based on row count and dimensions.
         """
+        MIN_VECTORS_FOR_INDEX = 256  # Minimum rows required for IVF-PQ indexing
         row_count = self.count()
 
-        if row_count < 256:
-            logger.info(f"Not enough vectors ({row_count}) for indexing (minimum: 256)")
+        if row_count < MIN_VECTORS_FOR_INDEX:
+            logger.info(
+                f"Not enough vectors ({row_count}) for indexing (minimum: {MIN_VECTORS_FOR_INDEX})"
+            )
             return
 
         logger.info(f"Creating IVF-PQ index for {row_count} vectors...")

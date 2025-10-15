@@ -1,4 +1,5 @@
 """OpenAI embedding generator using LangChain wrapper."""
+# ruff: noqa: PLC0415 # Dynamic OpenAI client import (lazy load)
 
 from __future__ import annotations
 

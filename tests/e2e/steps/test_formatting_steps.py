@@ -12,8 +12,10 @@ All steps raise NotImplementedError and will be implemented incrementally across
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
+import yaml
 from pytest_bdd import given, parsers, then
 
 from tests.e2e.conftest import strip_ansi
@@ -66,7 +68,6 @@ def each_line_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regular expression pattern to match
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
     # Remove ANSI escape codes before processing lines
@@ -88,7 +89,6 @@ def output_contains_commit_sha(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
     # Match 7-character hex SHA (e.g., "f9e8d7c")
@@ -116,7 +116,6 @@ def output_contains_commit_date(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
     # Remove ANSI codes for pattern matching
@@ -135,7 +134,6 @@ def output_contains_results_summary(pattern: str, context: dict[str, Any]) -> No
         pattern: Expected summary pattern (e.g., "{N} results in {X.XX}s")
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
     # Remove ANSI codes for pattern matching
@@ -187,7 +185,6 @@ def output_contains_syntax_highlighting(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     # Use raw_stdout to check for ANSI codes (before stripping)
     raw_stdout = context.get("raw_stdout", "")
@@ -206,7 +203,6 @@ def code_blocks_show_line_numbers(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
     # Remove ANSI escape codes for pattern matching
@@ -227,7 +223,6 @@ def output_contains_file_paths_with_ranges(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
     # Remove ANSI escape codes for pattern matching
@@ -273,7 +268,6 @@ def yaml_frontmatter_parses(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import yaml
 
     stdout = context.get("stdout", "")
 
@@ -324,7 +318,6 @@ def output_contains_language_tags(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
 
@@ -333,7 +326,8 @@ def output_contains_language_tags(context: dict[str, Any]) -> None:
     code_block_pattern = r"```\w+"
 
     assert re.search(code_block_pattern, stdout), (
-        f"Expected code blocks with language tags (e.g., '```python') in output, got: {stdout[:200]}"
+        f"Expected code blocks with language tags (e.g., '```python') in output, "
+        f"got: {stdout[:200]}"
     )
 
 
@@ -355,7 +349,6 @@ def syntax_highlighting_uses_markdown(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
     raw_stdout = context.get("raw_stdout", "")
@@ -383,7 +376,6 @@ def code_displayed_with_formatting(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    import re
 
     stdout = context.get("stdout", "")
 

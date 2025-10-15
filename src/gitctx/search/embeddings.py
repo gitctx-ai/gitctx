@@ -88,7 +88,8 @@ class QueryEmbedder:
         except openai.APIConnectionError as err:
             raise EmbeddingError("Cannot connect to OpenAI API. Verify network access.") from err
         except openai.APIStatusError as err:
-            if err.status_code >= 500:
+            HTTP_SERVER_ERROR = 500  # 5xx status codes indicate server errors
+            if err.status_code >= HTTP_SERVER_ERROR:
                 raise EmbeddingError(
                     f"OpenAI API unavailable (HTTP {err.status_code}). Service may be down. "
                     "Check status at https://status.openai.com and retry in 1-2 minutes."
@@ -96,7 +97,8 @@ class QueryEmbedder:
             # Re-raise unexpected status codes for visibility
             raise
         except ConfigurationError:
-            # Re-raise configuration errors (e.g., missing API key) so CLI can handle with exit code 4
+            # Re-raise configuration errors (e.g., missing API key)
+            # so CLI can handle with exit code 4
             raise
         except Exception as err:
             # Safety net for unexpected errors

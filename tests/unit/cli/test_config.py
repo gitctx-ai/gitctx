@@ -1,6 +1,14 @@
 """Unit tests for config command."""
 
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+from pydantic import ValidationError
+from typer.testing import CliRunner
+
+from gitctx.cli.config import _translate_validation_error
 from gitctx.cli.main import app
+from gitctx.config.settings import GitCtxSettings
 
 
 def test_config_command_exists(isolated_cli_runner):
@@ -96,7 +104,6 @@ def test_config_get_nonexistent_key(isolated_cli_runner):
 # config init tests
 def test_config_init_creates_gitctx_directory(isolated_cli_runner):
     """Verify config init creates .gitctx/ directory structure."""
-    from pathlib import Path
 
     result = isolated_cli_runner.invoke(app, ["config", "init"])
     assert result.exit_code == 0
@@ -141,7 +148,6 @@ def test_config_init_already_exists(isolated_cli_runner):
 
 def test_config_init_permission_error(isolated_cli_runner, monkeypatch):
     """Verify config init handles permission errors."""
-    from pathlib import Path
 
     def mock_mkdir(*args, **kwargs):
         raise PermissionError("Permission denied")
@@ -165,8 +171,10 @@ def test_config_set_validation_error(isolated_cli_runner):
         "expected a number" in result.stderr.lower() or "expected a number" in result.stdout.lower()
     )
     # Should NOT show Pydantic internal details
-    assert "ValidationError" not in result.stderr and "ValidationError" not in result.stdout
-    assert "Traceback" not in result.stderr and "Traceback" not in result.stdout
+    assert "ValidationError" not in result.stderr
+    assert "ValidationError" not in result.stdout
+    assert "Traceback" not in result.stderr
+    assert "Traceback" not in result.stdout
 
 
 def test_config_set_out_of_range_validation(isolated_cli_runner):
@@ -217,7 +225,6 @@ def test_config_list_verbose_mode_shows_sources(isolated_cli_runner):
 
 def test_config_set_permission_error_on_save(isolated_cli_runner, monkeypatch):
     """Test config set handles permission error when saving."""
-    from pathlib import Path
 
     isolated_cli_runner.invoke(app, ["config", "init"])
 
@@ -238,7 +245,6 @@ def test_config_set_permission_error_on_save(isolated_cli_runner, monkeypatch):
 
 def test_config_get_corrupted_yaml(isolated_cli_runner):
     """Test config get handles corrupted YAML file."""
-    from pathlib import Path
 
     isolated_cli_runner.invoke(app, ["config", "init"])
 
@@ -262,7 +268,6 @@ def test_config_set_without_init_shows_clear_error(isolated_cli_runner):
 
 def test_config_init_unexpected_error(isolated_cli_runner, monkeypatch):
     """Test config init handles unexpected errors gracefully."""
-    from pathlib import Path
 
     def mock_mkdir(*args, **kwargs):
         raise RuntimeError("Unexpected filesystem error")
@@ -293,7 +298,6 @@ def test_config_init_already_exists_quiet_mode(isolated_cli_runner):
 
 def test_config_set_generic_error(isolated_cli_runner, monkeypatch):
     """Test config set handles generic exceptions during save."""
-    from pathlib import Path
 
     isolated_cli_runner.invoke(app, ["config", "init"])
 
@@ -368,7 +372,6 @@ def test_config_set_verbose_mode(isolated_cli_runner):
 
 def test_config_set_file_not_found_error(isolated_cli_runner, monkeypatch):
     """Test config set shows helpful error when .gitctx doesn't exist."""
-    from gitctx.config.settings import GitCtxSettings
 
     # Don't run init - try to set config without .gitctx existing
     # Mock settings.set to raise FileNotFoundError
@@ -417,7 +420,6 @@ def test_config_get_quiet_mode_with_value(isolated_cli_runner):
 
 def test_config_get_attribute_error_on_navigation(isolated_cli_runner, monkeypatch):
     """Test config get AttributeError path when getattr fails during navigation."""
-    from gitctx.config.settings import GitCtxSettings
 
     isolated_cli_runner.invoke(app, ["config", "init"])
 
@@ -434,7 +436,6 @@ def test_config_get_attribute_error_on_navigation(isolated_cli_runner, monkeypat
 
 def test_config_list_truly_empty(isolated_cli_runner, monkeypatch):
     """Test config list when no API keys or config values are set."""
-    from gitctx.config.settings import GitCtxSettings
 
     # Mock settings to have completely empty config
     original_init = GitCtxSettings.__init__
@@ -459,10 +460,6 @@ def test_config_list_truly_empty(isolated_cli_runner, monkeypatch):
 
 def test_config_set_greater_than_validation():
     """Test setting value below minimum constraint (greater_than error)."""
-    from unittest.mock import Mock, patch
-
-    from pydantic import ValidationError
-    from typer.testing import CliRunner
 
     with patch("gitctx.cli.config.GitCtxSettings") as MockSettings:
         mock_settings = Mock()
@@ -488,10 +485,6 @@ def test_config_set_greater_than_validation():
 
 def test_config_set_less_than_validation():
     """Test setting value above maximum constraint (less_than error)."""
-    from unittest.mock import Mock, patch
-
-    from pydantic import ValidationError
-    from typer.testing import CliRunner
 
     with patch("gitctx.cli.config.GitCtxSettings") as MockSettings:
         mock_settings = Mock()
@@ -517,10 +510,6 @@ def test_config_set_less_than_validation():
 
 def test_config_set_bool_validation_error():
     """Test setting invalid boolean value."""
-    from unittest.mock import Mock, patch
-
-    from pydantic import ValidationError
-    from typer.testing import CliRunner
 
     with patch("gitctx.cli.config.GitCtxSettings") as MockSettings:
         mock_settings = Mock()
@@ -544,9 +533,6 @@ def test_config_set_bool_validation_error():
 
 def test_config_set_generic_exception():
     """Test generic exception handler in config_set."""
-    from unittest.mock import Mock, patch
-
-    from typer.testing import CliRunner
 
     with patch("gitctx.cli.config.GitCtxSettings") as MockSettings:
         mock_settings = Mock()
@@ -569,9 +555,6 @@ def test_config_list_no_items():
     This tests the case where all config values are None and the items list is empty,
     triggering the 'No configuration set' message.
     """
-    from unittest.mock import Mock, patch
-
-    from typer.testing import CliRunner
 
     with patch("gitctx.cli.config.GitCtxSettings") as MockSettings:
         mock_settings = Mock()
@@ -606,9 +589,6 @@ def test_config_list_no_items():
 
 def test_translate_validation_error_empty_errors():
     """Test _translate_validation_error with empty errors list."""
-    from pydantic import ValidationError
-
-    from gitctx.cli.config import _translate_validation_error
 
     # Create ValidationError with empty errors list (edge case)
     val_error = ValidationError.from_exception_data("ValidationError", [])

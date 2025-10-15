@@ -2,6 +2,9 @@
 
 from unittest.mock import Mock, patch
 
+import pyarrow as pa
+import pytest
+
 from gitctx.cli.main import app
 
 
@@ -73,7 +76,8 @@ def test_search_corrupted_index_missing_table(isolated_cli_runner, tmp_path, mon
         patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
         patch("gitctx.cli.search.LanceDBStore") as mock_store_class,
     ):
-        # Simulate ValueError with table name in message (LanceDB raises ValueError for missing tables)
+        # Simulate ValueError with table name in message
+        # (LanceDB raises ValueError for missing tables)
         mock_store_class.side_effect = ValueError("Failed to open table code_chunks")
 
         result = isolated_cli_runner.invoke(app, ["search", "test"])
@@ -301,8 +305,6 @@ def test_search_limit_validation(isolated_cli_runner, tmp_path, monkeypatch):
 
 def test_search_reraises_non_table_arrow_exceptions(isolated_cli_runner, tmp_path, monkeypatch):
     """Test search re-raises ArrowException/ValueError that don't mention code_chunks or table."""
-    import pyarrow as pa
-    import pytest
 
     # ARRANGE
     repo = tmp_path / "test_repo"

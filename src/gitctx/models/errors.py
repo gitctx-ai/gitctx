@@ -14,8 +14,6 @@ class DimensionMismatchError(ModelError):
         >>> raise DimensionMismatchError("Expected 3072 dimensions, got 1536")
     """
 
-    pass
-
 
 class NetworkError(GitCtxError):
     """Raised when network/API is unreachable after retries.
@@ -24,8 +22,6 @@ class NetworkError(GitCtxError):
         >>> raise NetworkError("OpenAI API unavailable. Retry in a few moments.")
     """
 
-    pass
-
 
 class RateLimitError(ModelError):
     """Raised when API rate limit is exceeded after retries.
@@ -33,8 +29,6 @@ class RateLimitError(ModelError):
     Examples:
         >>> raise RateLimitError("API rate limit exceeded. Wait 60 seconds and retry.")
     """
-
-    pass
 
 
 class APIError(ModelError):

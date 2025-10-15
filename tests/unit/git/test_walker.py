@@ -113,7 +113,7 @@ class TestCommitTraversal:
         walker = CommitWalker(str(repo_path), config)
 
         # Act & Assert: pygit2.GitError raised when repo has no HEAD
-        with pytest.raises((Exception, AttributeError)):  # noqa: B017
+        with pytest.raises((Exception, AttributeError)):
             list(walker._walk_commits())
 
 
@@ -307,7 +307,6 @@ class TestProtocolAdherence:
     def test_ffi_primitive_type_constraints(self, git_repo_factory, isolated_env):
         """Walker API uses only FFI-compatible primitive types."""
         # Arrange
-        from pathlib import Path
 
         repo_path = git_repo_factory(num_commits=1)
         config = GitCtxSettings()
@@ -518,7 +517,7 @@ class TestHeadBlobTracking:
         blob_records = list(walker.walk_blobs())
 
         # Assert - main.py is in HEAD
-        main_py_blob = [b for b in blob_records if b.locations[0].file_path == "main.py"][0]
+        main_py_blob = next(b for b in blob_records if b.locations[0].file_path == "main.py")
         assert main_py_blob.locations[0].is_head is True
 
     def test_historical_blob_has_is_head_false(
@@ -1272,7 +1271,7 @@ size 1048576
         assert "regular.txt" in file_paths
 
     @pytest.mark.parametrize(
-        "size_mb,should_be_filtered",
+        ("size_mb", "should_be_filtered"),
         [
             (4, False),  # 4MB < 5MB limit - not filtered
             (5, False),  # 5MB == 5MB limit - not filtered

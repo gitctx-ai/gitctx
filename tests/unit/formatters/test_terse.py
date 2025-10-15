@@ -6,10 +6,11 @@ from io import StringIO
 
 from rich.console import Console
 
+from gitctx.formatters.terse import TerseFormatter
+
 
 def test_terse_formatter_has_name_and_description() -> None:
     """Test that TerseFormatter has required name and description attributes."""
-    from gitctx.formatters.terse import TerseFormatter
 
     formatter = TerseFormatter()
 
@@ -20,7 +21,6 @@ def test_terse_formatter_has_name_and_description() -> None:
 
 def test_terse_formatter_single_line_format() -> None:
     """Test that TerseFormatter outputs one line per result."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -57,7 +57,6 @@ def test_terse_formatter_single_line_format() -> None:
 
 def test_terse_formatter_includes_file_path() -> None:
     """Test that output includes file path."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -83,7 +82,6 @@ def test_terse_formatter_includes_file_path() -> None:
 
 def test_terse_formatter_includes_line_number() -> None:
     """Test that output includes line number."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -109,7 +107,6 @@ def test_terse_formatter_includes_line_number() -> None:
 
 def test_terse_formatter_includes_score_two_decimals() -> None:
     """Test that score is formatted with 2 decimal places."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -136,7 +133,6 @@ def test_terse_formatter_includes_score_two_decimals() -> None:
 
 def test_terse_formatter_includes_commit_sha_short() -> None:
     """Test that commit SHA is shortened to 7 characters."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -164,7 +160,6 @@ def test_terse_formatter_includes_commit_sha_short() -> None:
 
 def test_terse_formatter_includes_commit_date() -> None:
     """Test that commit date is included."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -190,7 +185,6 @@ def test_terse_formatter_includes_commit_date() -> None:
 
 def test_terse_formatter_includes_author_name() -> None:
     """Test that author name is included."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -216,7 +210,6 @@ def test_terse_formatter_includes_author_name() -> None:
 
 def test_terse_formatter_includes_commit_message_truncated() -> None:
     """Test that commit message is included."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -242,7 +235,6 @@ def test_terse_formatter_includes_commit_message_truncated() -> None:
 
 def test_terse_formatter_head_marker_modern_terminal() -> None:
     """Test that HEAD marker shows ● on modern terminals."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -268,7 +260,6 @@ def test_terse_formatter_head_marker_modern_terminal() -> None:
 
 def test_terse_formatter_head_marker_legacy_windows() -> None:
     """Test that HEAD marker shows [HEAD] on legacy Windows."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -294,7 +285,6 @@ def test_terse_formatter_head_marker_legacy_windows() -> None:
 
 def test_terse_formatter_historic_no_marker() -> None:
     """Test that historic commits show no marker (space character)."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -324,7 +314,6 @@ def test_terse_formatter_historic_no_marker() -> None:
 
 def test_terse_formatter_message_truncated_at_50_chars() -> None:
     """Test that commit message is truncated to 50 characters."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results = [
         {
@@ -335,7 +324,10 @@ def test_terse_formatter_message_truncated_at_50_chars() -> None:
             "commit_sha": "f9e8d7c",
             "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
-            "commit_message": "This is a very long commit message that should be truncated at fifty characters exactly",
+            "commit_message": (
+                "This is a very long commit message that should be "
+                "truncated at fifty characters exactly"
+            ),
         }
     ]
 
@@ -355,7 +347,6 @@ def test_terse_formatter_message_truncated_at_50_chars() -> None:
 
 def test_terse_formatter_zero_results_empty_output() -> None:
     """Test that zero results produces no output lines."""
-    from gitctx.formatters.terse import TerseFormatter
 
     results: list[dict] = []
 

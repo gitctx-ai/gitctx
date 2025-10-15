@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from rich.console import Console
 
+from gitctx.formatters.base import ResultFormatter
+
 
 def test_result_formatter_protocol_has_required_attributes() -> None:
     """Test that ResultFormatter protocol has name and description attributes."""
-    from gitctx.formatters.base import ResultFormatter
 
     # Protocol should define name and description as required attributes in annotations
     assert "name" in ResultFormatter.__annotations__
@@ -16,7 +17,6 @@ def test_result_formatter_protocol_has_required_attributes() -> None:
 
 def test_result_formatter_protocol_has_format_method() -> None:
     """Test that ResultFormatter protocol has format method."""
-    from gitctx.formatters.base import ResultFormatter
 
     # Protocol should define format method
     assert hasattr(ResultFormatter, "format")
@@ -24,7 +24,6 @@ def test_result_formatter_protocol_has_format_method() -> None:
 
 def test_formatter_format_method_signature() -> None:
     """Test that format method has correct signature."""
-    from gitctx.formatters.base import ResultFormatter
 
     # Create a test formatter that implements the protocol
     class TestFormatter:
@@ -33,7 +32,6 @@ def test_formatter_format_method_signature() -> None:
 
         def format(self, results: list[dict], console: Console) -> None:
             """Format results."""
-            pass
 
     # Should be recognized as implementing ResultFormatter
     formatter: ResultFormatter = TestFormatter()
@@ -43,7 +41,6 @@ def test_formatter_format_method_signature() -> None:
 
 def test_protocol_runtime_checkable() -> None:
     """Test that ResultFormatter protocol is runtime checkable."""
-    from gitctx.formatters.base import ResultFormatter
 
     # Protocol should be runtime checkable with isinstance
     class ValidFormatter:

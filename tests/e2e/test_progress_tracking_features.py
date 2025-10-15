@@ -13,7 +13,7 @@ from tests.e2e.steps.cli_steps import (  # noqa: F401
 )
 
 # Import all progress tracking step definitions
-from tests.e2e.steps.progress_steps import *  # noqa: F401, F403
+from tests.e2e.steps.progress_steps import *  # noqa: F403
 
 # Mark all tests in this module with vcr
 # - vcr: Record/replay OpenAI API calls via cassettes

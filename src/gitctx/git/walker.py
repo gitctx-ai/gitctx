@@ -1,4 +1,5 @@
 """Git commit walker with validation and metadata extraction."""
+# ruff: noqa: PLC0415 # Conditional git operations (lazy load git library)
 
 from __future__ import annotations
 
@@ -18,23 +19,20 @@ from gitctx.git.types import (
 )
 from gitctx.indexing.blob_filter import BlobFilter
 
+# Git file mode constants
+GIT_FILEMODE_SYMLINK = 0o120000  # Symlink file mode
+
 
 class GitRepositoryError(Exception):
     """Base exception for git repository errors."""
-
-    pass
 
 
 class PartialCloneError(GitRepositoryError):
     """Raised when repository is a partial clone."""
 
-    pass
-
 
 class ShallowCloneError(GitRepositoryError):
     """Raised when repository is a shallow clone."""
-
-    pass
 
 
 class CommitWalker:
@@ -283,7 +281,7 @@ class CommitWalker:
                 # Skip symlinks (mode 0o120000)
                 # Symlinks are stored as blobs with target path as content
                 # We don't want to index them as they point to files already indexed
-                if entry.filemode == 0o120000:
+                if entry.filemode == GIT_FILEMODE_SYMLINK:
                     continue
 
                 blob_sha = str(entry.id)
@@ -320,7 +318,7 @@ class CommitWalker:
                     continue
 
                 # Apply filters
-                should_filter, reason = self.blob_filter.should_filter(
+                should_filter, _reason = self.blob_filter.should_filter(
                     entry_path,
                     blob_content,
                 )

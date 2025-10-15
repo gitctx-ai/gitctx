@@ -8,7 +8,8 @@ Format:
 
 Example:
     src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) "Add OAuth support"
-    src/login.py:23:0.76   abc1234 (2025-09-15, Bob) "Initial login implementation with basic validat"
+    src/login.py:23:0.76   abc1234 (2025-09-15, Bob)
+        "Initial login implementation with basic validat"
 """
 
 from __future__ import annotations

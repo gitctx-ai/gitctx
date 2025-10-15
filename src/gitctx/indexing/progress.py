@@ -5,6 +5,7 @@ Follows TUI_GUIDE.md patterns:
 - Verbose mode: Phase-by-phase progress with statistics
 - Spinner: Shows after 5s for long operations
 """
+# ruff: noqa: PLC0415 # Conditional progress bar imports (optional rich dependency)
 
 import sys
 import time
@@ -134,7 +135,8 @@ class ProgressReporter:
 
         # Always show cost summary on next line
         print(
-            f"Tokens: {format_number(self.stats.total_tokens)} | Cost: {format_cost(self.stats.total_cost_usd)}"
+            f"Tokens: {format_number(self.stats.total_tokens)} | "
+            f"Cost: {format_cost(self.stats.total_cost_usd)}"
         )
 
         if self.stats.errors > 0:
@@ -151,7 +153,7 @@ class ProgressReporter:
         print(f"  Chunks:       {format_number(self.stats.total_chunks)}", file=sys.stderr)
         print(f"  Tokens:       {format_number(self.stats.total_tokens)}", file=sys.stderr)
         print(f"  Cost:         {format_cost(self.stats.total_cost_usd)}", file=sys.stderr)
-        print(f"  Time:         {str(timedelta(seconds=int(elapsed)))}", file=sys.stderr)
+        print(f"  Time:         {timedelta(seconds=int(elapsed))!s}", file=sys.stderr)
 
         if self.stats.errors > 0:
             print(f"  Errors:       {self.stats.errors}", file=sys.stderr)

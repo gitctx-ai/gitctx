@@ -13,5 +13,3 @@ class GitCtxError(Exception):
         ... except GitCtxError as e:
         ...     print(f"gitctx error: {e}")
     """
-
-    pass

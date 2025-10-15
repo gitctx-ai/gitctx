@@ -11,10 +11,13 @@ Author: gitctx team
 """
 
 import os
+import platform
+import re
 import sys
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 # Add src to path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -54,7 +57,6 @@ def strip_ansi(text: str) -> str:
         >>> strip_ansi("\x1b[31mRed text\x1b[0m")
         'Red text'
     """
-    import re
 
     ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
     return ansi_escape.sub("", text)
@@ -104,7 +106,6 @@ def is_windows() -> bool:
     Returns:
         bool: True if running on Windows, False otherwise
     """
-    import platform
 
     return platform.system() == "Windows"
 
@@ -154,7 +155,8 @@ def git_isolation_base(tmp_path: Path) -> dict[str, str]:
 
     See also: tests/e2e/CLAUDE.md for E2E testing security guidelines
     """
-    # For Windows, use a command that fails immediately (exit 1 works cross-platform in Git Bash/MSYS2)
+    # For Windows, use a command that fails immediately
+    # (exit 1 works cross-platform in Git Bash/MSYS2)
     # For Unix, use /bin/false for explicit blocking
     ssh_block_cmd = "exit 1" if is_windows() else "/bin/false"
 
@@ -238,7 +240,6 @@ def unit_cli_runner():
     Note: Console colors are disabled globally via TTY_COMPATIBLE=0 set at
     module level (top of this file).
     """
-    from typer.testing import CliRunner
 
     return CliRunner()
 
@@ -266,7 +267,6 @@ def isolated_cli_runner(tmp_path: Path, monkeypatch):
 
     For E2E tests with subprocess isolation, use e2e_cli_runner instead.
     """
-    from typer.testing import CliRunner
 
     # Create isolated home directory
     fake_home = tmp_path / "home"

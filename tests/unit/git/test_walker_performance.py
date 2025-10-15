@@ -6,6 +6,7 @@ These tests verify that CommitWalker meets performance requirements:
 - Deduplication efficiency >70% in typical repos
 """
 
+import subprocess
 import time
 import tracemalloc
 
@@ -72,7 +73,7 @@ class TestCommitWalkerPerformance:
 
         blobs = list(walker.walk_blobs())
 
-        current_mem, peak_mem = tracemalloc.get_traced_memory()
+        _current_mem, peak_mem = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
         # Calculate memory used (in MB)
@@ -230,7 +231,6 @@ class TestCommitWalkerPerformance:
         (repo_path / "binary2.jpg").write_bytes(b"\xff\xd8\xff\xe0" * 100)
 
         # Commit binary files
-        import subprocess
 
         subprocess.run(
             ["git", "add", "binary1.png", "binary2.jpg"],

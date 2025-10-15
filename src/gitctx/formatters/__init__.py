@@ -12,12 +12,12 @@ from gitctx.formatters.terse import TerseFormatter
 from gitctx.formatters.verbose import VerboseFormatter
 
 __all__ = [
-    "ResultFormatter",
-    "get_formatter",
     "FORMATTERS",
+    "MCPFormatter",
+    "ResultFormatter",
     "TerseFormatter",
     "VerboseFormatter",
-    "MCPFormatter",
+    "get_formatter",
 ]
 
 # Formatter registry - will be populated by formatter implementations

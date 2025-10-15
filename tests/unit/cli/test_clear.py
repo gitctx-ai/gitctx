@@ -55,7 +55,8 @@ def test_clear_all_flag(cli_runner):
     assert result.exit_code == 0
     # Should indicate clearing all
     lines = result.stdout.lower()
-    assert "database" in lines and "embeddings" in lines
+    assert "database" in lines
+    assert "embeddings" in lines
 
 
 def test_clear_short_flags(cli_runner):
@@ -121,7 +122,7 @@ def test_clear_embeddings_only(cli_runner):
 
 
 @pytest.mark.parametrize(
-    "flags,expected_in_output,not_expected",
+    ("flags", "expected_in_output", "not_expected"),
     [
         (["--database", "--force"], ["database"], ["embedding"]),
         (["--embeddings", "--force"], ["database", "embedding"], []),
@@ -131,7 +132,7 @@ def test_clear_embeddings_only(cli_runner):
 )
 def test_clear_flag_combinations(cli_runner, flags, expected_in_output, not_expected):
     """Test all flag combinations systematically."""
-    result = cli_runner.invoke(app, ["clear"] + flags)
+    result = cli_runner.invoke(app, ["clear", *flags])
     assert result.exit_code == 0
     output_lower = result.stdout.lower()
     for text in expected_in_output:
@@ -141,7 +142,7 @@ def test_clear_flag_combinations(cli_runner, flags, expected_in_output, not_expe
 
 
 @pytest.mark.parametrize(
-    "flags,should_confirm",
+    ("flags", "should_confirm"),
     [
         (["--database"], True),
         (["--embeddings"], True),
@@ -154,9 +155,9 @@ def test_clear_flag_combinations(cli_runner, flags, expected_in_output, not_expe
 def test_clear_confirmation_flow(cli_runner, flags, should_confirm):
     """Test confirmation flow for different flag combinations."""
     if should_confirm:
-        result = cli_runner.invoke(app, ["clear"] + flags, input="n\n")
+        result = cli_runner.invoke(app, ["clear", *flags], input="n\n")
         assert "confirm" in result.stdout.lower() or "sure" in result.stdout.lower()
     else:
-        result = cli_runner.invoke(app, ["clear"] + flags)
+        result = cli_runner.invoke(app, ["clear", *flags])
         assert "confirm" not in result.stdout.lower()
     assert result.exit_code == 0

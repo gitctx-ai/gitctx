@@ -1,4 +1,5 @@
 """Unit tests for query embedding generation."""
+# ruff: noqa: PLC0415 # Inline imports for test isolation
 
 from __future__ import annotations
 
@@ -8,13 +9,13 @@ import numpy as np
 import openai
 import pytest
 
+from gitctx.search.embeddings import QueryEmbedder
 from gitctx.search.errors import EmbeddingError, ValidationError
 from gitctx.storage.lancedb_store import LanceDBStore
 
 
 def test_empty_query_raises_validation_error(settings: Mock, store: LanceDBStore) -> None:
     """Test that empty query raises ValidationError."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     embedder = QueryEmbedder(settings, store)
     with pytest.raises(ValidationError, match="Query cannot be empty"):
@@ -23,7 +24,6 @@ def test_empty_query_raises_validation_error(settings: Mock, store: LanceDBStore
 
 def test_whitespace_only_query_raises_validation_error(settings: Mock, store: LanceDBStore) -> None:
     """Test that whitespace-only query raises ValidationError."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     embedder = QueryEmbedder(settings, store)
     with pytest.raises(ValidationError, match="whitespace only"):
@@ -32,7 +32,6 @@ def test_whitespace_only_query_raises_validation_error(settings: Mock, store: La
 
 def test_token_limit_exceeded_raises_validation_error(settings: Mock, store: LanceDBStore) -> None:
     """Test that token limit exceeded raises ValidationError."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     embedder = QueryEmbedder(settings, store)
     long_query = "word " * 10000  # Exceeds 8191 tokens
@@ -44,7 +43,6 @@ def test_token_limit_exceeded_raises_validation_error(settings: Mock, store: Lan
 
 def test_valid_query_passes_validation(settings: Mock, test_embedding_vector) -> None:
     """Test that valid query passes validation and returns embedding."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store with cache methods
     mock_store = Mock()
@@ -73,7 +71,6 @@ def test_valid_query_passes_validation(settings: Mock, test_embedding_vector) ->
 
 def test_cache_hit_skips_api_call(settings: Mock, test_embedding_vector) -> None:
     """Test that cache hit skips API call."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store with cached embedding
     mock_store = Mock()
@@ -91,7 +88,6 @@ def test_cache_hit_skips_api_call(settings: Mock, test_embedding_vector) -> None
 
 def test_cache_miss_calls_api(settings: Mock, test_embedding_vector) -> None:
     """Test that cache miss calls API."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store with no cached embedding
     mock_store = Mock()
@@ -115,7 +111,6 @@ def test_cache_miss_calls_api(settings: Mock, test_embedding_vector) -> None:
 
 def test_generated_embedding_cached(settings: Mock, test_embedding_vector) -> None:
     """Test that generated embedding is cached."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store
     mock_store = Mock()
@@ -140,7 +135,7 @@ def test_generated_embedding_cached(settings: Mock, test_embedding_vector) -> No
 
 
 @pytest.mark.parametrize(
-    "exception,expected_message",
+    ("exception", "expected_message"),
     [
         (
             openai.RateLimitError(

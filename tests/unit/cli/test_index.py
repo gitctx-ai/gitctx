@@ -1,4 +1,5 @@
 """Unit tests for index command."""
+# ruff: noqa: PLC0415 # Inline imports for test isolation
 
 import subprocess
 import sys
@@ -7,6 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from gitctx.cli.main import app
+from gitctx.cli.symbols import SYMBOLS
 
 
 @pytest.fixture
@@ -132,7 +134,6 @@ def test_index_short_flags(mock_git_repo):
 
 def test_index_handles_config_error(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base):
     """Test index command handles configuration errors gracefully."""
-    from gitctx.cli.symbols import SYMBOLS
 
     repo = tmp_path / "test_repo"
     repo.mkdir()

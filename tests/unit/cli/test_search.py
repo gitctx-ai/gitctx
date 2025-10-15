@@ -1,11 +1,14 @@
 """Unit tests for search command."""
+# ruff: noqa: PLC0415 # Inline imports for test isolation
 
 import subprocess
 from unittest.mock import Mock, patch
 
 import pytest
+import typer
 
 from gitctx.cli.main import app
+from gitctx.cli.search import _get_query_text
 
 
 @pytest.fixture
@@ -468,9 +471,6 @@ def test_corrupted_index_missing_table(
 def test_search_no_query_interactive_tty():
     """Test that interactive TTY with no query shows proper error message."""
     # ARRANGE - Import the function to test directly
-    import typer
-
-    from gitctx.cli.search import _get_query_text
 
     # ARRANGE - Patch stdin.isatty to return True (interactive terminal)
     with patch("sys.stdin.isatty", return_value=True):

@@ -19,10 +19,9 @@ class TestEmbedderProtocol:
         """Test EmbedderProtocol method signatures match specification."""
         # Check embed_chunks signature
         # (Will be implemented when we have OpenAIEmbedder in TASK-3)
-        pass
 
     @pytest.mark.parametrize(
-        "dimensions,expected_valid",
+        ("dimensions", "expected_valid"),
         [
             (3072, True),  # text-embedding-3-large
             (1536, True),  # text-embedding-3-small
@@ -55,7 +54,7 @@ class TestEmbedderProtocol:
             assert len(embedding.vector) == 0
 
     @pytest.mark.parametrize(
-        "tokens,expected_cost",
+        ("tokens", "expected_cost"),
         [
             (0, 0.0),
             (1000, 0.00013),  # 1K tokens

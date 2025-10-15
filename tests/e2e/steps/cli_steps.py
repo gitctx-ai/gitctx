@@ -1,18 +1,23 @@
 """Step definitions for CLI tests."""
+# ruff: noqa: PLC0415 # Inline imports in BDD steps for clarity
 
 import os
+import platform
 import shlex
+import stat
 import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
 from pytest_bdd import given, parsers, then, when
+
+import gitctx
 
 
 @given("gitctx is installed")
 def gitctx_installed() -> None:
     """Verify gitctx can be imported."""
-    import gitctx
 
     assert gitctx.__version__
 
@@ -129,8 +134,6 @@ def setup_user_config_with_permissions(e2e_git_isolation_env: dict[str, str], pe
     """
 
     if sys.platform == "win32":
-        import pytest
-
         pytest.skip("Permission tests not applicable on Windows")
 
     home = Path(e2e_git_isolation_env["HOME"])
@@ -192,8 +195,6 @@ def setup_readonly_repo_config() -> None:
 
     CRITICAL: isolate_working_directory autouse fixture ensures we're in tmp_path!
     """
-    import platform
-    import stat
 
     config_path = Path(".gitctx")
     config_path.mkdir(exist_ok=True)

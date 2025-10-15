@@ -1,6 +1,7 @@
 """Unit tests for search command argument parsing and stdin handling."""
 
 import subprocess
+import sys
 from unittest.mock import Mock, patch
 
 from gitctx.cli.main import app
@@ -227,8 +228,6 @@ def test_search_no_args_interactive(isolated_cli_runner, monkeypatch):
     # ARRANGE - Simulate interactive terminal (TTY)
     # When CliRunner is used without input=, it simulates interactive mode
     # But we need to explicitly test isatty() behavior
-
-    import sys
 
     # Mock stdin.isatty to return True (interactive terminal)
     original_isatty = sys.stdin.isatty

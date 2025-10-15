@@ -6,7 +6,7 @@ Following TDD workflow:
 3. Refactor if needed
 """
 
-from gitctx.git.types import WalkStats
+from gitctx.git.types import WalkError, WalkStats
 from gitctx.indexing.types import CodeChunk
 
 
@@ -88,7 +88,6 @@ class TestWalkStats:
     def test_walk_stats_preserves_provided_errors(self):
         """Test WalkStats preserves errors list when provided."""
         # ARRANGE
-        from gitctx.git.types import WalkError
 
         error = WalkError(
             error_type="filter",

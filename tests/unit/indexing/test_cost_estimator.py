@@ -1,3 +1,7 @@
+import tiktoken
+
+from gitctx.indexing.progress import CostEstimator
+
 """Unit tests for cost estimation (TDD approach)."""
 
 
@@ -6,14 +10,12 @@ class TestCostEstimatorConstants:
 
     def test_cost_per_1k_tokens_constant(self):
         """Test COST_PER_1K_TOKENS matches text-embedding-3-large pricing."""
-        from gitctx.indexing.progress import CostEstimator
 
         # text-embedding-3-large pricing: $0.00013 per 1K tokens
         assert CostEstimator.COST_PER_1K_TOKENS == 0.00013
 
     def test_sampling_parameters(self):
         """Test sampling configuration constants."""
-        from gitctx.indexing.progress import CostEstimator
 
         # Sample 10KB per file for token estimation
         assert CostEstimator.SAMPLE_SIZE_BYTES == 10_000
@@ -27,7 +29,6 @@ class TestCostEstimatorBasic:
 
     def test_estimate_repo_cost_with_tiktoken(self, tmp_path):
         """Test estimate_repo_cost uses tiktoken for accurate estimation."""
-        from gitctx.indexing.progress import CostEstimator
 
         # Create small test repo with realistic code content
         repo = tmp_path / "test_repo"
@@ -55,7 +56,6 @@ class TestCostEstimatorBasic:
 
     def test_confidence_range_calculation(self, tmp_path):
         """Test confidence range is ±10% with tiktoken sampling."""
-        from gitctx.indexing.progress import CostEstimator
 
         # Create repo with some content
         repo = tmp_path / "test_repo"
@@ -73,7 +73,6 @@ class TestCostEstimatorBasic:
 
     def test_empty_repo_returns_zeros(self, tmp_path):
         """Test empty repository returns zero estimates."""
-        from gitctx.indexing.progress import CostEstimator
 
         # Create empty repo
         repo = tmp_path / "empty_repo"
@@ -95,7 +94,6 @@ class TestCostEstimatorFileWalking:
 
     def test_get_indexable_files_excludes_git_dir(self, tmp_path):
         """Test _get_indexable_files excludes .git directory."""
-        from gitctx.indexing.progress import CostEstimator
 
         # Create repo with .git directory
         repo = tmp_path / "test_repo"
@@ -117,7 +115,6 @@ class TestCostEstimatorFileWalking:
 
     def test_get_indexable_files_multiple_languages(self, tmp_path):
         """Test _get_indexable_files finds all supported language files."""
-        from gitctx.indexing.progress import CostEstimator
 
         # Create repo with multiple language files
         repo = tmp_path / "test_repo"
@@ -148,7 +145,6 @@ class TestCostEstimatorFileWalking:
 
     def test_get_indexable_files_excludes_binary(self, tmp_path):
         """Test _get_indexable_files excludes binary extensions."""
-        from gitctx.indexing.progress import CostEstimator
 
         repo = tmp_path / "test_repo"
         repo.mkdir()
@@ -172,9 +168,6 @@ class TestCostEstimatorTiktokenAccuracy:
 
     def test_token_estimation_accuracy_python(self, tmp_path):
         """Test token estimation is accurate for Python code."""
-        import tiktoken
-
-        from gitctx.indexing.progress import CostEstimator
 
         # Create repo with substantial Python code
         repo = tmp_path / "test_repo"
@@ -228,7 +221,6 @@ def authenticate_user(username: str, password: str) -> bool:
 
     def test_sampling_provides_consistent_estimates(self, tmp_path):
         """Test that sampling provides consistent estimates across runs."""
-        from gitctx.indexing.progress import CostEstimator
 
         # Create repo with multiple files
         repo = tmp_path / "test_repo"
@@ -256,7 +248,6 @@ def authenticate_user(username: str, password: str) -> bool:
 
     def test_handles_unicode_content(self, tmp_path):
         """Test estimation handles Unicode content correctly."""
-        from gitctx.indexing.progress import CostEstimator
 
         repo = tmp_path / "test_repo"
         repo.mkdir()

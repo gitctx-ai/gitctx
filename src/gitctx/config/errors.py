@@ -30,5 +30,3 @@ class ValidationError(ConfigurationError):
     Examples:
         >>> raise ValidationError("chunk_size must be > 0", key="index.chunk_size")
     """
-
-    pass

@@ -7,6 +7,7 @@ Precedence:
 - User config: OPENAI_API_KEY env var > ~/.gitctx/config.yml > defaults
 - Repo config: GITCTX_* env vars > .gitctx/config.yml > defaults
 """
+# ruff: noqa: PLC0415 # Conditional imports for config validation (avoid circular imports)
 
 import os
 from pathlib import Path
@@ -52,8 +53,9 @@ class MaskedSecretStr(SecretStr):
         Returns:
             Masked string in format 'abc...xyz' if length > 6, else '***'
         """
+        MIN_MASK_LENGTH = 6  # Minimum length for partial masking
         value = self.get_secret_value()
-        if len(value) > 6:
+        if len(value) > MIN_MASK_LENGTH:
             return f"{value[:3]}...{value[-3:]}"
         return "***"
 
@@ -81,9 +83,9 @@ class ProviderEnvSource(PydanticBaseSettingsSource):
     """Custom source for OPENAI_API_KEY env var."""
 
     def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
-        """This method is required by Pydantic's settings source interface, but is not used in this custom source.
+        """This method is required by Pydantic's settings source interface.
 
-        Only the __call__ method is invoked by Pydantic when loading settings from this source.
+        Not used in this custom source. Only __call__ is invoked by Pydantic.
         See: https://docs.pydantic.dev/latest/concepts/settings/#customise-sources
         """
         raise NotImplementedError()
@@ -108,7 +110,7 @@ class UserConfig(BaseSettings):
     api_keys: ApiKeys = Field(default_factory=ApiKeys)
     theme: str = Field(
         default="monokai",
-        description="Syntax highlighting theme for verbose output (monokai, github-dark, solarized-light, etc.)",
+        description="Syntax highlighting theme for verbose output (monokai, github-dark, etc.)",
     )
 
     model_config = SettingsConfigDict(
@@ -295,7 +297,14 @@ class RepoConfig(BaseSettings):
 
         # Create YAML source with dynamic path
         yaml_file = Path(".gitctx/config.yml")
-        if yaml_file.exists():
+        try:
+            file_exists = yaml_file.exists()
+        except PermissionError:
+            # If we can't check existence (e.g., read-only directory), treat as non-existent
+            # The actual PermissionError will be raised when trying to save later
+            file_exists = False
+
+        if file_exists:
             yaml_source = YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file)
         else:
 
@@ -432,8 +441,9 @@ class GitCtxSettings:
 
     def _set_in_repo(self, key: str, value: Any) -> None:
         """Set value in repo config with Pydantic validation."""
+        REPO_KEY_PARTS = 2  # Expected parts: section.field
         parts = key.split(".")
-        if len(parts) != 2:
+        if len(parts) != REPO_KEY_PARTS:
             raise AttributeError(f"Invalid repo config key: {key}")
 
         section, field = parts
