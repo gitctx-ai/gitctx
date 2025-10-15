@@ -18,6 +18,8 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
+from tests.conftest import strip_ansi  # noqa: F401 - Re-exported for E2E tests
+
 # === PHASE 1: Core E2E Fixtures (Current) ===
 
 
@@ -178,16 +180,25 @@ def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch, request) 
     merges context["custom_env"] into the environment. This enables VCR cassette
     recording without boilerplate at every invoke site.
 
+    ANSI STRIPPING: Automatically strips ANSI escape codes from stdout/stderr
+    for easier assertions. Access raw output with ANSI codes via:
+    - result.raw_stdout
+    - result.raw_stderr
+
     Returns:
-        CliRunner: Runner with wrapped invoke() that auto-merges custom_env
+        CliRunner: Runner with wrapped invoke() that auto-merges custom_env and strips ANSI
 
     Example:
         def test_cli_command(e2e_cli_runner, context):
             # Set custom environment variable
             context["custom_env"] = {"OPENAI_API_KEY": "sk-test"}  # pragma: allowlist secret
 
-            # Just invoke - environment merges automatically!
+            # Just invoke - environment merges automatically, ANSI stripped!
             result = e2e_cli_runner.invoke(app, ["search", "query"])
+            assert "results in" in result.stdout  # No need for strip_ansi()!
+
+            # For tests that need raw ANSI codes:
+            assert "\x1b[1m" in result.raw_stdout  # Bold codes present
 
             # Optional cleanup
             context.pop("custom_env", None)
@@ -197,14 +208,17 @@ def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch, request) 
     for var in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GITCTX_API_KEY"]:
         monkeypatch.delenv(var, raising=False)
 
-    runner = CliRunner(env=e2e_git_isolation_env)
+    # Add FORCE_COLOR to environment to preserve ANSI codes in tests
+    env_with_color = e2e_git_isolation_env.copy()
+    env_with_color["FORCE_COLOR"] = "1"
+    runner = CliRunner(env=env_with_color)
 
     # Wrap invoke() to automatically merge context["custom_env"]
     # This eliminates boilerplate and makes VCR "just work"
     original_invoke = runner.invoke
 
     def invoke_with_auto_env(*args, **kwargs):
-        """Auto-merge context["custom_env"] unless env explicitly provided."""
+        """Auto-merge context["custom_env"] and strip ANSI codes from output."""
         # Only auto-merge if caller didn't provide env explicitly
         if "env" not in kwargs:
             try:
@@ -217,7 +231,15 @@ def e2e_cli_runner(e2e_git_isolation_env: dict[str, str], monkeypatch, request) 
             except (pytest.FixtureLookupError, LookupError):
                 # Context unavailable or other error - proceed with default env
                 pass
-        return original_invoke(*args, **kwargs)
+        # Force color output to preserve ANSI codes (before stripping)
+        if "color" not in kwargs:
+            kwargs["color"] = True
+
+        # Invoke and wrap result to strip ANSI codes
+        result = original_invoke(*args, **kwargs)
+        from tests.conftest import StrippedResult
+
+        return StrippedResult(result)
 
     runner.invoke = invoke_with_auto_env
     return runner
@@ -280,9 +302,9 @@ def e2e_git_repo(e2e_git_isolation_env: dict[str, str], tmp_path: Path) -> Path:
 @pytest.fixture
 def e2e_indexed_repo(
     e2e_git_repo: Path,
+    e2e_session_api_key: str,
     e2e_cli_runner,
     context: dict[str, Any],
-    e2e_session_api_key: str,
     monkeypatch,
 ) -> Path:
     """Create and index a basic git repository (with VCR cassette recording).
@@ -327,9 +349,9 @@ def e2e_indexed_repo(
 @pytest.fixture
 def e2e_indexed_repo_factory(
     e2e_git_repo_factory,
+    e2e_session_api_key: str,
     e2e_cli_runner,
     context: dict[str, Any],
-    e2e_session_api_key: str,
 ):
     """Factory for creating indexed repositories with custom content.
 

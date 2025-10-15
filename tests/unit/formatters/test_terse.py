@@ -29,7 +29,7 @@ def test_terse_formatter_single_line_format() -> None:
             "_distance": 0.92,
             "is_head": True,
             "commit_sha": "f9e8d7c1234",  # pragma: allowlist secret
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth support",
         },
@@ -39,7 +39,7 @@ def test_terse_formatter_single_line_format() -> None:
             "_distance": 0.76,
             "is_head": False,
             "commit_sha": "abc1234",  # pragma: allowlist secret
-            "commit_date": "2025-09-15",
+            "commit_date": 1758268800,  # Unix timestamp for 2025-09-15
             "author_name": "Bob",
             "commit_message": "Initial login",
         },
@@ -66,7 +66,7 @@ def test_terse_formatter_includes_file_path() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -92,7 +92,7 @@ def test_terse_formatter_includes_line_number() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -118,7 +118,7 @@ def test_terse_formatter_includes_score_two_decimals() -> None:
             "_distance": 0.92345,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -145,7 +145,7 @@ def test_terse_formatter_includes_commit_sha_short() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c1234567890",  # pragma: allowlist secret
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -173,7 +173,7 @@ def test_terse_formatter_includes_commit_date() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -199,7 +199,7 @@ def test_terse_formatter_includes_author_name() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -225,7 +225,7 @@ def test_terse_formatter_includes_commit_message_truncated() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth support for GitHub and GitLab",
         }
@@ -251,7 +251,7 @@ def test_terse_formatter_head_marker_modern_terminal() -> None:
             "_distance": 0.92,
             "is_head": True,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -277,7 +277,7 @@ def test_terse_formatter_head_marker_legacy_windows() -> None:
             "_distance": 0.92,
             "is_head": True,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -303,7 +303,7 @@ def test_terse_formatter_historic_no_marker() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "Add OAuth",
         }
@@ -333,7 +333,7 @@ def test_terse_formatter_message_truncated_at_50_chars() -> None:
             "_distance": 0.92,
             "is_head": False,
             "commit_sha": "f9e8d7c",
-            "commit_date": "2025-10-02",
+            "commit_date": 1759388400,  # Unix timestamp for 2025-10-02
             "author_name": "Alice",
             "commit_message": "This is a very long commit message that should be truncated at fifty characters exactly",
         }

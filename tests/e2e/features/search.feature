@@ -88,7 +88,7 @@ Feature: Query Embedding for Semantic Search
   Scenario: Search with result limit
     Given an indexed repository with 20+ chunks containing "database" keyword
     And environment variable "OPENAI_API_KEY" is "$ENV"
-    When I run "gitctx search database --limit 5"
+    When I run "gitctx search database --limit 5 --min-similarity -1.0"
     Then the exit code should be 0
     And exactly 5 results should be shown
 
@@ -141,7 +141,7 @@ Feature: Query Embedding for Semantic Search
   Scenario: Default terse output format
     Given an indexed repository
     And environment variable "OPENAI_API_KEY" is "$ENV"
-    When I run "gitctx search authentication"
+    When I run "gitctx search authentication --min-similarity -1.0"
     Then the exit code should be 0
     And each line should match pattern: ".*:\d+:\d\.\d\d .*"
     And output should contain commit SHA
@@ -153,7 +153,7 @@ Feature: Query Embedding for Semantic Search
   Scenario: HEAD commit marked with symbol
     Given an indexed repository with HEAD and historic commits
     And environment variable "OPENAI_API_KEY" is "$ENV"
-    When I run "gitctx search authentication"
+    When I run "gitctx search authentication --min-similarity -1.0"
     Then the exit code should be 0
     And HEAD results should show "●" or "[HEAD]" marker
     And historic results should have no marker
@@ -162,7 +162,7 @@ Feature: Query Embedding for Semantic Search
   Scenario: Verbose output with syntax highlighting
     Given an indexed repository
     And environment variable "OPENAI_API_KEY" is "$ENV"
-    When I run "gitctx search authentication --verbose"
+    When I run "gitctx search authentication --verbose --min-similarity -1.0"
     Then the exit code should be 0
     And output should contain syntax-highlighted code blocks
     And code blocks should show line numbers
@@ -172,7 +172,7 @@ Feature: Query Embedding for Semantic Search
   Scenario: MCP output with structured markdown
     Given an indexed repository
     And environment variable "OPENAI_API_KEY" is "$ENV"
-    When I run "gitctx search authentication --mcp"
+    When I run "gitctx search authentication --mcp --min-similarity -1.0"
     Then the exit code should be 0
     And output should start with "---"
     And output should contain "results:"
@@ -200,6 +200,6 @@ Feature: Query Embedding for Semantic Search
   Scenario: Unknown language fallback to markdown
     Given an indexed repository with unknown file type (.xyz)
     And environment variable "OPENAI_API_KEY" is "$ENV"
-    When I run "gitctx search test --verbose"
+    When I run "gitctx search test --verbose --min-similarity -1.0"
     Then syntax highlighting should use "markdown" language
     And code should still be displayed with formatting

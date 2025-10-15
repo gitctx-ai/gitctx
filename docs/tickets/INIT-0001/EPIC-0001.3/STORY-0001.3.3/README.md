@@ -1,9 +1,9 @@
 # STORY-0001.3.3: Result Formatting & Output
 
 **Parent Epic**: [EPIC-0001.3](../README.md)
-**Status**: 🟡 In Progress
+**Status**: 🟢 Complete
 **Story Points**: 3
-**Progress**: ████████████████░░ 80%
+**Progress**: ████████████████████ 100%
 
 ## User Story
 
@@ -14,51 +14,51 @@ So that I can quickly understand results or integrate them into AI workflows
 ## Acceptance Criteria
 
 **Default Output (Scenarios 1-2, 5):**
-- [ ] Default (terse) output format (one line per result):
+- [x] Default (terse) output format (one line per result):
   - Format: `{file_path}:{start_line}:{score:.2f} {head_marker} {sha[:7]} ({date}, {author}) "{msg[:50]}"`
   - Example: `src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) "Add OAuth support"`
   - HEAD marker: `SYMBOLS["head"]` (● on modern terminals, [HEAD] on legacy Windows cmd.exe)
   - Historic commits: no marker (space character)
 
 **Verbose Output (Scenario 3):**
-- [ ] Verbose output format (multi-line per result):
+- [x] Verbose output format (multi-line per result):
   - Header: `{file_path}:{start}-{end} ({score:.2f}) {marker} {sha[:7]}`
   - Metadata: `[dim]{commit_message}[/dim]` (grayed out)
   - Code block: Rich.Syntax with `line_numbers=True, start_line={start}, theme="monokai"`
   - Blank line separator between results
 
 **MCP Output (Scenario 4):**
-- [ ] MCP output format (structured markdown):
+- [x] MCP output format (structured markdown):
   - YAML frontmatter with array of results: `file_path, line_numbers, score, commit_sha`
   - Markdown body with `## {file}:{start}-{end}` headers
   - Code blocks with language tags: ` ```{language}`
   - Metadata line: `**Score:** {score:.3f} | **Commit:** {sha[:7]}`
 
 **Results Summary (All Formats):**
-- [ ] Results summary line (all formats):
+- [x] Results summary line (all formats):
   - Format: `{count} results in {duration:.2f}s`
   - Displayed after all results
   - Zero results: `0 results in {duration:.2f}s`
 
 **Flag Validation (Scenario 6):**
-- [ ] Output flag validation:
+- [x] Output flag validation:
   - `--mcp --verbose` → exit 2, `"Error: --mcp and --verbose are mutually exclusive"`
   - `--format mcp --verbose` → exit 2, same error
 
 **Language Detection (Scenario 7):**
-- [ ] Language detection for syntax highlighting:
+- [x] Language detection for syntax highlighting:
   - Use `language` field from result metadata (from chunker)
   - Fallback to `"markdown"` if language unknown (LLM-friendly)
   - Never fallback to plain text
 
 **Terminal Symbols (Scenarios 1-2):**
-- [ ] Terminal-aware symbols via `SYMBOLS` dict:
+- [x] Terminal-aware symbols via `SYMBOLS` dict:
   - Modern terminals: ● ✓ ✗ ⚠ 💡 →
   - Legacy Windows cmd.exe: [HEAD] [OK] [X] [!] [i] ->
   - Auto-detection via `rich.console.Console.legacy_windows`
 
 **Terminal Width:**
-- [ ] Terminal width handling:
+- [x] Terminal width handling:
   - Rich Console auto-wraps long lines
   - Test on 80-character width terminals
   - File paths/messages truncated intelligently by Rich
@@ -479,7 +479,7 @@ def test_language_fallback_to_markdown():
 | [TASK-0001.3.3.2](TASK-0001.3.3.2.md) | Create Formatter Protocol + Registry (TDD) | ✅ Complete | 2 | 0/7 passing |
 | [TASK-0001.3.3.3](TASK-0001.3.3.3.md) | Implement TerseFormatter (TDD) | ✅ Complete | 3 | 0/7 passing* |
 | [TASK-0001.3.3.4](TASK-0001.3.3.4.md) | Implement VerboseFormatter + MCPFormatter (TDD) | ✅ Complete | 5 | 6/7 passing |
-| [TASK-0001.3.3.5](TASK-0001.3.3.5.md) | CLI Integration + Final BDD Scenario | 🔵 Not Started | 4 | 7/7 passing ✅ |
+| [TASK-0001.3.3.5](TASK-0001.3.3.5.md) | CLI Integration + Final BDD Scenario | ✅ Complete | 4 | 7/7 passing ✅ |
 
 *Note: BDD scenarios require CLI integration (TASK-0001.3.3.5) to run. TerseFormatter implementation is complete with 14/14 unit tests passing and 7 BDD step definitions implemented.
 

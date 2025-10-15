@@ -298,17 +298,73 @@ class LanceDBStore:
         logger.info("IVF-PQ vector index created successfully")
 
     def search(
-        self, query_vector: list[float], limit: int = 10, filter_head_only: bool = False
+        self,
+        query_vector: list[float],
+        limit: int = 10,
+        filter_head_only: bool = False,
+        max_distance: float = 2.0,
     ) -> list[dict[str, Any]]:
-        """Search for similar chunks.
+        """Search for similar chunks using cosine distance metric.
+
+        **Similarity Scoring**:
+
+        LanceDB uses cosine distance for vector similarity (not cosine similarity).
+        The relationship between these metrics is:
+
+        - cosine_distance = 1 - cosine_similarity
+        - cosine_similarity range: -1 (opposite) to 1 (identical)
+        - cosine_distance range: 0 (identical) to 2 (maximally dissimilar)
+
+        Lower distances indicate higher similarity. For example:
+        - distance 0.0 = perfect match (similarity 1.0)
+        - distance 0.3 = highly similar (similarity 0.7)
+        - distance 0.5 = moderately similar (similarity 0.5)
+        - distance 1.0 = unrelated (similarity 0.0)
+        - distance 2.0 = opposite meaning (similarity -1.0)
+
+        **Post-Filtering**:
+
+        LanceDB does not support WHERE clauses on the _distance field returned by
+        vector search (this is a current limitation). Therefore, we apply distance
+        filtering after retrieving results using Python filtering:
+
+        1. LanceDB returns top-N results sorted by distance
+        2. Python filters: keep only results where _distance <= max_distance
+        3. Return filtered results (may be fewer than limit if many exceed threshold)
+
+        This pattern is recommended by LanceDB maintainers for distance-based filtering.
+        Reference: https://github.com/lancedb/lancedb/issues/745
+
+        We use abs(_distance) to handle rare numerical precision issues where
+        distances may be slightly negative due to floating-point arithmetic.
+
+        **Technical References**:
+
+        - LanceDB vector search: https://lancedb.com/docs/search/vector-search/
+        - Cosine distance metric: https://lancedb.com/docs/search/vector-search/#distance-metrics
+        - Post-filtering pattern: https://github.com/lancedb/lancedb/issues/745
 
         Args:
-            query_vector: Query embedding vector
-            limit: Max results to return
-            filter_head_only: Only return chunks from HEAD tree
+            query_vector: Query embedding vector (must match table dimensions)
+            limit: Maximum results to return BEFORE filtering (LanceDB retrieves top-N)
+            filter_head_only: Only return chunks from HEAD commit (WHERE clause)
+            max_distance: Maximum cosine distance threshold (0.0-2.0).
+                         Results with _distance > max_distance are filtered out.
+                         Default: 2.0 (no filtering, all results returned)
+                         Example: 0.3 keeps only highly similar results (similarity >= 0.7)
 
         Returns:
-            List of chunk records with all denormalized metadata
+            List of chunk records with all denormalized metadata, filtered by distance.
+            Each record includes:
+            - _distance: Cosine distance from query (float, 0.0-2.0)
+            - All chunk fields: chunk_content, file_path, language, etc.
+            - All commit metadata: commit_sha, author_name, commit_date, etc.
+
+        Example:
+            >>> # Get top 10 results
+            >>> results = store.search(query_vector, limit=10)
+            >>> # Get highly relevant results only (similarity >= 0.7)
+            >>> results = store.search(query_vector, limit=10, max_distance=0.3)
         """
         assert self.chunks_table is not None
         query = self.chunks_table.search(query_vector).limit(limit)
@@ -317,7 +373,14 @@ class LanceDBStore:
             query = query.where("is_head = true")
 
         # Use native LanceDB to_list() for direct dict conversion (no pandas needed)
-        return query.to_list()
+        results = query.to_list()
+
+        # Post-filter by distance (LanceDB doesn't support WHERE on _distance)
+        # Use abs() to handle rare floating-point precision issues
+        # Reference: https://github.com/lancedb/lancedb/issues/745
+        filtered_results = [r for r in results if abs(r["_distance"]) <= max_distance]
+
+        return filtered_results
 
     def save_index_state(
         self, last_commit: str, indexed_blobs: list[str], embedding_model: str

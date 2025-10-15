@@ -39,6 +39,63 @@ pytest_plugins = [
 # === UTILITY FUNCTIONS ===
 
 
+def strip_ansi(text: str) -> str:
+    """Strip ANSI escape codes from text.
+
+    Useful for asserting against CLI output that contains terminal formatting.
+
+    Args:
+        text: Text potentially containing ANSI escape codes
+
+    Returns:
+        Text with all ANSI escape codes removed
+
+    Example:
+        >>> strip_ansi("\x1b[31mRed text\x1b[0m")
+        'Red text'
+    """
+    import re
+
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_escape.sub("", text)
+
+
+class StrippedResult:
+    """Wrapper for CliRunner Result with ANSI codes stripped from output.
+
+    This wrapper provides stdout/stderr with ANSI codes removed for easier
+    assertions, while preserving raw output via raw_stdout/raw_stderr.
+
+    Attributes:
+        stdout: Output with ANSI codes stripped
+        stderr: Error output with ANSI codes stripped
+        output: Alias for stdout (for compatibility)
+        exit_code: Command exit code
+        raw_stdout: Original stdout with ANSI codes
+        raw_stderr: Original stderr with ANSI codes
+        exception: Original exception from result
+    """
+
+    def __init__(self, result):
+        """Wrap a CliRunner Result object.
+
+        Args:
+            result: Original Result from CliRunner.invoke()
+        """
+        self._result = result
+        self.raw_stdout = result.stdout
+        self.raw_stderr = result.stderr if hasattr(result, "stderr") else ""
+        self.stdout = strip_ansi(result.stdout)
+        self.stderr = strip_ansi(self.raw_stderr)
+        self.output = self.stdout  # Compatibility
+        self.exit_code = result.exit_code
+        self.exception = result.exception if hasattr(result, "exception") else None
+
+    def __getattr__(self, name):
+        """Forward unknown attributes to wrapped result."""
+        return getattr(self._result, name)
+
+
 def is_windows() -> bool:
     """Check if running on Windows platform.
 
@@ -204,6 +261,8 @@ def isolated_cli_runner(tmp_path: Path, monkeypatch):
     - Working directory: tmp_path
     - HOME directory: tmp_path/home
     - Environment: OPENAI_API_KEY cleared
+    - ANSI codes: Automatically stripped from stdout/stderr
+      (access raw output via result.raw_stdout / result.raw_stderr)
 
     For E2E tests with subprocess isolation, use e2e_cli_runner instead.
     """
@@ -220,7 +279,18 @@ def isolated_cli_runner(tmp_path: Path, monkeypatch):
     # Clear OPENAI_API_KEY to prevent env var interference
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    return CliRunner()
+    runner = CliRunner()
+
+    # Wrap invoke() to automatically strip ANSI codes from output
+    original_invoke = runner.invoke
+
+    def invoke_with_stripped_ansi(*args, **kwargs):
+        """Auto-strip ANSI codes from stdout/stderr for easier assertions."""
+        result = original_invoke(*args, **kwargs)
+        return StrippedResult(result)
+
+    runner.invoke = invoke_with_stripped_ansi
+    return runner
 
 
 @pytest.fixture

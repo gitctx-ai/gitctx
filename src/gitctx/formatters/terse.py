@@ -13,6 +13,7 @@ Example:
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from rich.console import Console
@@ -68,13 +69,17 @@ class TerseFormatter:
                 # Space for alignment (no marker for historic commits)
                 head_marker = "       " if console.legacy_windows else "  "
 
-            # Truncate commit message to 50 characters
-            truncated_message = commit_message[:50]
+            # Take first line, then truncate to 50 characters
+            first_line = commit_message.split("\n")[0]
+            truncated_message = first_line[:50]
+
+            # Format commit date from Unix timestamp to YYYY-MM-DD
+            formatted_date = datetime.fromtimestamp(commit_date).strftime("%Y-%m-%d")
 
             # Format and print line (no_wrap + crop=False to prevent truncation)
             console.print(
                 f"{file_path}:{start_line}:{score:.2f}{head_marker} "
-                f"{commit_sha[:7]} ({commit_date}, {author_name}) "
+                f"{commit_sha[:7]} ({formatted_date}, {author_name}) "
                 f'"{truncated_message}"',
                 no_wrap=True,
                 crop=False,

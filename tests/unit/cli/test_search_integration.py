@@ -102,11 +102,38 @@ def test_search_returns_sorted_results(
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
 
-    # Mock results with ascending _distance
+    # Mock results with ascending _distance (all fields required by formatters)
     mock_results = [
-        {"file_path": "file1.py", "_distance": 0.1, "commit_sha": "abc123"},
-        {"file_path": "file2.py", "_distance": 0.3, "commit_sha": "def456"},
-        {"file_path": "file3.py", "_distance": 0.5, "commit_sha": "ghi789"},
+        {
+            "file_path": "file1.py",
+            "start_line": 1,
+            "_distance": 0.1,
+            "commit_sha": "abc123",
+            "commit_date": 1728864000,
+            "author_name": "Alice",
+            "commit_message": "First commit",
+            "is_head": True,
+        },
+        {
+            "file_path": "file2.py",
+            "start_line": 10,
+            "_distance": 0.3,
+            "commit_sha": "def456",
+            "commit_date": 1728864000,
+            "author_name": "Bob",
+            "commit_message": "Second commit",
+            "is_head": True,
+        },
+        {
+            "file_path": "file3.py",
+            "start_line": 20,
+            "_distance": 0.5,
+            "commit_sha": "ghi789",
+            "commit_date": 1728864000,
+            "author_name": "Charlie",
+            "commit_message": "Third commit",
+            "is_head": True,
+        },
     ]
 
     # ACT
@@ -126,7 +153,9 @@ def test_search_returns_sorted_results(
         mock_embedder.get_cache_key.return_value = "test_key"
         mock_embedder_class.return_value = mock_embedder
 
-        result = isolated_cli_runner.invoke(app, ["search", "test query"])
+        result = isolated_cli_runner.invoke(
+            app, ["search", "test query", "--min-similarity", "-1.0"]
+        )
 
         # ASSERT
         assert result.exit_code == 0
@@ -200,7 +229,7 @@ def test_search_result_has_all_fields(
         "_distance": 0.15,
         "commit_sha": "abc123def",  # pragma: allowlist secret
         "commit_message": "Add auth",
-        "commit_date": "2025-10-01",
+        "commit_date": 1727740800,  # Unix timestamp for 2024-10-01
         "author_name": "Alice",
         "is_head": True,
         "language": "python",
@@ -224,7 +253,7 @@ def test_search_result_has_all_fields(
         mock_embedder.get_cache_key.return_value = "test_key"
         mock_embedder_class.return_value = mock_embedder
 
-        result = isolated_cli_runner.invoke(app, ["search", "auth"])
+        result = isolated_cli_runner.invoke(app, ["search", "auth", "--min-similarity", "-1.0"])
 
         # ASSERT
         assert result.exit_code == 0

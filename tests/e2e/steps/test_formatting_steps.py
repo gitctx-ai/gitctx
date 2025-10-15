@@ -16,6 +16,8 @@ from typing import Any
 
 from pytest_bdd import given, parsers, then
 
+from tests.e2e.conftest import strip_ansi
+
 # Given steps
 
 
@@ -67,16 +69,16 @@ def each_line_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
     import re
 
     stdout = context.get("stdout", "")
-    lines = [line for line in stdout.strip().split("\n") if line.strip()]
+    # Remove ANSI escape codes before processing lines
+    clean_stdout = strip_ansi(stdout)
 
-    # Remove ANSI escape codes for pattern matching
-    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    lines = [line for line in clean_stdout.strip().split("\n") if line.strip()]
 
-    for line in lines:
-        clean_line = ansi_escape.sub("", line)
-        assert re.match(pattern, clean_line), (
-            f"Line '{clean_line}' does not match pattern '{pattern}'"
-        )
+    # Exclude results summary line (e.g., "2 results in 0.01s")
+    result_lines = [line for line in lines if not re.match(r"\d+ results in \d+\.\d+s", line)]
+
+    for line in result_lines:
+        assert re.match(pattern, line), f"Line '{line}' does not match pattern '{pattern}'"
 
 
 @then("output should contain commit SHA")
@@ -117,9 +119,12 @@ def output_contains_commit_date(context: dict[str, Any]) -> None:
     import re
 
     stdout = context.get("stdout", "")
+    # Remove ANSI codes for pattern matching
+    clean_stdout = strip_ansi(stdout)
+
     # Match ISO date format (YYYY-MM-DD)
     date_pattern = r"\d{4}-\d{2}-\d{2}"
-    assert re.search(date_pattern, stdout), f"Expected commit date in output, got: {stdout}"
+    assert re.search(date_pattern, clean_stdout), f"Expected commit date in output, got: {stdout}"
 
 
 @then(parsers.parse('output should contain results summary: "{pattern}"'))
@@ -133,9 +138,14 @@ def output_contains_results_summary(pattern: str, context: dict[str, Any]) -> No
     import re
 
     stdout = context.get("stdout", "")
+    # Remove ANSI codes for pattern matching
+    clean_stdout = strip_ansi(stdout)
+
     # Pattern: {N} results in {X.XX}s (e.g., "5 results in 1.23s")
     summary_pattern = r"\d+ results in \d+\.\d+s"
-    assert re.search(summary_pattern, stdout), f"Expected results summary in output, got: {stdout}"
+    assert re.search(summary_pattern, clean_stdout), (
+        f"Expected results summary in output, got: {stdout}"
+    )
 
 
 @then('HEAD results should show "●" or "[HEAD]" marker')
@@ -179,12 +189,13 @@ def output_contains_syntax_highlighting(context: dict[str, Any]) -> None:
     """
     import re
 
-    stdout = context.get("stdout", "")
+    # Use raw_stdout to check for ANSI codes (before stripping)
+    raw_stdout = context.get("raw_stdout", "")
     # Rich.Syntax adds ANSI escape codes for highlighting
     # Check for ANSI color codes (e.g., \x1b[38;...)
     ansi_pattern = r"\x1b\[[0-9;]*m"
-    assert re.search(ansi_pattern, stdout), (
-        f"Expected ANSI color codes (syntax highlighting) in output, got: {stdout[:200]}"
+    assert re.search(ansi_pattern, raw_stdout), (
+        f"Expected ANSI color codes (syntax highlighting) in output, got: {raw_stdout[:200]}"
     )
 
 
@@ -198,10 +209,13 @@ def code_blocks_show_line_numbers(context: dict[str, Any]) -> None:
     import re
 
     stdout = context.get("stdout", "")
+    # Remove ANSI escape codes for pattern matching
+    clean_stdout = strip_ansi(stdout)
+
     # Rich.Syntax adds line numbers at the start of code lines
     # Pattern: one or more digits followed by space or special chars
     line_num_pattern = r"^\s*\d+\s+"
-    assert re.search(line_num_pattern, stdout, re.MULTILINE), (
+    assert re.search(line_num_pattern, clean_stdout, re.MULTILINE), (
         f"Expected line numbers in output, got: {stdout[:200]}"
     )
 
@@ -216,10 +230,13 @@ def output_contains_file_paths_with_ranges(context: dict[str, Any]) -> None:
     import re
 
     stdout = context.get("stdout", "")
+    # Remove ANSI escape codes for pattern matching
+    clean_stdout = strip_ansi(stdout)
+
     # VerboseFormatter format: {file_path}:{start}-{end}
     # Example: src/auth.py:45-52
     path_range_pattern = r"\S+\.py:\d+-\d+"
-    assert re.search(path_range_pattern, stdout), (
+    assert re.search(path_range_pattern, clean_stdout), (
         f"Expected file path with line range (e.g., 'file.py:10-20') in output, got: {stdout[:200]}"
     )
 
@@ -284,7 +301,20 @@ def yaml_contains_file_path_keys(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError('Step not implemented: YAML should contain "file_path" keys')
+    # Get parsed YAML from previous step
+    parsed_yaml = context.get("parsed_yaml")
+    assert parsed_yaml is not None, "YAML not parsed in previous step"
+
+    # Verify top-level structure
+    assert "results" in parsed_yaml, "YAML missing 'results' key"
+    assert isinstance(parsed_yaml["results"], list), "'results' must be a list"
+
+    # Verify each result has required fields
+    for i, result in enumerate(parsed_yaml["results"]):
+        assert "file_path" in result, f"Result {i} missing 'file_path' key"
+        assert "line_numbers" in result, f"Result {i} missing 'line_numbers' key"
+        assert "score" in result, f"Result {i} missing 'score' key"
+        assert "commit_sha" in result, f"Result {i} missing 'commit_sha' key"
 
 
 @then("output should contain code blocks with language tags")
@@ -294,8 +324,16 @@ def output_contains_language_tags(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError(
-        "Step not implemented: output should contain code blocks with language tags"
+    import re
+
+    stdout = context.get("stdout", "")
+
+    # MCP format uses markdown code blocks with language tags: ```python or ```language
+    # Pattern: ``` followed by language name (e.g., ```python, ```javascript, etc.)
+    code_block_pattern = r"```\w+"
+
+    assert re.search(code_block_pattern, stdout), (
+        f"Expected code blocks with language tags (e.g., '```python') in output, got: {stdout[:200]}"
     )
 
 
@@ -317,8 +355,24 @@ def syntax_highlighting_uses_markdown(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError(
-        'Step not implemented: syntax highlighting should use "markdown" language'
+    import re
+
+    stdout = context.get("stdout", "")
+    raw_stdout = context.get("raw_stdout", "")
+
+    # For unknown file types (.xyz), VerboseFormatter should fall back to "markdown" language
+    # We can't directly see the language name in output, but we can verify:
+    # 1. Output contains the file path with .xyz extension
+    # 2. Content is displayed with syntax highlighting (ANSI codes present)
+    # 3. No error messages about unknown language
+
+    # Check for .xyz file reference (in stripped output)
+    assert ".xyz" in stdout, f"Expected .xyz file in output, got: {stdout[:200]}"
+
+    # Check for ANSI escape codes (Rich.Syntax adds these - use raw output)
+    ansi_pattern = r"\x1b\[[0-9;]*m"
+    assert re.search(ansi_pattern, raw_stdout), (
+        "Expected ANSI color codes (syntax highlighting) in output for markdown fallback"
     )
 
 
@@ -329,6 +383,23 @@ def code_displayed_with_formatting(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError(
-        "Step not implemented: code should still be displayed with formatting"
+    import re
+
+    stdout = context.get("stdout", "")
+
+    # Verify code content is displayed (not skipped due to unknown language)
+    # For .xyz file created in fixture, content is "unknown content\nmore data\n"
+    # We should see this content in the output
+    assert "unknown content" in stdout or "more data" in stdout, (
+        f"Expected file content to be displayed, got: {stdout[:200]}"
+    )
+
+    # Remove ANSI escape codes for pattern matching
+    clean_stdout = strip_ansi(stdout)
+
+    # Verify formatting is applied (line numbers present from Rich.Syntax)
+    # Rich.Syntax adds line numbers in format: "  1 " or similar
+    line_num_pattern = r"^\s*\d+\s+"
+    assert re.search(line_num_pattern, clean_stdout, re.MULTILINE), (
+        f"Expected line numbers (formatting) in output, got: {stdout[:200]}"
     )

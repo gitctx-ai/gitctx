@@ -61,7 +61,8 @@ def run_command(
     context.pop("custom_env", None)
 
     context["result"] = result
-    context["stdout"] = result.stdout
+    context["stdout"] = result.stdout  # ANSI codes stripped
+    context["raw_stdout"] = result.raw_stdout  # Original with ANSI codes
     # Typer's CliRunner mixes stderr into stdout by default
     context["stderr"] = result.stderr if hasattr(result, "stderr") and result.stderr else ""
     context["exit_code"] = result.exit_code
