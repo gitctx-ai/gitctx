@@ -215,7 +215,8 @@ def output_contains_zero_results(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError('Step not implemented: the output should contain "0 results in"')
+    stdout = context.get("stdout", "")
+    assert "0 results in" in stdout, f"Expected '0 results in' in output, got: {stdout}"
 
 
 @then('syntax highlighting should use "markdown" language')
