@@ -219,7 +219,25 @@ class CommitWalker:
         Yields:
             CommitMetadata for each unique commit (deduplicated across refs)
         """
-        # Walk commits from all configured refs
+        # Snapshot mode - only yield HEAD commit
+        if self.config.repo.index.index_mode == "snapshot":
+            try:
+                head_obj = self.repo.revparse_single("HEAD")
+                # Type assertion: HEAD should resolve to a Commit
+                if isinstance(head_obj, pygit2.Commit):
+                    yield CommitMetadata(
+                        commit_sha=str(head_obj.id),
+                        author_name=head_obj.author.name,
+                        author_email=head_obj.author.email,
+                        commit_date=head_obj.commit_time,
+                        commit_message=head_obj.message,
+                        is_merge=len(head_obj.parent_ids) > 1,
+                    )
+            except KeyError:
+                pass  # Empty repo, no commits
+            return  # Early exit for snapshot mode
+
+        # Walk commits from all configured refs (history mode)
         for ref in self.refs:
             # Resolve ref to commit
             try:

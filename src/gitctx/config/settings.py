@@ -12,7 +12,7 @@ Precedence:
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, SecretStr
@@ -240,6 +240,10 @@ class IndexSettings(BaseModel):
     skip_binary: bool = Field(
         default=True,
         description="Skip binary files",
+    )
+    index_mode: Literal["snapshot", "history"] = Field(
+        default="snapshot",
+        description="snapshot=HEAD tree only, history=full git graph",
     )
 
 
