@@ -259,6 +259,8 @@ def search_command(query: str, limit: int = 10, verbose: bool = False) -> None:
 2. STORY-0001.3.2 (Vector Search) - Depends on STORY-0001.3.1
 3. STORY-0001.3.3 (Result Formatting) - Depends on STORY-0001.3.2
 
+**Performance Optimization**: Deferred to [EPIC-0001.4](../EPIC-0001.4/README.md) due to indexing speed dependency. Search performance testing requires fast indexing to generate test data efficiently.
+
 ### Prerequisites
 - **EPIC-0001.1** (CLI Foundation) must be complete
   - Requires Typer CLI framework (`src/gitctx/cli/main.py`)
@@ -336,7 +338,7 @@ def search_command(query: str, limit: int = 10, verbose: bool = False) -> None:
 - LanceDB provides SQL-like queries with vector search
 - Caching is critical for responsive UX
 - Result formatting makes or breaks usability
-- Performance optimization is iterative
+- Performance optimization deferred to EPIC-0001.4 due to indexing speed dependency (search perf testing requires fast indexing for test data generation)
 
 ---
 

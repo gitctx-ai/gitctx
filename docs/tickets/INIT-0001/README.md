@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ████████░░ ~84% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 31/31 points, EPIC-0001.3 in progress - 4/13 points, 45/54 total points)
+**Progress**: ████████░░ ~55% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 31/31 points, EPIC-0001.3 in progress - 10/13 points, EPIC-0001.4 not started - 0/21 points, 51/75 total points)
 
 ## Objective
 
@@ -21,8 +21,9 @@ Build the core functionality users need to search their codebase intelligently. 
 | ID | Title | Status | Progress | Owner |
 |----|-------|--------|----------|-------|
 | [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | ✅ Complete | ██████████ 100% | Core Team |
-| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing | ✅ Complete | ██████████ 100% | Core Team |
-| [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search | 🟡 In Progress | ████░░░░░░ 31% | Core Team |
+| [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing Implementation | ✅ Complete | ██████████ 100% | Core Team |
+| [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search Implementation | 🟡 In Progress | ████████░░ 77% | Core Team |
+| [EPIC-0001.4](EPIC-0001.4/README.md) | Performance & Observability | 🔵 Not Started | ░░░░░░░░░░ 0% | Core Team |
 
 ## Success Metrics
 
@@ -95,11 +96,24 @@ Build the core functionality users need to search their codebase intelligently. 
 
 ### Vector Search (EPIC-0001.3)
 
-- ⬜ LanceDB integration
-- ⬜ Query embedding generation
-- ⬜ Similarity search implementation
-- ⬜ Result ranking and formatting
-- ⬜ Search performance optimization
+- ✅ Query embedding generation (STORY-0001.3.1 complete)
+- ✅ Vector similarity search (STORY-0001.3.2 complete)
+- 🔵 Result formatting & output (STORY-0001.3.3 not started)
+
+**Progress**: 10/13 story points complete (77%)
+
+**Note**: Performance optimization moved to EPIC-0001.4 due to indexing speed dependency.
+
+### Performance & Observability (EPIC-0001.4)
+
+- 🔵 Protocol performance testing infrastructure (STORY-0001.4.1 not started)
+- 🔵 Indexing performance optimization (STORY-0001.4.2 not started)
+- 🔵 Search performance optimization (STORY-0001.4.3 not started)
+- 🔵 LangSmith integration & prompt evals (STORY-0001.4.4 not started)
+
+**Progress**: 0/21 story points complete (0%)
+
+**Note**: Created during EPIC-0001.3 gap analysis. Key insight: "Any protocol deserves performance monitoring."
 
 ## Acceptance Criteria
 
@@ -167,14 +181,13 @@ The MVP is complete when:
 
 ## Next Steps
 
-1. **EPIC-0001.2**: Complete real indexing implementation
-   - ✅ STORY-0001.2.1: Commit Graph Walker (9 points) - Complete
-   - 🔵 STORY-0001.2.2: Blob Chunking (5 points) - Need to write
-   - 🔵 STORY-0001.2.3: OpenAI Embeddings (5 points) - Need to write
-   - 🔵 STORY-0001.2.4: LanceDB Storage (3 points) - Need to write
-   - 🔵 STORY-0001.2.5: Progress/Cost (3 points) - Need to write
-2. **EPIC-0001.3**: Start vector search implementation
-3. Prepare for alpha testing with working index + search
+1. **EPIC-0001.3**: Complete vector search implementation
+   - 🔵 STORY-0001.3.3: Result Formatting & Output (3 points) - Ready to start
+   - Run: `/start-next-task STORY-0001.3.3`
+2. **EPIC-0001.4**: Begin performance optimization (after EPIC-0001.3 complete)
+   - Implementation order: STORY-0001.4.1 → 0001.4.2 → 0001.4.3 → 0001.4.4
+   - Critical: Indexing performance (STORY-0001.4.2) must precede search performance (STORY-0001.4.3)
+3. Prepare for alpha testing with optimized index + search
 
 ## Notes
 
@@ -186,5 +199,5 @@ The MVP is complete when:
 ---
 
 **Created**: 2025-09-28
-**Last Updated**: 2025-10-12
+**Last Updated**: 2025-10-14 (Added EPIC-0001.4 during EPIC-0001.3 gap analysis)
 **Review Schedule**: Weekly during active development
