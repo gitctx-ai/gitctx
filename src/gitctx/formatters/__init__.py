@@ -7,15 +7,26 @@ different output formats (terse, verbose, MCP, etc.).
 from __future__ import annotations
 
 from gitctx.formatters.base import ResultFormatter
+from gitctx.formatters.mcp import MCPFormatter
 from gitctx.formatters.terse import TerseFormatter
+from gitctx.formatters.verbose import VerboseFormatter
 
-__all__ = ["ResultFormatter", "get_formatter", "FORMATTERS", "TerseFormatter"]
+__all__ = [
+    "ResultFormatter",
+    "get_formatter",
+    "FORMATTERS",
+    "TerseFormatter",
+    "VerboseFormatter",
+    "MCPFormatter",
+]
 
 # Formatter registry - will be populated by formatter implementations
 # Key: formatter name (e.g., "terse", "verbose", "mcp")
 # Value: formatter instance implementing ResultFormatter protocol
 FORMATTERS: dict[str, ResultFormatter] = {
     "terse": TerseFormatter(),
+    "verbose": VerboseFormatter(),
+    "mcp": MCPFormatter(),
 }
 
 

@@ -20,27 +20,37 @@ from pytest_bdd import given, parsers, then
 
 
 @given("an indexed repository with HEAD and historic commits")
-def indexed_repo_with_history(context: dict[str, Any]) -> None:
+def indexed_repo_with_history(context: dict[str, Any], e2e_indexed_repo_factory: Any) -> None:
     """Create indexed repository with multiple commits for HEAD marker testing.
 
     Args:
         context: Shared step context
+        e2e_indexed_repo_factory: Factory fixture for creating indexed repos
     """
-    raise NotImplementedError(
-        "Step not implemented: an indexed repository with HEAD and historic commits"
+    # Create indexed repo with multiple commits
+    repo_path = e2e_indexed_repo_factory(
+        files={"test.py": "def test(): pass\n", "main.py": "def main(): pass\n"},
+        num_commits=3,
     )
+    context["repo_path"] = repo_path
 
 
 @given("an indexed repository with unknown file type (.xyz)")
-def indexed_repo_with_unknown_filetype(context: dict[str, Any]) -> None:
+def indexed_repo_with_unknown_filetype(
+    context: dict[str, Any], e2e_indexed_repo_factory: Any
+) -> None:
     """Create indexed repository with unknown file type for language fallback testing.
 
     Args:
         context: Shared step context
+        e2e_indexed_repo_factory: Factory fixture for creating indexed repos
     """
-    raise NotImplementedError(
-        "Step not implemented: an indexed repository with unknown file type (.xyz)"
+    # Create indexed repo with unknown file type
+    repo_path = e2e_indexed_repo_factory(
+        files={"data.xyz": "unknown content\nmore data\n"},
+        num_commits=1,
     )
+    context["repo_path"] = repo_path
 
 
 # Then steps - Output format validation
@@ -167,8 +177,14 @@ def output_contains_syntax_highlighting(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError(
-        "Step not implemented: output should contain syntax-highlighted code blocks"
+    import re
+
+    stdout = context.get("stdout", "")
+    # Rich.Syntax adds ANSI escape codes for highlighting
+    # Check for ANSI color codes (e.g., \x1b[38;...)
+    ansi_pattern = r"\x1b\[[0-9;]*m"
+    assert re.search(ansi_pattern, stdout), (
+        f"Expected ANSI color codes (syntax highlighting) in output, got: {stdout[:200]}"
     )
 
 
@@ -179,7 +195,15 @@ def code_blocks_show_line_numbers(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError("Step not implemented: code blocks should show line numbers")
+    import re
+
+    stdout = context.get("stdout", "")
+    # Rich.Syntax adds line numbers at the start of code lines
+    # Pattern: one or more digits followed by space or special chars
+    line_num_pattern = r"^\s*\d+\s+"
+    assert re.search(line_num_pattern, stdout, re.MULTILINE), (
+        f"Expected line numbers in output, got: {stdout[:200]}"
+    )
 
 
 @then("output should contain file paths with line ranges")
@@ -189,8 +213,14 @@ def output_contains_file_paths_with_ranges(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError(
-        "Step not implemented: output should contain file paths with line ranges"
+    import re
+
+    stdout = context.get("stdout", "")
+    # VerboseFormatter format: {file_path}:{start}-{end}
+    # Example: src/auth.py:45-52
+    path_range_pattern = r"\S+\.py:\d+-\d+"
+    assert re.search(path_range_pattern, stdout), (
+        f"Expected file path with line range (e.g., 'file.py:10-20') in output, got: {stdout[:200]}"
     )
 
 
@@ -201,7 +231,11 @@ def output_starts_with_yaml_delimiter(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError('Step not implemented: output should start with "---"')
+    stdout = context.get("stdout", "")
+    # MCP format starts with YAML frontmatter delimiter
+    assert stdout.strip().startswith("---"), (
+        f"Expected output to start with '---', got: {stdout[:50]}"
+    )
 
 
 @then('output should contain "results:"')
@@ -211,7 +245,8 @@ def output_contains_results_key(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError('Step not implemented: output should contain "results:"')
+    stdout = context.get("stdout", "")
+    assert "results:" in stdout, f"Expected 'results:' in output, got: {stdout[:200]}"
 
 
 @then("YAML frontmatter should parse successfully")
@@ -221,7 +256,25 @@ def yaml_frontmatter_parses(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError("Step not implemented: YAML frontmatter should parse successfully")
+    import yaml
+
+    stdout = context.get("stdout", "")
+
+    # Extract YAML frontmatter (between first and second ---)
+    parts = stdout.split("---")
+    assert len(parts) >= 3, f"Expected YAML frontmatter with --- delimiters, got: {stdout[:200]}"
+
+    yaml_content = parts[1]
+
+    # Parse YAML
+    try:
+        data = yaml.safe_load(yaml_content)
+        assert data is not None, "YAML parsed to None"
+        assert isinstance(data, dict), f"Expected dict, got {type(data)}"
+        # Store parsed data for subsequent steps
+        context["parsed_yaml"] = data
+    except yaml.YAMLError as e:
+        raise AssertionError(f"Failed to parse YAML frontmatter: {e}\n{yaml_content}") from e
 
 
 @then('YAML should contain "file_path" keys')
