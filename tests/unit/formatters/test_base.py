@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-
 from rich.console import Console
 
 
@@ -58,7 +56,7 @@ def test_protocol_runtime_checkable() -> None:
     formatter = ValidFormatter()
 
     # Should pass isinstance check if protocol is runtime_checkable
-    assert isinstance(formatter, Protocol) or hasattr(ResultFormatter, "__subclasshook__")
+    assert isinstance(formatter, ResultFormatter)
 
 
 def test_protocol_missing_attributes_fails() -> None:
