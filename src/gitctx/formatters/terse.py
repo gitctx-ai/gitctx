@@ -33,7 +33,12 @@ class TerseFormatter:
     name = "terse"
     description = "Terse single-line format (default)"
 
-    def format(self, results: list[dict[str, Any]], console: Console) -> None:
+    def format(
+        self,
+        results: list[dict[str, Any]],
+        console: Console,
+        theme: str = "monokai",  # noqa: ARG002
+    ) -> None:
         """Format and output search results to console.
 
         Args:
@@ -47,6 +52,7 @@ class TerseFormatter:
                 - author_name: Author name
                 - commit_message: Commit message
             console: Rich Console instance for formatted output
+            theme: Syntax highlighting theme (unused in terse format)
 
         Returns:
             None - Results are written directly to console

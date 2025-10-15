@@ -42,6 +42,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import yaml
 from rich.console import Console
 
 
@@ -60,7 +61,12 @@ class MCPFormatter:
     name = "mcp"
     description = "Structured markdown for AI tools"
 
-    def format(self, results: list[dict[str, Any]], console: Console) -> None:
+    def format(
+        self,
+        results: list[dict[str, Any]],
+        console: Console,
+        theme: str = "monokai",  # noqa: ARG002
+    ) -> None:
         """Format and output search results to console.
 
         Args:
@@ -73,25 +79,27 @@ class MCPFormatter:
                 - chunk_content: Code content
                 - language: Language for syntax highlighting (optional)
             console: Rich Console instance for formatted output
+            theme: Syntax highlighting theme (unused in MCP format)
 
         Returns:
             None - Results are written directly to console
         """
-        # Print YAML frontmatter
+        # Build YAML frontmatter structure
+        frontmatter = {
+            "results": [
+                {
+                    "file_path": r["file_path"],
+                    "line_numbers": f"{r['start_line']}-{r['end_line']}",
+                    "score": float(f"{r['_distance']:.3f}"),
+                    "commit_sha": r["commit_sha"],
+                }
+                for r in results
+            ]
+        }
+
+        # Print YAML frontmatter with proper escaping
         console.print("---")
-        console.print("results:")
-        for result in results:
-            file_path = result["file_path"]
-            start_line = result["start_line"]
-            end_line = result["end_line"]
-            score = result["_distance"]
-            commit_sha = result["commit_sha"]
-
-            console.print(f"  - file_path: {file_path}")
-            console.print(f"    line_numbers: {start_line}-{end_line}")
-            console.print(f"    score: {score:.3f}")
-            console.print(f"    commit_sha: {commit_sha}")
-
+        console.print(yaml.safe_dump(frontmatter, default_flow_style=False).rstrip())
         console.print("---\n")
 
         # Print Markdown body

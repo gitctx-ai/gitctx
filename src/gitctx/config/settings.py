@@ -97,15 +97,19 @@ class ProviderEnvSource(PydanticBaseSettingsSource):
 
 
 class UserConfig(BaseSettings):
-    """User config (~/.gitctx/config.yml) - API keys only.
+    """User config (~/.gitctx/config.yml) - API keys and preferences.
 
     Precedence:
-    1. OPENAI_API_KEY env var (highest)
+    1. OPENAI_API_KEY env var (highest for API keys)
     2. User YAML file
     3. Defaults
     """
 
     api_keys: ApiKeys = Field(default_factory=ApiKeys)
+    theme: str = Field(
+        default="monokai",
+        description="Syntax highlighting theme for verbose output (monokai, github-dark, solarized-light, etc.)",
+    )
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
@@ -155,11 +159,13 @@ class UserConfig(BaseSettings):
         )
 
     def save(self) -> None:
-        """Save API keys to user config file."""
+        """Save user config to file."""
         config_path = _get_user_home() / ".gitctx" / "config.yml"
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        data = {}
+        data: dict[str, Any] = {}
+
+        # Save API keys
         if self.api_keys.openai is not None:
             # Handle both SecretStr and plain string (str accepted via validation)
             if isinstance(self.api_keys.openai, SecretStr):
@@ -167,6 +173,11 @@ class UserConfig(BaseSettings):
             else:
                 openai_value = str(self.api_keys.openai)
             data["api_keys"] = {"openai": openai_value}
+
+        # Save theme only if non-default
+        default_theme = UserConfig.model_fields["theme"].default
+        if self.theme != default_theme:
+            data["theme"] = self.theme
 
         # Secure permissions
         old_umask = os.umask(0o077)

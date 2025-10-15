@@ -47,7 +47,9 @@ class VerboseFormatter:
     name = "verbose"
     description = "Verbose output with code context"
 
-    def format(self, results: list[dict[str, Any]], console: Console) -> None:
+    def format(
+        self, results: list[dict[str, Any]], console: Console, theme: str = "monokai"
+    ) -> None:
         """Format and output search results to console.
 
         Args:
@@ -62,6 +64,7 @@ class VerboseFormatter:
                 - chunk_content: Code content
                 - language: Language for syntax highlighting (optional)
             console: Rich Console instance for formatted output
+            theme: Syntax highlighting theme (default: "monokai")
 
         Returns:
             None - Results are written directly to console
@@ -96,7 +99,7 @@ class VerboseFormatter:
                 language,
                 line_numbers=True,
                 start_line=start_line,
-                theme="monokai",
+                theme=theme,
             )
             console.print(syntax)
 

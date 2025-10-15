@@ -93,8 +93,8 @@ def test_mcp_formatter_yaml_array_structure() -> None:
     formatter.format(results, console)
 
     result = output.getvalue()
-    # Should have list item markers in YAML
-    assert "  - file_path:" in result or "  -file_path:" in result
+    # Should have list item markers in YAML (yaml.safe_dump format: "- key: value")
+    assert ("- " in result and "file_path:" in result) or "- file_path:" in result
 
 
 def test_mcp_formatter_yaml_has_file_path() -> None:
@@ -348,3 +348,57 @@ def test_mcp_formatter_language_fallback_markdown() -> None:
     # Should use markdown fallback
     assert "```markdown" in result
     assert "some content" in result
+
+
+def test_mcp_formatter_escapes_yaml_special_chars() -> None:
+    """Test that file paths with YAML special chars are properly escaped."""
+    import re
+
+    import yaml
+
+    from gitctx.formatters.mcp import MCPFormatter
+
+    # Test paths with YAML special characters
+    results = [
+        {
+            "file_path": 'src/auth.py: "password"',  # Colon + quotes
+            "start_line": 10,
+            "end_line": 20,
+            "_distance": 0.85,
+            "commit_sha": "abc123def456",  # pragma: allowlist secret
+            "chunk_content": "def test(): pass",
+            "language": "python",
+        },
+        {
+            "file_path": "C:\\Users\\file.py",  # Windows path (backslashes)
+            "start_line": 30,
+            "end_line": 40,
+            "_distance": 0.75,
+            "commit_sha": "def456ghi789",  # pragma: allowlist secret
+            "chunk_content": "# Windows path",
+            "language": "python",
+        },
+    ]
+
+    output = StringIO()
+    console = Console(file=output, legacy_windows=False, width=200, markup=False)
+    formatter = MCPFormatter()
+
+    formatter.format(results, console)
+
+    result = output.getvalue()
+
+    # Extract YAML frontmatter (between --- markers)
+    yaml_match = re.search(r"^---\n(.*?)\n---", result, re.DOTALL)
+    assert yaml_match, "YAML frontmatter not found"
+
+    yaml_content = yaml_match.group(1)
+
+    # Parse YAML to ensure it's valid
+    parsed = yaml.safe_load(yaml_content)
+
+    # Verify structure
+    assert "results" in parsed
+    assert len(parsed["results"]) == 2
+    assert parsed["results"][0]["file_path"] == 'src/auth.py: "password"'
+    assert parsed["results"][1]["file_path"] == "C:\\Users\\file.py"

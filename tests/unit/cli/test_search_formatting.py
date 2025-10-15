@@ -48,6 +48,8 @@ def mock_formatter_search(
     mock_settings.repo.model = Mock()
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test")
+    mock_settings.user = Mock()
+    mock_settings.user.theme = "monokai"
 
     # Mock store with results
     mock_store = Mock()

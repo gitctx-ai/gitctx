@@ -25,12 +25,15 @@ class ResultFormatter(Protocol):
     name: str
     description: str
 
-    def format(self, results: list[dict[str, Any]], console: Console) -> None:
+    def format(
+        self, results: list[dict[str, Any]], console: Console, theme: str = "monokai"
+    ) -> None:
         """Format and output search results to console.
 
         Args:
             results: List of search result dictionaries from vector store
             console: Rich Console instance for formatted output
+            theme: Syntax highlighting theme (default: "monokai")
 
         Returns:
             None - Results are written directly to console

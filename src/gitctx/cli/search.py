@@ -113,6 +113,7 @@ def search_command(
         "--mcp",
         help="Output structured markdown for AI consumption",
     ),
+    theme: str | None = None,
 ) -> None:
     """
     Search the indexed repository for relevant code using semantic similarity.
@@ -178,9 +179,22 @@ def search_command(
     query_text = _get_query_text(query)
 
     # Validate mutually exclusive output modes
+    # Check for conflicts between boolean flags and --format flag
     if verbose and mcp:
         console_err.print(
             f"[red]{SYMBOLS['error']}[/red] Error: --verbose and --mcp are mutually exclusive"
+        )
+        raise typer.Exit(code=2)
+
+    if verbose and output_format == "mcp":
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: --verbose and --format mcp are mutually exclusive"
+        )
+        raise typer.Exit(code=2)
+
+    if mcp and output_format == "verbose":
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: --mcp and --format verbose are mutually exclusive"
         )
         raise typer.Exit(code=2)
 
@@ -200,6 +214,9 @@ def search_command(
     # Generate query embedding
     try:
         settings = GitCtxSettings()
+
+        # Resolve theme with precedence: CLI flag > UserConfig > default
+        resolved_theme = theme if theme is not None else settings.user.theme
 
         # Initialize store with error handling
         try:
@@ -281,7 +298,7 @@ def search_command(
     # Format and display results
     try:
         formatter = get_formatter(output_format)
-        formatter.format(results, console)
+        formatter.format(results, console, theme=resolved_theme)
     except ValueError as err:
         # Unknown formatter name
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")

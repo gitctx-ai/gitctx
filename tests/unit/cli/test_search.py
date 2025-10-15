@@ -51,6 +51,8 @@ def mock_search_repo(
     mock_settings.repo.model = Mock()
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
+    mock_settings.user = Mock()
+    mock_settings.user.theme = "monokai"
 
     # Mock LanceDBStore to bypass actual database operations
     mock_store = Mock()

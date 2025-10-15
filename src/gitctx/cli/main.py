@@ -123,6 +123,12 @@ def search_command_wrapper(
         "--mcp",
         help="Output structured markdown for AI consumption",
     ),
+    theme: str | None = typer.Option(
+        None,
+        "--theme",
+        help="Syntax highlighting theme (monokai, github-dark, solarized-light, etc.). Overrides user config.",
+        rich_help_panel="Output Formatting",
+    ),
 ) -> None:
     """Search the indexed repository for relevant code."""
     from gitctx.cli.search import search_command
@@ -134,6 +140,7 @@ def search_command_wrapper(
         output_format=output_format,
         verbose=verbose,
         mcp=mcp,
+        theme=theme,
     )
 
 

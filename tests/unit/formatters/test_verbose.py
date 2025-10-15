@@ -405,3 +405,65 @@ def test_verbose_formatter_blank_line_separator() -> None:
     assert "file2.py" in result
     # Should have blank line separators (multiple consecutive newlines)
     assert "\n\n" in result
+
+
+def test_verbose_formatter_custom_theme() -> None:
+    """Test that custom theme is used for syntax highlighting."""
+    from gitctx.formatters.verbose import VerboseFormatter
+
+    results = [
+        {
+            "file_path": "test.py",
+            "start_line": 1,
+            "end_line": 5,
+            "_distance": 0.85,
+            "is_head": True,
+            "commit_sha": "abc1234",  # pragma: allowlist secret
+            "commit_message": "Test commit",
+            "chunk_content": "def test(): pass",
+            "language": "python",
+        }
+    ]
+
+    output = StringIO()
+    console = Console(file=output, legacy_windows=False, width=200)
+    formatter = VerboseFormatter()
+
+    # Test with custom theme
+    formatter.format(results, console, theme="github-dark")
+
+    result = output.getvalue()
+    # Should contain the result
+    assert "test.py" in result
+    assert "def test(): pass" in result
+
+
+def test_verbose_formatter_default_theme() -> None:
+    """Test that default theme (monokai) is used when not specified."""
+    from gitctx.formatters.verbose import VerboseFormatter
+
+    results = [
+        {
+            "file_path": "test.py",
+            "start_line": 1,
+            "end_line": 5,
+            "_distance": 0.85,
+            "is_head": True,
+            "commit_sha": "abc1234",  # pragma: allowlist secret
+            "commit_message": "Test commit",
+            "chunk_content": "def test(): pass",
+            "language": "python",
+        }
+    ]
+
+    output = StringIO()
+    console = Console(file=output, legacy_windows=False, width=200)
+    formatter = VerboseFormatter()
+
+    # Call without theme parameter (should use default)
+    formatter.format(results, console)
+
+    result = output.getvalue()
+    # Should contain the result with default theme
+    assert "test.py" in result
+    assert "def test(): pass" in result

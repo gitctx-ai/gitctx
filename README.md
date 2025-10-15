@@ -29,9 +29,64 @@ gitctx config set api_keys.openai "sk-..."
 # Index your repository
 gitctx index
 
-# Search for relevant code
+# Search for relevant code (default: terse format)
 gitctx search "authentication logic"
+# Output: src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) "Add OAuth support"
+
+# Show code context (verbose format)
+gitctx search "authentication" --verbose
+
+# Machine-readable output for AI tools
+gitctx search "authentication" --mcp
 ```
+
+## Output Formats
+
+gitctx provides three output formats optimized for different contexts:
+
+### Terse (Default)
+One-line format for quick scanning:
+```bash
+gitctx search "authentication logic"
+# src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) "Add OAuth support"
+# src/middleware.py:23:0.85   a1b2c3d (2025-09-15, Bob) "JWT validation"
+```
+
+### Verbose
+Multi-line format with syntax-highlighted code blocks:
+```bash
+gitctx search "authentication" --verbose
+# Shows full code context with line numbers and commit metadata
+```
+
+### MCP (Model Context Protocol)
+Structured markdown with YAML frontmatter for AI tools:
+```bash
+gitctx search "authentication" --mcp
+# Outputs machine-readable format optimized for LLM consumption
+```
+
+## Context Engineering
+
+gitctx is designed for **context engineering** - results are meant for AI prompts (Claude, GPT, etc.). Quality matters more than quantity.
+
+**Semantic Similarity Filtering** (default: 0.5):
+```bash
+# High precision (only best matches)
+gitctx search "auth" --min-similarity 0.7
+
+# Balanced quality (default)
+gitctx search "auth"
+
+# High recall (include marginal results)
+gitctx search "auth" --min-similarity 0.3
+```
+
+**Similarity Scoring:**
+- 0.7-1.0: Highly relevant (excellent for AI context)
+- 0.5-0.7: Moderately relevant (good context quality)
+- 0.3-0.5: Vaguely related (marginal value)
+- Below 0.3: Filtered by default (noise)
 
 ## Documentation
 
@@ -68,36 +123,26 @@ CLAUDE.md                        # Root - BDD/TDD workflow
 Currently implementing **INIT-0001: MVP Foundation** (Q4 2025)
 
 **EPIC-0001.1: CLI Foundation** ✅ Complete (10/10 story points)
-
 - ✅ Development Environment Setup (STORY-0001.1.0) - 5 points
-  - Project structure, BDD/TDD framework, quality tools, CI/CD
 - ✅ CLI Framework Setup (STORY-0001.1.1) - 3 points
-  - All 4 commands implemented (index, search, config, clear)
-  - 13 BDD scenarios, 76 tests passing, 96.76% coverage
 
 **EPIC-0001.2: Real Indexing** ✅ Complete (31/31 story points)
-
 - ✅ Commit Graph Walker (STORY-0001.2.1) - 10 points
-  - Blob deduplication, location metadata, filtering (binary/gitignore/size)
-  - Multi-ref support, progress callbacks, error handling
-  - 9 BDD scenarios, 267 tests passing, 95.09% coverage
 - ✅ Blob Chunking (STORY-0001.2.2) - 5 points
-  - Smart text chunking with semantic overlap
-  - Language-aware chunking for Python, JS, Go, Rust, TypeScript
 - ✅ OpenAI Embeddings (STORY-0001.2.3) - 8 points
-  - text-embedding-3-large integration with caching
-  - Batch processing, cost tracking, progress callbacks
 - ✅ LanceDB Vector Storage (STORY-0001.2.4) - 3 points
-  - Denormalized schema for single-query context retrieval
-  - IVF-PQ indexing, batch insertion, statistics
-  - 10 BDD scenarios, all tests passing, 95.84% coverage
-- 🔵 Progress Tracking (STORY-0001.2.5) - 5 points
+- ✅ Progress Tracking (STORY-0001.2.5) - 5 points
+
+**EPIC-0001.3: Vector Search** 🟡 In Progress (10/13 story points complete)
+- ✅ Query Embedding Generation (STORY-0001.3.1) - 4 points
+- ✅ Vector Similarity Search (STORY-0001.3.2) - 6 points
+- 🟢 Result Formatting & Output (STORY-0001.3.3) - 3 points [PR #23 pending merge]
 
 **Next Up:**
+- 🔵 EPIC-0001.4: Performance Optimization
+- 🔵 EPIC-0001.5: Incremental Updates
 
-- 🔵 EPIC-0001.3: Vector Search (semantic search with LanceDB)
-
-See [ROADMAP](docs/vision/ROADMAP.md) for detailed progress and [initiatives](docs/tickets/initiatives/) for tracking.
+See [ROADMAP](docs/vision/ROADMAP.md) for detailed progress.
 
 ## Development
 
