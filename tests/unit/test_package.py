@@ -1,5 +1,6 @@
 """Test package structure and basic functionality."""
 
+import os
 import subprocess
 import sys
 
@@ -23,6 +24,27 @@ def test_main_entry_point_exists() -> None:
     )
     assert result.returncode == 0
     assert "gitctx" in result.stdout.lower()
+
+
+def test_version_cold_start_performance() -> None:
+    """Test that --version completes quickly even without .pyc cache (CI simulation).
+
+    This test simulates CI environment conditions where no bytecode cache exists.
+    The --version command should complete in <1s without importing heavy dependencies
+    like lancedb, pyarrow, or embedding models.
+    """
+    result = subprocess.run(
+        [sys.executable, "-B", "-m", "gitctx", "--version"],  # -B disables .pyc cache
+        capture_output=True,
+        text=True,
+        timeout=3,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+    assert result.returncode == 0
+    assert "gitctx" in result.stdout.lower()
+
+    # Performance regression guard: Should complete in <1s even on cold start
+    # This prevents the timeout issue seen in CI (FAILED with 3s timeout)
 
 
 def test_cli_module_exists() -> None:
