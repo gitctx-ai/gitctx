@@ -34,9 +34,12 @@ _console = Console()
 
 # Tips dictionary - add new tips here as needed
 TIPS = {
-    "config": "API keys are stored securely in ~/.gitctx/config.yml with file permissions 0600. Team settings in .gitctx/config.yml are safe to commit.",
+    "config": (
+        "API keys are stored securely in ~/.gitctx/config.yml with file permissions 0600. "
+        "Team settings in .gitctx/config.yml are safe to commit."
+    ),
     # Future tips for other commands:
-    # "index": "Embeddings are stored in .gitctx/db/ and should be committed to share with your team.",
+    # "index": "Embeddings are stored in .gitctx/db/ and should be committed.",
     # "search": "Use --limit to control result count. Results are ranked by semantic similarity.",
 }
 

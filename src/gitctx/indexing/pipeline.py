@@ -3,6 +3,7 @@
 This module provides the main index_repository function that orchestrates
 the full indexing pipeline with TUI_GUIDE-compliant progress reporting.
 """
+# ruff: noqa: PLC0415 # Lazy load heavy dependencies (LanceDB, pyarrow) to reduce import time
 
 import logging
 import sys
@@ -16,11 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 async def index_repository(
-    repo_path: Path,
-    settings: GitCtxSettings,
-    dry_run: bool = False,
-    verbose: bool = False,
-) -> None:
+    repo_path: Path, settings: GitCtxSettings, dry_run: bool = False, verbose: bool = False
+) -> None:  # Complex pipeline orchestration requires many statements
     """Index a repository with progress tracking (TUI_GUIDE compliant).
 
     Args:
@@ -43,7 +41,8 @@ async def index_repository(
         print(f"Est. tokens:  {format_number(estimate['estimated_tokens'])}")
         print(f"Est. cost:    {format_cost(estimate['estimated_cost'])}")
         print(
-            f"Range:        {format_cost(estimate['min_cost'])} - {format_cost(estimate['max_cost'])} (±10%)"
+            f"Range:        {format_cost(estimate['min_cost'])} - "
+            f"{format_cost(estimate['max_cost'])} (±10%)"
         )
         return
 

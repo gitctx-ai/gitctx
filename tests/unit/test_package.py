@@ -4,10 +4,12 @@ import os
 import subprocess
 import sys
 
+import gitctx
+from gitctx.cli.main import main, version_callback
+
 
 def test_package_has_version() -> None:
     """Test that package exports version."""
-    import gitctx
 
     assert hasattr(gitctx, "__version__")
     assert isinstance(gitctx.__version__, str)
@@ -18,6 +20,7 @@ def test_main_entry_point_exists() -> None:
     """Test that __main__ can be executed."""
     result = subprocess.run(
         [sys.executable, "-m", "gitctx", "--version"],
+        check=False,
         capture_output=True,
         text=True,
         timeout=3,
@@ -35,6 +38,7 @@ def test_version_cold_start_performance() -> None:
     """
     result = subprocess.run(
         [sys.executable, "-B", "-m", "gitctx", "--version"],  # -B disables .pyc cache
+        check=False,
         capture_output=True,
         text=True,
         timeout=3,
@@ -49,7 +53,6 @@ def test_version_cold_start_performance() -> None:
 
 def test_cli_module_exists() -> None:
     """Test that CLI module can be imported."""
-    from gitctx.cli import main
 
     assert main is not None
 
@@ -58,6 +61,7 @@ def test_cli_without_arguments() -> None:
     """Test that gitctx shows quick start guide when run with no arguments."""
     result = subprocess.run(
         [sys.executable, "-m", "gitctx"],
+        check=False,
         capture_output=True,
         text=True,
         timeout=3,
@@ -70,7 +74,6 @@ def test_cli_without_arguments() -> None:
 
 def test_version_callback_false_branch() -> None:
     """Test version_callback when not requesting version."""
-    from gitctx.cli.main import version_callback
 
     # Should return None without any output or exception
     result = version_callback(False)
@@ -82,7 +85,6 @@ def test_version_callback_false_branch() -> None:
 
 def test_main_callback_directly() -> None:
     """Test the main callback function signature."""
-    from gitctx.cli.main import main
 
     # main() now requires ctx parameter (Typer.Context)
     # This test just verifies the function exists and is callable

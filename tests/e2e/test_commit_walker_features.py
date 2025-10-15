@@ -12,7 +12,7 @@ from tests.e2e.steps.cli_steps import (  # noqa: F401
 )
 
 # Import all commit walker step definitions
-from tests.e2e.steps.commit_walker_steps import *  # noqa: F401, F403
+from tests.e2e.steps.commit_walker_steps import *  # noqa: F403
 
 # Auto-discover commit walker scenarios
 scenarios("features/commit_walker.feature")

@@ -12,7 +12,7 @@ from tests.e2e.steps.cli_steps import (  # noqa: F401
 )
 
 # Import all chunking step definitions
-from tests.e2e.steps.test_chunking import *  # noqa: F401, F403
+from tests.e2e.steps.test_chunking import *  # noqa: F403
 
 # Auto-discover chunking scenarios
 scenarios("features/chunking.feature")

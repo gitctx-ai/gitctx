@@ -1,12 +1,18 @@
 """Step definitions for OpenAI embedding generation BDD scenarios."""
+# ruff: noqa: PLC0415 # Inline imports in BDD steps for clarity
 
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import anyio
 import pytest
 from pytest_bdd import given, parsers, then, when
 
-from gitctx.indexing.types import Embedding
+from gitctx.config.errors import ConfigurationError
+from gitctx.indexing.types import CodeChunk, Embedding
+from gitctx.models.errors import DimensionMismatchError
+from gitctx.models.providers.openai import OpenAIEmbedder
 from gitctx.storage.embedding_cache import EmbeddingCache
 
 
@@ -35,7 +41,6 @@ def embedding_context() -> dict[str, Any]:
 @given(parsers.parse("a code chunk with {num_tokens:d} tokens"))
 def code_chunk_with_tokens(embedding_context: dict[str, Any], num_tokens: int) -> None:
     """Create code chunk with specified token count."""
-    from gitctx.indexing.types import CodeChunk
 
     # Create code chunk with content that approximates the token count
     # (~4 characters per token in English)
@@ -61,9 +66,6 @@ def api_key_configured(embedding_context: dict[str, Any], e2e_session_api_key: s
 @when("I generate an embedding for the chunk")
 def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
     """Generate embedding for single chunk."""
-    import anyio
-
-    from gitctx.models.providers.openai import OpenAIEmbedder
 
     # Use API key from embedding_context (set by api_key_configured step)
     # VCR.py will intercept API calls and use cassettes
@@ -326,13 +328,6 @@ def verify_exact_dimensions(embedding_context: dict[str, Any], dimensions: int) 
 @then("if dimensions don't match, raise DimensionMismatchError")
 def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
     """Verify DimensionMismatchError is raised on dimension mismatch."""
-    from unittest.mock import AsyncMock, MagicMock, patch
-
-    import anyio
-
-    from gitctx.indexing.types import CodeChunk
-    from gitctx.models.errors import DimensionMismatchError
-    from gitctx.models.providers.openai import OpenAIEmbedder
 
     # Test that dimension mismatch raises error
     chunk = CodeChunk(
@@ -355,13 +350,15 @@ def verify_dimension_mismatch_error(embedding_context: dict[str, Any]) -> None:
         embedder._embeddings.async_client, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.return_value = mock_response
-        try:
+
+        # Use pytest.raises to check exception and its message
+        with pytest.raises(DimensionMismatchError) as exc_info:
             # Use anyio.run() for async operation (pytest-bdd steps must be sync)
             anyio.run(embedder.embed_chunks, [chunk], "test123")
-            raise AssertionError("Should have raised DimensionMismatchError")
-        except DimensionMismatchError as e:
-            assert "3072" in str(e), "Error should mention expected dimensions"
-            assert "1536" in str(e), "Error should mention actual dimensions"
+
+        error_msg = str(exc_info.value)
+        assert "3072" in error_msg, "Error should mention expected dimensions"
+        assert "1536" in error_msg, "Error should mention actual dimensions"
 
 
 @then("log the error with expected vs actual dimensions")
@@ -502,8 +499,6 @@ def no_api_key_configured(embedding_context: dict[str, Any]) -> None:
 @when("I attempt to initialize the OpenAIEmbedder")
 def attempt_initialize_embedder(embedding_context: dict[str, Any]) -> None:
     """Attempt to initialize OpenAIEmbedder."""
-    from gitctx.config.errors import ConfigurationError
-    from gitctx.models.providers.openai import OpenAIEmbedder
 
     api_key = embedding_context["api_key"]
 
@@ -519,7 +514,6 @@ def attempt_initialize_embedder(embedding_context: dict[str, Any]) -> None:
 @then("a ConfigurationError should be raised")
 def verify_configuration_error_raised(embedding_context: dict[str, Any]) -> None:
     """Verify ConfigurationError is raised."""
-    from gitctx.config.errors import ConfigurationError
 
     error = embedding_context["error"]
     assert error is not None, "Expected ConfigurationError to be raised"

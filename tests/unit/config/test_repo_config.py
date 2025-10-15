@@ -1,8 +1,14 @@
 """Unit tests for repo configuration (team settings only)."""
 
 import os
+import stat
+import subprocess
 
 import pytest
+from pydantic import ValidationError
+
+from gitctx.config.settings import RepoConfig
+from tests.conftest import is_windows
 
 
 class TestRepoConfigLoading:
@@ -11,7 +17,6 @@ class TestRepoConfigLoading:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_repo_config_loads_from_yaml(self, tmp_path, monkeypatch):
         """Config should load settings from YAML file."""
-        from gitctx.config.settings import RepoConfig
 
         # Setup - change to test directory
         monkeypatch.chdir(tmp_path)
@@ -32,7 +37,6 @@ class TestRepoConfigLoading:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_gitctx_env_var_overrides_yaml(self, tmp_path, monkeypatch):
         """GITCTX_* env vars should override YAML."""
-        from gitctx.config.settings import RepoConfig
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -53,7 +57,6 @@ class TestRepoConfigLoading:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_yaml_used_when_no_env_vars(self, tmp_path, monkeypatch):
         """YAML should be used when no env vars are set."""
-        from gitctx.config.settings import RepoConfig
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -73,7 +76,6 @@ class TestRepoConfigLoading:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_defaults_used_when_no_config(self, tmp_path, monkeypatch):
         """Defaults should be used when no config file exists."""
-        from gitctx.config.settings import RepoConfig
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -95,7 +97,6 @@ class TestRepoConfigValidation:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_config_validates_types(self):
         """Config should validate type correctness."""
-        from gitctx.config.settings import RepoConfig
 
         # Act
         config = RepoConfig(search={"limit": 20})
@@ -107,9 +108,6 @@ class TestRepoConfigValidation:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_config_rejects_invalid_types(self):
         """Config should reject invalid type values."""
-        from pydantic import ValidationError
-
-        from gitctx.config.settings import RepoConfig
 
         # Assert
         with pytest.raises(ValidationError) as exc_info:
@@ -120,9 +118,6 @@ class TestRepoConfigValidation:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_config_validates_constraints(self):
         """Config should validate field constraints."""
-        from pydantic import ValidationError
-
-        from gitctx.config.settings import RepoConfig
 
         # Test negative limit (should fail - must be > 0)
         with pytest.raises(ValidationError):
@@ -139,7 +134,6 @@ class TestRepoConfigPersistence:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_repo_config_saves_to_yaml(self, tmp_path, monkeypatch):
         """Config.save() should persist to YAML file with 0644 permissions."""
-        from gitctx.config.settings import RepoConfig
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -160,9 +154,6 @@ class TestRepoConfigPersistence:
         assert "limit: 25" in content
 
         # Assert - file permissions are 0644 (Unix) or just readable (Windows)
-        import stat
-
-        from tests.conftest import is_windows
 
         if is_windows():
             # Windows uses ACLs, not Unix permissions - just verify file is accessible
@@ -176,7 +167,6 @@ class TestRepoConfigPersistence:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_repo_config_creates_directory(self, tmp_path, monkeypatch):
         """Config.save() should create .gitctx/ if it doesn't exist."""
-        from gitctx.config.settings import RepoConfig
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -199,7 +189,6 @@ class TestErrorHandling:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_malformed_yaml_error(self, tmp_path, monkeypatch):
         """Clear error message for malformed YAML."""
-        from gitctx.config.settings import RepoConfig
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -211,7 +200,7 @@ class TestErrorHandling:
         config_file.write_text("search:\n  limit: [unclosed")
 
         # Act & Assert - should raise error
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match=r"(?i)(parsing|yaml)") as exc_info:
             RepoConfig()
 
         # Error message should be helpful
@@ -220,10 +209,6 @@ class TestErrorHandling:
     # @pytest.mark.skip(reason="RED phase - module doesn't exist yet")
     def test_permission_denied_error(self, tmp_path, monkeypatch):
         """Clear error message for permission denied."""
-        import subprocess
-
-        from gitctx.config.settings import RepoConfig
-        from tests.conftest import is_windows
 
         # Setup
         monkeypatch.chdir(tmp_path)
@@ -248,8 +233,8 @@ class TestErrorHandling:
             )
 
             # Act & Assert - should raise PermissionError on write
+            config = RepoConfig()
             with pytest.raises(PermissionError):
-                config = RepoConfig()
                 config.save()
 
             # Cleanup: restore permissions so pytest can delete temp dir
@@ -263,8 +248,8 @@ class TestErrorHandling:
             config_dir.chmod(0o444)  # Read-only
 
             # Act & Assert - should raise PermissionError
+            config = RepoConfig()
             with pytest.raises(PermissionError):
-                config = RepoConfig()
                 config.save()
 
 
@@ -273,7 +258,6 @@ class TestEdgeCasesUnicode:
 
     def test_unicode_emoji_in_model_name(self, tmp_path, monkeypatch):
         """Model name can contain emoji."""
-        from gitctx.config.settings import RepoConfig
 
         monkeypatch.chdir(tmp_path)
         config = RepoConfig()
@@ -290,7 +274,6 @@ class TestFileCorruption:
 
     def test_truncated_yaml_shows_clear_error(self, tmp_path, monkeypatch):
         """Truncated YAML shows clear error message."""
-        from gitctx.config.settings import RepoConfig
 
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".gitctx"
@@ -300,7 +283,7 @@ class TestFileCorruption:
         config_file.write_text("search:\n  lim")
 
         # Should raise with parse/yaml/validation error
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(Exception, match=r"(?i)(parse|yaml|scan|validation)") as exc:
             RepoConfig()
         error_msg = str(exc.value).lower()
         # Pydantic validation error is also acceptable (clear error message)
@@ -308,9 +291,6 @@ class TestFileCorruption:
 
     def test_malformed_yaml_shows_clear_error(self, tmp_path, monkeypatch):
         """Malformed YAML shows helpful error message."""
-        from pydantic import ValidationError
-
-        from gitctx.config.settings import RepoConfig
 
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".gitctx"
@@ -329,7 +309,6 @@ class TestChunkingSettings:
 
     def test_chunking_settings_defaults(self, tmp_path, monkeypatch):
         """Chunking settings should use correct default values."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -343,7 +322,6 @@ class TestChunkingSettings:
 
     def test_chunking_settings_load_from_yaml(self, tmp_path, monkeypatch):
         """Chunking settings should load from YAML file."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -365,7 +343,6 @@ index:
 
     def test_chunking_settings_env_var_override(self, tmp_path, monkeypatch):
         """GITCTX_INDEX__* env vars should override YAML for chunking."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -391,9 +368,6 @@ index:
 
     def test_chunking_settings_validation_max_tokens(self, tmp_path, monkeypatch):
         """max_chunk_tokens should validate constraints (100-8000)."""
-        from pydantic import ValidationError
-
-        from gitctx.config.settings import RepoConfig
 
         # Test max_chunk_tokens must be >= 100
         with pytest.raises(ValidationError):
@@ -405,9 +379,6 @@ index:
 
     def test_chunking_settings_validation_overlap_ratio(self, tmp_path, monkeypatch):
         """chunk_overlap_ratio should validate constraints (0.0-0.5)."""
-        from pydantic import ValidationError
-
-        from gitctx.config.settings import RepoConfig
 
         # Test chunk_overlap_ratio must be >= 0.0
         with pytest.raises(ValidationError):
@@ -419,7 +390,6 @@ index:
 
     def test_chunking_settings_persist_to_yaml(self, tmp_path, monkeypatch):
         """Chunking settings should be saved to YAML file."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -443,7 +413,6 @@ class TestWalkerSettings:
 
     def test_walker_settings_defaults(self, tmp_path, monkeypatch):
         """Walker settings should use correct default values."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -459,7 +428,6 @@ class TestWalkerSettings:
 
     def test_walker_settings_load_from_yaml(self, tmp_path, monkeypatch):
         """Walker settings should load from YAML file."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -487,7 +455,6 @@ index:
 
     def test_walker_settings_env_var_override(self, tmp_path, monkeypatch):
         """GITCTX_INDEX__* env vars should override YAML."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)
@@ -519,10 +486,6 @@ index:
 
     def test_walker_settings_validation(self, tmp_path, monkeypatch):
         """Walker settings should validate constraints."""
-        import pytest
-        from pydantic import ValidationError
-
-        from gitctx.config.settings import RepoConfig
 
         # Test max_blob_size_mb must be > 0
         with pytest.raises(ValidationError):
@@ -546,7 +509,6 @@ index:
 
     def test_walker_settings_persist_to_yaml(self, tmp_path, monkeypatch):
         """Walker settings should be saved to YAML file."""
-        from gitctx.config.settings import RepoConfig
 
         # Arrange
         monkeypatch.chdir(tmp_path)

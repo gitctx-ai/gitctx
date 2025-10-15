@@ -20,7 +20,7 @@ class TestLanguageDetection:
     """Test suite for extension-based language detection."""
 
     @pytest.mark.parametrize(
-        "file_path,expected_language",
+        ("file_path", "expected_language"),
         [
             # Common languages
             ("src/main.py", "python"),
@@ -111,7 +111,7 @@ class TestLanguageDetection:
             assert result == "markdown", f"Expected fallback for {file_path}"
 
     @pytest.mark.parametrize(
-        "file_path,expected_language",
+        ("file_path", "expected_language"),
         [
             # Test all 27 LangChain-supported languages
             ("main.cpp", "cpp"),
@@ -159,7 +159,7 @@ class TestLangChainMapping:
     """Test suite for LangChain language code mapping."""
 
     @pytest.mark.parametrize(
-        "gitctx_language,expected_langchain_code",
+        ("gitctx_language", "expected_langchain_code"),
         [
             # Test all 27 LangChain-supported languages
             ("cpp", "cpp"),

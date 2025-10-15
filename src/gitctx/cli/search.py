@@ -1,4 +1,6 @@
 """Search command for gitctx CLI."""
+# Inline imports for fast --version; complex CLI validation/formatting orchestration
+# ruff: noqa: PLC0415, PLR0912, PLR0913, PLR0915
 
 import sys
 import time
@@ -13,12 +15,15 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from gitctx.cli.symbols import SYMBOLS
 from gitctx.config.errors import ConfigurationError
 from gitctx.config.settings import GitCtxSettings
+from gitctx.formatters import get_formatter
 from gitctx.search.embeddings import QueryEmbedder
 from gitctx.search.errors import EmbeddingError, ValidationError
 from gitctx.storage.lancedb_store import LanceDBStore
 
-console = Console()
-console_err = Console(stderr=True)
+# Always force terminal colors for consistent CLI output (including tests)
+# Use explicit color_system to ensure ANSI codes are generated
+console = Console(force_terminal=True, color_system="truecolor")
+console_err = Console(stderr=True, force_terminal=True, color_system="truecolor")
 
 # Search limit constants
 MIN_SEARCH_LIMIT = 1
@@ -93,6 +98,16 @@ def search_command(
         min=MIN_SEARCH_LIMIT,
         max=MAX_SEARCH_LIMIT,
     ),
+    min_similarity: float = typer.Option(
+        0.5,
+        "--min-similarity",
+        help="Minimum similarity threshold (0.0-1.0)",
+    ),
+    output_format: str | None = typer.Option(
+        None,
+        "--format",
+        help="Output format (terse, verbose, mcp)",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -104,23 +119,64 @@ def search_command(
         "--mcp",
         help="Output structured markdown for AI consumption",
     ),
+    theme: str | None = None,
 ) -> None:
     """
-    Search the indexed repository for relevant code.
+    Search the indexed repository for relevant code using semantic similarity.
 
-    This command searches through indexed git history to find
-    the most relevant code across all commits.
+    **Context Engineering Focus:**
+
+    gitctx is designed for context engineering - results are meant to be included
+    in AI prompts (Claude, GPT, etc.). Quality matters more than quantity, since
+    every result consumes precious context window tokens.
+
+    **Default Behavior (--min-similarity 0.5):**
+
+    Returns moderately to highly relevant results. Filters out noise and tangentially
+    related code that would waste context tokens. This ensures AI assistants receive
+    high-quality, relevant context.
+
+    **Similarity Scoring:**
+
+    - 0.7-1.0: Highly relevant (similar concepts/implementations) → EXCELLENT
+    - 0.5-0.7: Moderately relevant (related functionality) → GOOD
+    - 0.3-0.5: Vaguely related (marginal value) → QUESTIONABLE
+    - 0.0-0.3: Barely related (noise) → FILTERED BY DEFAULT
+    - -1.0-0.0: Opposite meaning (garbage) → FILTERED BY DEFAULT
+
+    **Adjusting the Threshold:**
+
+    - `--min-similarity 0.7`: High precision (only best matches for AI context)
+    - `--min-similarity 0.5`: Balanced (DEFAULT - good context quality)
+    - `--min-similarity 0.3`: High recall (include marginal results)
+    - `--min-similarity 0.0`: Debug mode (show all non-negative results)
+    - `--min-similarity -1.0`: Show ALL results (including opposite meaning)
+
+    **Technical Details:**
+
+    Uses cosine distance for vector search (LanceDB):
+    - Cosine distance = 1 - cosine similarity (range: 0-2)
+    - Lower distance = higher similarity = more relevant
+    - Post-filtering applied after search (LanceDB limitation)
+    - Reference: https://lancedb.com/docs/search/vector-search/
+    - Filtering pattern: https://github.com/lancedb/lancedb/issues/745
 
     Examples:
 
-        # Search (terse output)
+        # Default: balanced quality (0.5 threshold)
         $ gitctx search "authentication logic"
+
+        # High precision: only best matches for AI
+        $ gitctx search "database connection" --min-similarity 0.7
+
+        # Debug: see all non-negative similarity results
+        $ gitctx search "API endpoints" --min-similarity 0.0
+
+        # Testing: see absolutely ALL results (even opposite meaning)
+        $ gitctx search "test query" --min-similarity -1.0
 
         # With code context
         $ gitctx search "database connection" --verbose
-
-        # Limit results
-        $ gitctx search "API endpoints" -n 3
 
         # MCP mode (structured markdown for AI)
         $ gitctx search "authentication" --mcp
@@ -135,6 +191,28 @@ def search_command(
         )
         raise typer.Exit(code=2)
 
+    if output_format is not None and verbose:
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: --format cannot be used with --verbose"
+        )
+        raise typer.Exit(code=2)
+
+    if output_format is not None and mcp:
+        console_err.print(
+            f"[red]{SYMBOLS['error']}[/red] Error: --format cannot be used with --mcp"
+        )
+        raise typer.Exit(code=2)
+
+    # Resolve format from flags and options
+    if verbose:
+        resolved_format = "verbose"
+    elif mcp:
+        resolved_format = "mcp"
+    elif output_format is not None:
+        resolved_format = output_format
+    else:
+        resolved_format = "terse"  # Default
+
     # Check index directory exists
     db_path = Path.cwd() / ".gitctx" / "db" / "lancedb"
 
@@ -145,6 +223,9 @@ def search_command(
     # Generate query embedding
     try:
         settings = GitCtxSettings()
+
+        # Resolve theme with precedence: CLI flag > UserConfig > default
+        resolved_theme = theme if theme is not None else settings.user.theme
 
         # Initialize store with error handling
         try:
@@ -161,8 +242,9 @@ def search_command(
             # ArrowException: Schema/corruption issues (from PyArrow)
             if "code_chunks" in str(err).lower() or "table" in str(err).lower():
                 console_err.print(
-                    f"[red]{SYMBOLS['error']}[/red] Error: Index corrupted (missing code_chunks table)\n"
-                    f"Fix with: gitctx clear && gitctx index"
+                    f"[red]{SYMBOLS['error']}[/red] Error: "
+                    "Index corrupted (missing code_chunks table)\n"
+                    "Fix with: gitctx clear && gitctx index"
                 )
                 raise typer.Exit(1) from err
             # Re-raise other exceptions
@@ -195,7 +277,20 @@ def search_command(
 
         # Search LanceDB with timing
         start_time = time.time()
-        results = store.search(query_vector=query_vector, limit=limit, filter_head_only=False)
+        # Convert similarity to distance: cosine_distance = 1 - cosine_similarity
+        # LanceDB returns distances (0-2), users specify similarity (0-1)
+        # Formula: max_distance = 1.0 - min_similarity
+        # - min_similarity=0.5 (default) → max_distance=0.5 (show moderately similar results)
+        # - min_similarity=0.0 → max_distance=1.0 (filter out negative similarity)
+        # - min_similarity=0.7 → max_distance=0.3 (show highly similar results)
+        # Reference: https://lancedb.com/docs/search/vector-search/
+        max_distance = 1.0 - min_similarity
+        results = store.search(
+            query_vector=query_vector,
+            limit=limit,
+            filter_head_only=False,
+            max_distance=max_distance,
+        )
         duration = time.time() - start_time
 
     except ValidationError as err:
@@ -210,8 +305,21 @@ def search_command(
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
         raise typer.Exit(code=5) from err
 
-    # Display results count (formatting deferred to STORY-0001.3.3)
-    console.print(f"{len(results)} results in {duration:.2f}s")
+    # Format and display results
+    try:
+        formatter = get_formatter(resolved_format)
+        formatter.format(results, console, theme=resolved_theme)
+    except ValueError as err:
+        # Unknown formatter name
+        console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
+        raise typer.Exit(code=2) from err
 
-    # TODO (STORY-0001.3.3): Add result formatting (terse, verbose, MCP modes)
-    # For now, only display count. Result details will be implemented in STORY-0001.3.3
+    # Display results summary with helpful message for zero results
+    console.print(f"\n{len(results)} results in {duration:.2f}s")
+
+    if len(results) == 0 and min_similarity > 0.0:
+        console.print(
+            f"\n[yellow]💡 Tip:[/yellow] No results above similarity threshold "
+            f"({min_similarity:.1f}).\n"
+            "   Try a broader query or use [cyan]--min-similarity 0.0[/cyan] to see all results."
+        )

@@ -1,8 +1,16 @@
 """Unit tests for platform-aware symbol rendering."""
 
+import importlib
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+from rich.console import Console
+
+import gitctx.cli.symbols
+from gitctx.cli import symbols
+from gitctx.cli.symbols import SYMBOLS, _console
 
 
 def _find_project_root(start_path: Path) -> Path:
@@ -27,7 +35,6 @@ def _find_project_root(start_path: Path) -> Path:
 
 def test_symbols_modern_terminals():
     """Verify symbols are correctly set based on terminal type."""
-    from gitctx.cli.symbols import SYMBOLS, _console
 
     # Symbols should match the console's legacy_windows status
     if _console.legacy_windows:
@@ -82,6 +89,7 @@ with patch("rich.console.Console") as MockConsole:
     # Run the test script in a subprocess to get fresh module imports
     result = subprocess.run(
         [sys.executable, "-c", test_script],
+        check=False,
         capture_output=True,
         text=True,
         cwd=_find_project_root(Path(__file__)),  # Run from repo root
@@ -97,11 +105,9 @@ with patch("rich.console.Console") as MockConsole:
 def test_symbols_console_detection():
     """Verify symbols module uses Rich Console for platform detection."""
     # Import and check that _console is created
-    from gitctx.cli import symbols
 
     # Verify the module has _console and it's a Console instance
     assert hasattr(symbols, "_console")
-    from rich.console import Console
 
     assert isinstance(symbols._console, Console)
 
@@ -111,14 +117,13 @@ def test_symbols_console_detection():
 
 def test_symbols_used_in_cli_commands():
     """Verify symbols module is importable and usable by CLI commands."""
-    from gitctx.cli.symbols import SYMBOLS
 
     # Symbols should be a dict with all required keys
     required_keys = {"success", "error", "warning", "tip", "arrow", "head", "spinner_frames"}
     assert set(SYMBOLS.keys()) == required_keys
 
     # All values should be non-empty strings
-    for _key, value in SYMBOLS.items():
+    for value in SYMBOLS.values():
         assert isinstance(value, str)
         assert len(value) > 0
 
@@ -132,11 +137,8 @@ def test_symbols_legacy_windows_in_process():
 
     IMPORTANT: Restores module state after test to avoid affecting other tests.
     """
-    import importlib
-    from unittest.mock import Mock, patch
 
     # Save original symbols state
-    import gitctx.cli.symbols
 
     original_symbols = gitctx.cli.symbols.SYMBOLS.copy()
 
@@ -150,16 +152,15 @@ def test_symbols_legacy_windows_in_process():
             # Reimport symbols module to trigger the legacy_windows branch
             importlib.reload(gitctx.cli.symbols)
 
-            # Verify ASCII fallback symbols are set
-            from gitctx.cli.symbols import SYMBOLS
+            # Verify ASCII fallback symbols are set (access via module after reload)
 
-            assert SYMBOLS["success"] == "[OK]"
-            assert SYMBOLS["error"] == "[X]"
-            assert SYMBOLS["warning"] == "[!]"
-            assert SYMBOLS["tip"] == "[i]"
-            assert SYMBOLS["arrow"] == "->"
-            assert SYMBOLS["head"] == "[HEAD]"
-            assert SYMBOLS["spinner_frames"] == "|/-\\"
+            assert gitctx.cli.symbols.SYMBOLS["success"] == "[OK]"
+            assert gitctx.cli.symbols.SYMBOLS["error"] == "[X]"
+            assert gitctx.cli.symbols.SYMBOLS["warning"] == "[!]"
+            assert gitctx.cli.symbols.SYMBOLS["tip"] == "[i]"
+            assert gitctx.cli.symbols.SYMBOLS["arrow"] == "->"
+            assert gitctx.cli.symbols.SYMBOLS["head"] == "[HEAD]"
+            assert gitctx.cli.symbols.SYMBOLS["spinner_frames"] == "|/-\\"
 
     finally:
         # CRITICAL: Restore original module state by reloading without mock
@@ -167,7 +168,6 @@ def test_symbols_legacy_windows_in_process():
         importlib.reload(gitctx.cli.symbols)
 
         # Verify restoration worked
-        from gitctx.cli.symbols import SYMBOLS
 
         # Should be back to original state (Unicode on most platforms)
         assert original_symbols == SYMBOLS or SYMBOLS["success"] in ("[OK]", "✓")

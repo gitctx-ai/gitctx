@@ -1,8 +1,10 @@
 """Step definitions for search command E2E tests."""
+# ruff: noqa: PLC0415 # Inline imports in BDD steps for clarity
 
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
 import tiktoken
 from pytest_bdd import given, parsers, then, when
@@ -96,9 +98,7 @@ def file_with_tokens(
 
     # Simple strategy: Generate a large text, then trim to exact token count
     # Most ASCII words are 1 token, so we start with a bit more than needed
-    words = []
-    for i in range(token_count + 100):  # Generate more than enough
-        words.append(f"word{i}")
+    words = [f"word{i}" for i in range(token_count + 100)]  # Generate more than enough
 
     # Join and encode
     text = " ".join(words)
@@ -431,7 +431,6 @@ def run_search_n_times(
 @then(parsers.parse("p95 response time should be under {threshold:f} seconds"))
 def p95_under_threshold(threshold: float, context: dict[str, Any]) -> None:
     """Verify p95 latency meets threshold."""
-    import numpy as np
 
     latencies = context.get("latencies")
     assert latencies is not None, "No latencies found. Did 'I run search N times' step run?"

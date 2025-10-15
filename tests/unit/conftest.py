@@ -3,7 +3,9 @@
 This file contains fixtures specific to unit tests that don't require
 subprocess isolation. For E2E fixtures, see tests/e2e/conftest.py.
 """
+# ruff: noqa: PLC0415 # Inline imports in fixtures for test isolation
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -58,7 +60,6 @@ def _get_main_branch_name(repo_path, git_isolation_base) -> str:
     Returns:
         str: Name of the default branch (main, master, trunk, develop, etc.)
     """
-    import subprocess
 
     result = subprocess.run(
         ["git", "branch", "--list"],
@@ -89,7 +90,6 @@ def _create_two_way_merge(repo_path, git_isolation_base, num_commits: int) -> No
         git_isolation_base: Git isolation environment
         num_commits: Total number of commits (for commit message)
     """
-    import subprocess
 
     # Create feature branch from current HEAD
     subprocess.run(
@@ -158,7 +158,6 @@ def _create_octopus_merge(repo_path, git_isolation_base, num_commits: int) -> No
         git_isolation_base: Git isolation environment
         num_commits: Total number of commits (for commit message)
     """
-    import subprocess
 
     # Create feature1 branch
     subprocess.run(
@@ -261,7 +260,6 @@ def _create_fast_forward_merge(repo_path, git_isolation_base) -> None:
         repo_path: Path to git repository
         git_isolation_base: Git isolation environment
     """
-    import subprocess
 
     # Create feature branch
     subprocess.run(
@@ -447,7 +445,6 @@ def partial_clone_repo(tmp_path, git_isolation_base):
     Partial clones have .git/objects/info/alternates file, which indicates
     the repo is missing some objects and relies on a remote.
     """
-    import subprocess
 
     repo_path = tmp_path / "partial_repo"
     repo_path.mkdir()
@@ -476,7 +473,6 @@ def shallow_clone_repo(tmp_path, git_isolation_base):
 
     Shallow clones have .git/shallow file containing SHAs of shallow commits.
     """
-    import subprocess
 
     repo_path = tmp_path / "shallow_repo"
     repo_path.mkdir()
@@ -536,7 +532,6 @@ def shallow_clone_repo(tmp_path, git_isolation_base):
 @pytest.fixture
 def bare_repo(tmp_path, git_isolation_base):
     """Create bare git repository (no working tree) with commits."""
-    import subprocess
 
     # First create a regular repo with commits
     source_repo = tmp_path / "source_repo"
@@ -961,3 +956,80 @@ def test_embedding_vector():
         return np.linspace(0, 1, dimension, dtype=np.float32)
 
     return _make_vector
+
+
+@pytest.fixture
+def mock_search_result_factory():
+    """Factory for creating mock search results with all required fields.
+
+    Provides sensible defaults for all formatter fields while allowing
+    customization for specific test scenarios. Reduces duplication across
+    test files and ensures consistency when result schema changes.
+
+    Returns:
+        callable: Factory function(**kwargs) -> dict[str, Any]
+
+    Usage:
+        def test_formatters(mock_search_result_factory):
+            # Default result
+            result = mock_search_result_factory()
+
+            # Custom values
+            result = mock_search_result_factory(
+                file_path="auth.py",
+                distance=0.95,
+                chunk_content="def authenticate(): pass"
+            )
+
+            # List of results
+            results = [
+                mock_search_result_factory(file_path=f"file{i}.py", distance=i*0.1)
+                for i in range(3)
+            ]
+
+    Available parameters (all optional):
+    - file_path: str = "test.py"
+    - start_line: int = 1
+    - end_line: int | None = None (omitted if None)
+    - distance: float = 0.85
+    - commit_sha: str = "abc1234"
+    - commit_date: int = 1760501897 (Unix timestamp)
+    - author_name: str = "TestAuthor"
+    - commit_message: str = "Test commit"
+    - is_head: bool = True
+    - chunk_content: str = "test content"
+    - language: str = "python"
+    """
+    from typing import Any
+
+    def _make_result(
+        file_path: str = "test.py",
+        start_line: int = 1,
+        end_line: int | None = None,
+        distance: float = 0.85,
+        commit_sha: str = "abc1234",
+        commit_date: int = 1760501897,
+        author_name: str = "TestAuthor",
+        commit_message: str = "Test commit",
+        is_head: bool = True,
+        chunk_content: str = "test content",
+        language: str = "python",
+    ) -> dict[str, Any]:
+        """Generate mock search result with specified fields."""
+        result: dict[str, Any] = {
+            "file_path": file_path,
+            "start_line": start_line,
+            "_distance": distance,
+            "commit_sha": commit_sha,
+            "commit_date": commit_date,
+            "author_name": author_name,
+            "commit_message": commit_message,
+            "is_head": is_head,
+            "chunk_content": chunk_content,
+            "language": language,
+        }
+        if end_line is not None:
+            result["end_line"] = end_line
+        return result
+
+    return _make_result

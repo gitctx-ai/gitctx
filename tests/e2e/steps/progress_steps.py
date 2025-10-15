@@ -19,11 +19,13 @@ See tests/e2e/cassettes/README.md for recording instructions.
 """
 
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
 from pytest_bdd import given, parsers, then, when
 
+from gitctx.cli.main import app
 from gitctx.cli.symbols import SYMBOLS
 
 # ============================================================================
@@ -113,7 +115,6 @@ def setup_empty_repo(e2e_git_repo_factory, context: dict[str, Any]) -> None:
     (repo_path / "test.bin").write_bytes(b"\x00\x01\x02\x03\x04\x05")
 
     # Amend the commit to include binary file
-    import subprocess
 
     subprocess.run(
         ["git", "add", "test.bin"],
@@ -150,7 +151,6 @@ def run_index_dry_run(e2e_cli_runner, context: dict[str, Any], monkeypatch) -> N
         context: BDD context fixture
         monkeypatch: pytest monkeypatch for directory changes
     """
-    from gitctx.cli.main import app
 
     repo_path = context["repo_path"]
     original_cwd = Path.cwd()

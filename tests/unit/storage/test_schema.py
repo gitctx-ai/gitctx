@@ -6,10 +6,11 @@ They define the expected behavior of CodeChunkRecord and CHUNK_SCHEMA.
 
 import pyarrow as pa
 
+from gitctx.storage.schema import CHUNK_SCHEMA, SCHEMA_VERSION, CodeChunkRecord
+
 
 def test_code_chunk_record_has_19_fields():
     """CodeChunkRecord defines exactly 19 fields."""
-    from gitctx.storage.schema import CodeChunkRecord
 
     fields = CodeChunkRecord.model_fields
     assert len(fields) == 19, f"Expected 19 fields, got {len(fields)}"
@@ -17,7 +18,6 @@ def test_code_chunk_record_has_19_fields():
 
 def test_code_chunk_record_vector_dimension():
     """Vector field is 3072-dimensional (text-embedding-3-large)."""
-    from gitctx.storage.schema import CodeChunkRecord
 
     # LanceDB Vector fields are defined with dimension parameter
     # We verify the vector field exists and has correct annotation
@@ -27,7 +27,6 @@ def test_code_chunk_record_vector_dimension():
 
 def test_pyarrow_schema_matches_pydantic():
     """PyArrow CHUNK_SCHEMA matches CodeChunkRecord fields."""
-    from gitctx.storage.schema import CHUNK_SCHEMA, CodeChunkRecord
 
     pydantic_fields = set(CodeChunkRecord.model_fields.keys())
     pyarrow_fields = {f.name for f in CHUNK_SCHEMA}
@@ -41,7 +40,6 @@ def test_pyarrow_schema_matches_pydantic():
 
 def test_code_chunk_record_field_types():
     """CodeChunkRecord has correct field types (str, int, bool)."""
-    from gitctx.storage.schema import CodeChunkRecord
 
     fields = CodeChunkRecord.model_fields
 
@@ -84,7 +82,6 @@ def test_code_chunk_record_field_types():
 
 def test_chunk_schema_vector_field_is_list_of_float32():
     """PyArrow CHUNK_SCHEMA vector field is list<float32> with 3072 items."""
-    from gitctx.storage.schema import CHUNK_SCHEMA
 
     vector_field = CHUNK_SCHEMA.field("vector")
     # PyArrow creates a FixedSizeListType for list_(type, size)
@@ -99,14 +96,12 @@ def test_chunk_schema_vector_field_is_list_of_float32():
 
 def test_schema_version_constant_exists():
     """SCHEMA_VERSION constant exists and equals 1."""
-    from gitctx.storage.schema import SCHEMA_VERSION
 
     assert SCHEMA_VERSION == 1, f"Expected SCHEMA_VERSION=1, got {SCHEMA_VERSION}"
 
 
 def test_code_chunk_record_can_instantiate():
     """CodeChunkRecord can be instantiated with valid data."""
-    from gitctx.storage.schema import CodeChunkRecord
 
     # Create a minimal valid record
     record = CodeChunkRecord(

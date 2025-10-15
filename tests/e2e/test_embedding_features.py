@@ -13,7 +13,7 @@ from tests.e2e.steps.cli_steps import (  # noqa: F401
 )
 
 # Import all embedding step definitions
-from tests.e2e.steps.test_embedding import *  # noqa: F401, F403
+from tests.e2e.steps.test_embedding import *  # noqa: F403
 
 # Mark all tests in this module with anyio and vcr
 # - anyio: Enable event loop for async step functions

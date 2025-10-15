@@ -1,5 +1,6 @@
 """Unit tests for embedding orchestration helpers."""
 
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
@@ -232,7 +233,6 @@ class TestEmbedWithCache:
         When: I call embed_with_cache
         Then: Appropriate log messages are generated
         """
-        import logging
 
         caplog.set_level(logging.INFO, logger="gitctx.embeddings")
 

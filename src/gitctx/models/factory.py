@@ -1,4 +1,5 @@
 """Provider factory for model selection."""
+# ruff: noqa: PLC0415 # Dynamic provider loading to avoid importing all providers upfront
 
 from __future__ import annotations
 

@@ -4,17 +4,21 @@ Test E2E fixtures defined in tests/e2e/conftest.py.
 CRITICAL: These tests verify security isolation is working.
 When adding new E2E fixtures, add tests here.
 """
+# ruff: noqa: PLC0415 # Inline imports for fixture testing
 
 import os
+import platform
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
+from tests.conftest import get_platform_null_device, get_platform_ssh_command
+
 
 def test_e2e_git_isolation_env_security(e2e_git_isolation_env: dict[str, str]) -> None:
     """Verify environment has all security isolation vars."""
-    from tests.conftest import get_platform_null_device, get_platform_ssh_command
 
     # Platform-specific expectations
     expected_ssh_cmd = get_platform_ssh_command()
@@ -51,11 +55,11 @@ def test_e2e_git_isolation_prevents_ssh(e2e_git_isolation_env: dict[str, str]) -
     On Windows, SSH may not be available or may timeout (expected behavior).
     On Unix, it should fail immediately with our blocked command.
     """
-    import platform
 
     try:
         result = subprocess.run(
             ["ssh", "-T", "git@github.com"],
+            check=False,
             env=e2e_git_isolation_env,
             capture_output=True,
             timeout=2,
@@ -80,6 +84,7 @@ def test_e2e_git_init_works_with_isolation(
     # Git init should work even with isolation
     result = subprocess.run(
         ["git", "init"],
+        check=False,
         cwd=test_repo,
         env=e2e_git_isolation_env,
         capture_output=True,
@@ -125,6 +130,7 @@ def test_e2e_git_commit_works_with_isolation(
 
     result = subprocess.run(
         ["git", "commit", "-m", "Test commit"],
+        check=False,
         cwd=test_repo,
         env=e2e_git_isolation_env,
         capture_output=True,
@@ -144,6 +150,7 @@ def test_e2e_gpg_keys_not_accessible(e2e_git_isolation_env: dict[str, str]) -> N
     """
     result = subprocess.run(
         ["gpg", "--list-secret-keys", "--batch", "--no-tty"],
+        check=False,
         env=e2e_git_isolation_env,
         capture_output=True,
         text=True,
@@ -173,11 +180,11 @@ def test_e2e_gitctx_subprocess_isolation(e2e_git_isolation_env: dict[str, str]) 
     This test ensures that when we run gitctx commands in E2E tests,
     they execute with complete isolation from the host environment.
     """
-    import sys
 
     # Run gitctx --version as subprocess with isolation
     result = subprocess.run(
         [sys.executable, "-m", "gitctx", "--version"],
+        check=False,
         env=e2e_git_isolation_env,
         capture_output=True,
         text=True,
@@ -199,7 +206,6 @@ def test_e2e_cli_runner_has_isolation(e2e_cli_runner) -> None:
     NOTE: CliRunner runs in-process, so this is less secure than subprocess.
     Prefer using subprocess.run() for true E2E isolation.
     """
-    from tests.conftest import get_platform_ssh_command
 
     # The env should be set on the runner
     assert e2e_cli_runner.env is not None
@@ -228,12 +234,14 @@ def test_e2e_git_repo_cannot_push(
     # Try to add a remote and push
     subprocess.run(
         ["git", "remote", "add", "origin", "git@github.com:test/test.git"],
+        check=False,
         cwd=e2e_git_repo,
         env=e2e_git_isolation_env,
     )
 
     result = subprocess.run(
         ["git", "push", "origin", "main"],
+        check=False,
         cwd=e2e_git_repo,
         env=e2e_git_isolation_env,
         capture_output=True,
@@ -289,11 +297,11 @@ def test_e2e_indexed_repo_structure(e2e_indexed_repo: Path):
 
 def test_e2e_indexed_repo_isolation(e2e_indexed_repo: Path, e2e_git_isolation_env: dict[str, str]):
     """SECURITY: Verify indexed repo used isolated environment."""
-    import subprocess
 
     # Try to add remote
     subprocess.run(
         ["git", "remote", "add", "origin", "git@github.com:test/test.git"],
+        check=False,
         cwd=e2e_indexed_repo,
         env=e2e_git_isolation_env,
     )
@@ -301,6 +309,7 @@ def test_e2e_indexed_repo_isolation(e2e_indexed_repo: Path, e2e_git_isolation_en
     # Try to push (should fail due to SSH blocking)
     result = subprocess.run(
         ["git", "push", "origin", "main"],
+        check=False,
         cwd=e2e_indexed_repo,
         env=e2e_git_isolation_env,
         capture_output=True,
@@ -325,7 +334,6 @@ def test_e2e_indexed_repo_uses_same_runner(
 
 def test_e2e_indexed_repo_no_side_effects(e2e_indexed_repo: Path, tmp_path: Path):
     """Verify using fixture doesn't pollute working directory."""
-    import os
 
     cwd = Path(os.getcwd())
     # Should be in tmp_path due to autouse fixture
@@ -367,13 +375,13 @@ def test_e2e_indexed_repo_factory_multiple_calls(e2e_indexed_repo_factory):
 
 def test_e2e_indexed_repo_factory_num_commits(e2e_indexed_repo_factory, monkeypatch):
     """Verify factory respects num_commits parameter."""
-    import subprocess
 
     repo = e2e_indexed_repo_factory(num_commits=5, monkeypatch=monkeypatch)
 
     # Count commits
     result = subprocess.run(
         ["git", "rev-list", "--count", "HEAD"],
+        check=False,
         cwd=repo,
         capture_output=True,
         text=True,
@@ -384,13 +392,13 @@ def test_e2e_indexed_repo_factory_num_commits(e2e_indexed_repo_factory, monkeypa
 
 def test_e2e_indexed_repo_factory_branches(e2e_indexed_repo_factory):
     """Verify factory creates requested branches."""
-    import subprocess
 
     repo = e2e_indexed_repo_factory(branches=["feature1", "feature2"])
 
     # List branches
     result = subprocess.run(
         ["git", "branch"],
+        check=False,
         cwd=repo,
         capture_output=True,
         text=True,
@@ -411,6 +419,7 @@ def test_e2e_indexed_repo_factory_no_ssh_keys(
     # Try SSH operation in repo's isolated environment
     result = subprocess.run(
         ["ssh", "-T", "git@github.com"],
+        check=False,
         cwd=repo,
         env=e2e_git_isolation_env,
         capture_output=True,
@@ -421,7 +430,6 @@ def test_e2e_indexed_repo_factory_no_ssh_keys(
 
 def test_e2e_indexed_repo_factory_no_directory_pollution(e2e_indexed_repo_factory, tmp_path: Path):
     """Verify factory doesn't change caller's working directory."""
-    import os
 
     cwd_before = Path(os.getcwd())
     _ = e2e_indexed_repo_factory()

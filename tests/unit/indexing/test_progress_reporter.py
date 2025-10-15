@@ -2,13 +2,15 @@
 
 from unittest.mock import patch
 
+from gitctx.cli.symbols import SYMBOLS
+from gitctx.indexing.progress import IndexingStats, ProgressReporter
+
 
 class TestIndexingStats:
     """Test IndexingStats dataclass."""
 
     def test_elapsed_seconds(self):
         """Test elapsed_seconds() returns correct time delta."""
-        from gitctx.indexing.progress import IndexingStats
 
         # Create stats with mocked start time
         with patch("time.time") as mock_time:
@@ -24,7 +26,6 @@ class TestIndexingStats:
 
     def test_initial_values(self):
         """Test IndexingStats initializes with zero values."""
-        from gitctx.indexing.progress import IndexingStats
 
         stats = IndexingStats()
         assert stats.total_commits == 0
@@ -41,8 +42,6 @@ class TestProgressReporterTerse:
 
     def test_reporter_initialization(self):
         """Test ProgressReporter initializes with platform-appropriate symbols."""
-        from gitctx.cli.symbols import SYMBOLS
-        from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter(verbose=False)
 
@@ -52,7 +51,6 @@ class TestProgressReporterTerse:
 
     def test_terse_mode_output(self, capsys):
         """Test terse mode produces single-line summary."""
-        from gitctx.indexing.progress import ProgressReporter
 
         # Create reporter in terse mode
         reporter = ProgressReporter(verbose=False)
@@ -79,7 +77,6 @@ class TestProgressReporterTerse:
 
     def test_terse_mode_shows_errors(self, capsys):
         """Test terse mode displays error count."""
-        from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter(verbose=False)
 
@@ -100,7 +97,6 @@ class TestProgressReporterTerse:
 
     def test_empty_repo_no_division_error(self, capsys):
         """Test terse mode handles zero values gracefully."""
-        from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter(verbose=False)
 
@@ -123,8 +119,6 @@ class TestProgressReporterVerbose:
 
     def test_verbose_mode_shows_phases(self, capsys):
         """Test verbose mode displays phase markers."""
-        from gitctx.cli.symbols import SYMBOLS
-        from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter(verbose=True)
 
@@ -160,7 +154,6 @@ class TestProgressReporterVerbose:
 
     def test_verbose_mode_milestone_progress(self, capsys):
         """Test verbose mode shows milestone progress."""
-        from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter(verbose=True)
 
@@ -188,7 +181,6 @@ class TestProgressReporterErrorTracking:
 
     def test_error_counting(self):
         """Test record_error() increments error counter."""
-        from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter()
 
@@ -203,7 +195,6 @@ class TestProgressReporterErrorTracking:
 
     def test_errors_displayed_in_summary(self, capsys):
         """Test errors shown in final summary."""
-        from gitctx.indexing.progress import ProgressReporter
 
         reporter = ProgressReporter(verbose=False)
 

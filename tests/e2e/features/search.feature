@@ -88,7 +88,7 @@ Feature: Query Embedding for Semantic Search
   Scenario: Search with result limit
     Given an indexed repository with 20+ chunks containing "database" keyword
     And environment variable "OPENAI_API_KEY" is "$ENV"
-    When I run "gitctx search database --limit 5"
+    When I run "gitctx search database --limit 5 --min-similarity -1.0"
     Then the exit code should be 0
     And exactly 5 results should be shown
 
@@ -134,3 +134,72 @@ Feature: Query Embedding for Semantic Search
     When I run search 100 times with query "authentication"
     Then p95 response time should be under 2.0 seconds
     And all requests should complete within 5.0 seconds
+
+  # STORY-0001.3.3: Result Formatting & Output scenarios below
+
+  @formatting
+  Scenario: Default terse output format
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search authentication --min-similarity -1.0"
+    Then the exit code should be 0
+    And each line should match pattern: ".*:\d+:\d\.\d\d .*"
+    And output should contain commit SHA
+    And output should contain author name
+    And output should contain commit date
+    And output should contain results summary: "{N} results in {X.XX}s"
+
+  @formatting
+  Scenario: HEAD commit marked with symbol
+    Given an indexed repository with HEAD and historic commits
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search authentication --min-similarity -1.0"
+    Then the exit code should be 0
+    And HEAD results should show "●" or "[HEAD]" marker
+    And historic results should have no marker
+
+  @formatting
+  Scenario: Verbose output with syntax highlighting
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search authentication --verbose --min-similarity -1.0"
+    Then the exit code should be 0
+    And output should contain syntax-highlighted code blocks
+    And code blocks should show line numbers
+    And output should contain file paths with line ranges
+
+  @formatting
+  Scenario: MCP output with structured markdown
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search authentication --mcp --min-similarity -1.0"
+    Then the exit code should be 0
+    And output should start with "---"
+    And output should contain "results:"
+    And YAML frontmatter should parse successfully
+    And YAML should contain "file_path" keys
+    And output should contain code blocks with language tags
+
+  @formatting
+  Scenario: Zero results display
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search nonexistent_xyz_function"
+    Then the exit code should be 0
+    And the output should contain "0 results in"
+
+  @formatting
+  Scenario: Conflicting output flags rejected
+    Given an indexed repository
+    When I run "gitctx search test --mcp --verbose"
+    Then the exit code should be 2
+    And the output should contain "Error"
+    And the output should contain "mutually exclusive"
+
+  @formatting
+  Scenario: Unknown language fallback to markdown
+    Given an indexed repository with unknown file type (.xyz)
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search test --verbose --min-similarity -1.0"
+    Then syntax highlighting should use "markdown" language
+    And code should still be displayed with formatting

@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import pygit2
 from pytest_bdd import given, parsers, then, when
 
 from gitctx.config.settings import GitCtxSettings
@@ -225,7 +226,6 @@ def verify_file_in_parents(context: dict[str, Any], filename: str) -> None:
     """Verify file exists in merge commit parents."""
     # This is satisfied by the merge setup above
     # feature.py will be in the merge commit after merge
-    pass
 
 
 @then("the merge commit should be detected")
@@ -234,11 +234,7 @@ def check_merge_commit_detected(context: dict[str, Any]) -> None:
     blobs: list[BlobRecord] = context["blobs"]
 
     # Check that at least one blob has a location with is_merge=True
-    merge_locations = []
-    for blob in blobs:
-        for loc in blob.locations:
-            if loc.is_merge:
-                merge_locations.append(loc)
+    merge_locations = [loc for blob in blobs for loc in blob.locations if loc.is_merge]
 
     assert len(merge_locations) > 0, "No merge commit detected"
 
@@ -263,7 +259,6 @@ def check_parent_relationships(context: dict[str, Any]) -> None:
     """Verify parent relationships are preserved in metadata."""
     # The is_merge flag indicates parent count > 1
     # This is already verified by check_merge_commit_detected
-    pass
 
 
 # ===== Scenario: HEAD blob filtering =====
@@ -622,7 +617,6 @@ def mark_commits_indexed(context: dict[str, Any], start: int, end: int) -> None:
     all_commits = result.stdout.strip().split("\n")
 
     # Collect blobs from commits start-end (1-indexed)
-    import pygit2
 
     repo = pygit2.Repository(str(repo_path))
     already_indexed = set()
@@ -837,7 +831,6 @@ def check_total_commits(context: dict[str, Any]) -> None:
     """Verify total commit count is reported."""
     # Total commits is None during walk (unknown total)
     # This is acceptable behavior
-    pass
 
 
 @then("processed commit count should increment")

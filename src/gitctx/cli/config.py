@@ -17,7 +17,7 @@ console_err = Console(stderr=True)
 config_app = typer.Typer(help="Manage gitctx configuration")
 
 
-def _translate_validation_error(e: ValidationError, key: str, value: str) -> str:
+def _translate_validation_error(e: ValidationError, key: str, value: str) -> str:  # noqa: PLR0911
     """Translate Pydantic ValidationError to user-friendly message.
 
     Args:
@@ -89,7 +89,8 @@ def config_init(
                 console.print("  1. Set your API key: gitctx config set api_keys.openai sk-...")
                 console.print("  2. Index your repo: gitctx index")
                 console.print(
-                    "  3. Commit to share: git add .gitctx/ && git commit -m 'chore: Add gitctx embeddings'"
+                    "  3. Commit to share: git add .gitctx/ && "
+                    "git commit -m 'chore: Add gitctx embeddings'"
                 )
 
             # First-run tip (only once)
@@ -153,7 +154,8 @@ def config_set(
         raise typer.Exit(2) from e
     except FileNotFoundError as e:
         console_err.print(
-            f"[red]{SYMBOLS['error']}[/red] Error: Run 'gitctx config init' first to create .gitctx/"
+            f"[red]{SYMBOLS['error']}[/red] Error: "
+            "Run 'gitctx config init' first to create .gitctx/"
         )
         raise typer.Exit(1) from e
     except Exception as e:
@@ -294,9 +296,8 @@ def config_list(
         elif verbose:
             # Verbose: show ALL sources (including defaults)
             console.print(f"{key}={value} {source}")
+        # Default: only show source if non-default (TUI_GUIDE.md compliance)
+        elif source and "(default)" not in source.lower():
+            console.print(f"{key}={value} {source}")
         else:
-            # Default: only show source if non-default (TUI_GUIDE.md compliance)
-            if source and "(default)" not in source.lower():
-                console.print(f"{key}={value} {source}")
-            else:
-                console.print(f"{key}={value}")
+            console.print(f"{key}={value}")

@@ -1,4 +1,5 @@
 """Index command for gitctx CLI."""
+# ruff: noqa: PLC0415 # Inline imports for fast --version startup (lazy load indexing pipeline)
 
 import asyncio
 from pathlib import Path
@@ -25,7 +26,7 @@ def index_command(
         "-q",
         help="Suppress all output except errors",
     ),
-    _force: bool = typer.Option(  # noqa: ARG001 - Reserved for future use
+    _force: bool = typer.Option(
         False,
         "--force",
         "-f",

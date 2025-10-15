@@ -1,7 +1,11 @@
 """Unit tests for git protocols."""
 
+import inspect
+from collections.abc import Iterator
+
 from gitctx.config.settings import GitCtxSettings
 from gitctx.git.protocols import CommitWalkerProtocol
+from gitctx.git.types import WalkStats
 from gitctx.git.walker import CommitWalker
 
 
@@ -25,7 +29,6 @@ class TestCommitWalkerProtocol:
 
     def test_walk_blobs_signature(self):
         """walk_blobs method has correct signature."""
-        import inspect
 
         # Get the method from protocol
         walk_blobs = CommitWalkerProtocol.walk_blobs
@@ -39,7 +42,6 @@ class TestCommitWalkerProtocol:
 
     def test_get_stats_signature(self):
         """get_stats method has correct signature."""
-        import inspect
 
         # Get the method from protocol
         get_stats = CommitWalkerProtocol.get_stats
@@ -78,9 +80,6 @@ class TestCommitWalkerProtocol:
         stats = walker.get_stats()
 
         # Assert - return types match protocol specification
-        from collections.abc import Iterator
-
-        from gitctx.git.types import WalkStats
 
         assert isinstance(blobs_iter, Iterator)
         assert isinstance(stats, WalkStats)

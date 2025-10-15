@@ -29,12 +29,12 @@ def test_get_model_spec_invalid_model() -> None:
 
 def test_error_message_lists_supported() -> None:
     """Test that error message lists all supported models."""
-    try:
+    with pytest.raises(ValueError, match="Unsupported model") as exc_info:
         get_model_spec("invalid")
-        pytest.fail("Expected ValueError to be raised")
-    except ValueError as e:
-        assert "text-embedding-3-large" in str(e)
-        assert "text-embedding-3-small" in str(e)
+
+    error_msg = str(exc_info.value)
+    assert "text-embedding-3-large" in error_msg
+    assert "text-embedding-3-small" in error_msg
 
 
 def test_models_registry_has_expected_structure() -> None:
@@ -43,7 +43,7 @@ def test_models_registry_has_expected_structure() -> None:
     assert len(MODELS) >= 2  # At least 2 models defined
 
     # Verify all models have required fields
-    for _model_name, spec in MODELS.items():
+    for spec in MODELS.values():
         assert "dimensions" in spec
         assert "max_tokens" in spec
         assert "provider" in spec

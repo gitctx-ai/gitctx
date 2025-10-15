@@ -48,9 +48,10 @@ def format_duration(seconds: float) -> str:
     Returns:
         Formatted duration string
     """
-    if seconds < 60:
+    SECONDS_PER_MINUTE = 60
+    if seconds < SECONDS_PER_MINUTE:
         return f"{seconds:.1f}s"
 
-    minutes = int(seconds // 60)
-    remaining_seconds = int(seconds % 60)
+    minutes = int(seconds // SECONDS_PER_MINUTE)
+    remaining_seconds = int(seconds % SECONDS_PER_MINUTE)
     return f"{minutes}m {remaining_seconds}s"

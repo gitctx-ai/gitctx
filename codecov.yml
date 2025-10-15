@@ -18,6 +18,16 @@ coverage:
         target: 90%       # New code should have high coverage
         threshold: 5%     # Allow 5% flexibility for edge cases (platform-specific branches, etc.)
 
+# Multi-platform coverage flags
+# Merge coverage from all 3 OSes to capture platform-specific code paths
+flags:
+  ubuntu-latest:
+    carryforward: true
+  macos-latest:
+    carryforward: true
+  windows-latest:
+    carryforward: true
+
 # Pull request comment configuration
 # Shows coverage changes to help reviewers understand impact
 comment:

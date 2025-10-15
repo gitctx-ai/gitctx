@@ -7,8 +7,10 @@ Precedence:
 - User config: OPENAI_API_KEY env var > ~/.gitctx/config.yml > defaults
 - Repo config: GITCTX_* env vars > .gitctx/config.yml > defaults
 """
+# ruff: noqa: PLC0415 # Conditional imports for config validation (avoid circular imports)
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -52,8 +54,9 @@ class MaskedSecretStr(SecretStr):
         Returns:
             Masked string in format 'abc...xyz' if length > 6, else '***'
         """
+        MIN_MASK_LENGTH = 6  # Minimum length for partial masking
         value = self.get_secret_value()
-        if len(value) > 6:
+        if len(value) > MIN_MASK_LENGTH:
             return f"{value[:3]}...{value[-3:]}"
         return "***"
 
@@ -81,9 +84,9 @@ class ProviderEnvSource(PydanticBaseSettingsSource):
     """Custom source for OPENAI_API_KEY env var."""
 
     def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
-        """This method is required by Pydantic's settings source interface, but is not used in this custom source.
+        """This method is required by Pydantic's settings source interface.
 
-        Only the __call__ method is invoked by Pydantic when loading settings from this source.
+        Not used in this custom source. Only __call__ is invoked by Pydantic.
         See: https://docs.pydantic.dev/latest/concepts/settings/#customise-sources
         """
         raise NotImplementedError()
@@ -97,15 +100,19 @@ class ProviderEnvSource(PydanticBaseSettingsSource):
 
 
 class UserConfig(BaseSettings):
-    """User config (~/.gitctx/config.yml) - API keys only.
+    """User config (~/.gitctx/config.yml) - API keys and preferences.
 
     Precedence:
-    1. OPENAI_API_KEY env var (highest)
+    1. OPENAI_API_KEY env var (highest for API keys)
     2. User YAML file
     3. Defaults
     """
 
     api_keys: ApiKeys = Field(default_factory=ApiKeys)
+    theme: str = Field(
+        default="monokai",
+        description="Syntax highlighting theme for verbose output (monokai, github-dark, etc.)",
+    )
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
@@ -124,6 +131,7 @@ class UserConfig(BaseSettings):
         """Customize settings sources to support OPENAI_API_KEY precedence."""
         # Create YAML source with dynamic path
         yaml_file = _get_user_home() / ".gitctx" / "config.yml"
+        yaml_source: Callable[[], dict[str, Any]]
         if yaml_file.exists():
             # Check file permissions for security
             stat = yaml_file.stat()
@@ -142,11 +150,7 @@ class UserConfig(BaseSettings):
 
             yaml_source = YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file)
         else:
-
-            def empty_source() -> dict[str, Any]:
-                return {}
-
-            yaml_source = empty_source  # type: ignore[assignment]
+            yaml_source = lambda: {}  # noqa: E731,PIE807 # Pydantic requires callable, not bare dict
 
         return (
             init_settings,
@@ -155,11 +159,13 @@ class UserConfig(BaseSettings):
         )
 
     def save(self) -> None:
-        """Save API keys to user config file."""
+        """Save user config to file."""
         config_path = _get_user_home() / ".gitctx" / "config.yml"
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        data = {}
+        data: dict[str, Any] = {}
+
+        # Save API keys
         if self.api_keys.openai is not None:
             # Handle both SecretStr and plain string (str accepted via validation)
             if isinstance(self.api_keys.openai, SecretStr):
@@ -167,6 +173,11 @@ class UserConfig(BaseSettings):
             else:
                 openai_value = str(self.api_keys.openai)
             data["api_keys"] = {"openai": openai_value}
+
+        # Save theme only if non-default
+        default_theme = UserConfig.model_fields["theme"].default
+        if self.theme != default_theme:
+            data["theme"] = self.theme
 
         # Secure permissions
         old_umask = os.umask(0o077)
@@ -284,14 +295,22 @@ class RepoConfig(BaseSettings):
 
         # Create YAML source with dynamic path
         yaml_file = Path(".gitctx/config.yml")
-        if yaml_file.exists():
-            yaml_source = YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file)
+        try:
+            file_exists = yaml_file.exists()
+        except PermissionError:
+            # If we can't check existence (e.g., read-only directory), treat as non-existent
+            # The actual PermissionError will be raised when trying to save later
+            file_exists = False
+
+        yaml_source: Callable[[], dict[str, Any]]
+        if file_exists:
+            try:
+                yaml_source = YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file)
+            except PermissionError:
+                # Can't read config file, use defaults (will fail later on save)
+                yaml_source = lambda: {}  # noqa: E731,PIE807 # Pydantic requires callable, not bare dict
         else:
-
-            def empty_source() -> dict[str, Any]:
-                return {}
-
-            yaml_source = empty_source  # type: ignore[assignment]
+            yaml_source = lambda: {}  # noqa: E731,PIE807 # Pydantic requires callable, not bare dict
 
         return (
             init_settings,
@@ -421,8 +440,9 @@ class GitCtxSettings:
 
     def _set_in_repo(self, key: str, value: Any) -> None:
         """Set value in repo config with Pydantic validation."""
+        REPO_KEY_PARTS = 2  # Expected parts: section.field
         parts = key.split(".")
-        if len(parts) != 2:
+        if len(parts) != REPO_KEY_PARTS:
             raise AttributeError(f"Invalid repo config key: {key}")
 
         section, field = parts

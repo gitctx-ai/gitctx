@@ -1,4 +1,5 @@
 """Unit tests for query embedding generation."""
+# ruff: noqa: PLC0415 # Inline imports for test isolation
 
 from __future__ import annotations
 
@@ -8,13 +9,13 @@ import numpy as np
 import openai
 import pytest
 
+from gitctx.search.embeddings import QueryEmbedder
 from gitctx.search.errors import EmbeddingError, ValidationError
 from gitctx.storage.lancedb_store import LanceDBStore
 
 
 def test_empty_query_raises_validation_error(settings: Mock, store: LanceDBStore) -> None:
     """Test that empty query raises ValidationError."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     embedder = QueryEmbedder(settings, store)
     with pytest.raises(ValidationError, match="Query cannot be empty"):
@@ -23,7 +24,6 @@ def test_empty_query_raises_validation_error(settings: Mock, store: LanceDBStore
 
 def test_whitespace_only_query_raises_validation_error(settings: Mock, store: LanceDBStore) -> None:
     """Test that whitespace-only query raises ValidationError."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     embedder = QueryEmbedder(settings, store)
     with pytest.raises(ValidationError, match="whitespace only"):
@@ -32,7 +32,6 @@ def test_whitespace_only_query_raises_validation_error(settings: Mock, store: La
 
 def test_token_limit_exceeded_raises_validation_error(settings: Mock, store: LanceDBStore) -> None:
     """Test that token limit exceeded raises ValidationError."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     embedder = QueryEmbedder(settings, store)
     long_query = "word " * 10000  # Exceeds 8191 tokens
@@ -44,7 +43,6 @@ def test_token_limit_exceeded_raises_validation_error(settings: Mock, store: Lan
 
 def test_valid_query_passes_validation(settings: Mock, test_embedding_vector) -> None:
     """Test that valid query passes validation and returns embedding."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store with cache methods
     mock_store = Mock()
@@ -73,7 +71,6 @@ def test_valid_query_passes_validation(settings: Mock, test_embedding_vector) ->
 
 def test_cache_hit_skips_api_call(settings: Mock, test_embedding_vector) -> None:
     """Test that cache hit skips API call."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store with cached embedding
     mock_store = Mock()
@@ -91,7 +88,6 @@ def test_cache_hit_skips_api_call(settings: Mock, test_embedding_vector) -> None
 
 def test_cache_miss_calls_api(settings: Mock, test_embedding_vector) -> None:
     """Test that cache miss calls API."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store with no cached embedding
     mock_store = Mock()
@@ -115,7 +111,6 @@ def test_cache_miss_calls_api(settings: Mock, test_embedding_vector) -> None:
 
 def test_generated_embedding_cached(settings: Mock, test_embedding_vector) -> None:
     """Test that generated embedding is cached."""
-    from gitctx.search.embeddings import QueryEmbedder
 
     # Mock store
     mock_store = Mock()
@@ -140,7 +135,7 @@ def test_generated_embedding_cached(settings: Mock, test_embedding_vector) -> No
 
 
 @pytest.mark.parametrize(
-    "exception,expected_message",
+    ("exception", "expected_message"),
     [
         (
             openai.RateLimitError(
@@ -196,4 +191,86 @@ def test_api_errors_transformed(
             embedder = QueryEmbedder(settings, mock_store)
 
             with pytest.raises(EmbeddingError, match=expected_message):
+                embedder.embed_query("test query")
+
+
+def test_authentication_error_transformation(settings: Mock) -> None:
+    """Test that AuthenticationError is transformed to EmbeddingError."""
+
+    # Mock store with no cache
+    mock_store = Mock()
+    mock_store.get_query_embedding.return_value = None
+
+    # Create AuthenticationError
+    auth_error = openai.AuthenticationError(
+        message="Invalid API key",
+        response=Mock(status_code=401),
+        body=None,
+    )
+
+    # Mock embedder to raise AuthenticationError
+    with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
+        mock_embedder = Mock()
+        mock_embedder.embed_query.side_effect = auth_error
+        MockProvider.return_value = mock_embedder
+
+        with patch("gitctx.models.factory.get_embedder", return_value=mock_embedder):
+            embedder = QueryEmbedder(settings, mock_store)
+
+            # ASSERT - Transformed to EmbeddingError with user-friendly message
+            with pytest.raises(EmbeddingError, match="API key rejected"):
+                embedder.embed_query("test query")
+
+
+def test_non_5xx_api_status_error_reraise(settings: Mock) -> None:
+    """Test that non-5xx APIStatusError is re-raised unchanged."""
+
+    # Mock store with no cache
+    mock_store = Mock()
+    mock_store.get_query_embedding.return_value = None
+
+    # Create 400 Bad Request error (client error, not server error)
+    client_error = openai.APIStatusError(
+        message="Bad request",
+        response=Mock(status_code=400),
+        body=None,
+    )
+
+    # Mock embedder to raise client error
+    with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
+        mock_embedder = Mock()
+        mock_embedder.embed_query.side_effect = client_error
+        MockProvider.return_value = mock_embedder
+
+        with patch("gitctx.models.factory.get_embedder", return_value=mock_embedder):
+            embedder = QueryEmbedder(settings, mock_store)
+
+            # ASSERT - Re-raised as APIStatusError (not transformed)
+            with pytest.raises(openai.APIStatusError):
+                embedder.embed_query("test query")
+
+
+def test_generic_exception_catchall(settings: Mock) -> None:
+    """Test that unexpected exceptions are caught and transformed."""
+
+    # Mock store with no cache
+    mock_store = Mock()
+    mock_store.get_query_embedding.return_value = None
+
+    # Create unexpected error
+    unexpected_error = ValueError("Something unexpected happened")
+
+    # Mock embedder to raise unexpected error
+    with patch("gitctx.models.providers.openai.OpenAIProvider") as MockProvider:
+        mock_embedder = Mock()
+        mock_embedder.embed_query.side_effect = unexpected_error
+        MockProvider.return_value = mock_embedder
+
+        with patch("gitctx.models.factory.get_embedder", return_value=mock_embedder):
+            embedder = QueryEmbedder(settings, mock_store)
+
+            # ASSERT - Transformed to EmbeddingError with original message
+            with pytest.raises(
+                EmbeddingError, match="Unexpected error during embedding generation"
+            ):
                 embedder.embed_query("test query")

@@ -1,4 +1,5 @@
 """Main CLI application."""
+# ruff: noqa: PLC0415, PLR0913 # Inline imports for fast --version; CLI commands need many options
 
 from typing import Annotated
 
@@ -97,6 +98,24 @@ def search_command_wrapper(
         min=1,
         max=100,
     ),
+    min_similarity: float = typer.Option(
+        0.5,
+        "--min-similarity",
+        "-s",
+        help=(
+            "Minimum similarity score (-1.0 to 1.0) for context engineering quality. "
+            "Default: 0.5 (balanced). Use 0.7 for high precision, "
+            "-1.0 to see all results (including opposite meaning)."
+        ),
+        min=-1.0,
+        max=1.0,
+        rich_help_panel="Result Filtering",
+    ),
+    output_format: str | None = typer.Option(
+        None,
+        "--format",
+        help="Output format (terse, verbose, mcp)",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -108,11 +127,28 @@ def search_command_wrapper(
         "--mcp",
         help="Output structured markdown for AI consumption",
     ),
+    theme: str | None = typer.Option(
+        None,
+        "--theme",
+        help=(
+            "Syntax highlighting theme (monokai, github-dark, solarized-light, etc.). "
+            "Overrides user config."
+        ),
+        rich_help_panel="Output Formatting",
+    ),
 ) -> None:
     """Search the indexed repository for relevant code."""
     from gitctx.cli.search import search_command
 
-    search_command(query=query, limit=limit, verbose=verbose, mcp=mcp)
+    search_command(
+        query=query,
+        limit=limit,
+        min_similarity=min_similarity,
+        output_format=output_format,
+        verbose=verbose,
+        mcp=mcp,
+        theme=theme,
+    )
 
 
 def _register_config_commands() -> None:

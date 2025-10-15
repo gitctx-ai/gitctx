@@ -6,6 +6,7 @@ Validates that all components work together correctly.
 
 import os
 import re
+from pathlib import Path
 
 import pytest
 
@@ -25,7 +26,6 @@ def test_full_pipeline_index_then_search(context, request):
     This test verifies the complete E2E workflow but is skipped in regular CI until
     cassettes are recorded and committed.
     """
-    from pathlib import Path
 
     # CRITICAL: Read API key BEFORE loading any fixtures that might clear it
     # Use `or` to handle both None and empty string -> defaults to test key for VCR

@@ -80,18 +80,25 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "B",    # flake8-bugbear
-    "C4",   # flake8-comprehensions
-    "UP",   # pyupgrade
-    "ARG",  # flake8-unused-arguments
-    "SIM",  # flake8-simplify
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade
+    "ARG",   # flake8-unused-arguments
+    "SIM",   # flake8-simplify
+    "PLC",   # Pylint conventions
+    "PLW",   # Pylint warnings
+    "PLR",   # Pylint refactor
+    "RUF",   # Ruff-specific rules
+    "PT",    # flake8-pytest-style
+    "PIE",   # flake8-pie
+    "PERF",  # Perflint (performance)
 ]
 ignore = [
-    "E501",  # line too long (handled by formatter)
+    # No ignores - enforcing all selected rules including 100 char line limit
 ]
 
 [tool.ruff.format]
@@ -100,8 +107,16 @@ indent-style = "space"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-    "ARG001",  # Unused function argument (mocks often don't use args)
-    "ARG002",  # Unused method argument (fixtures are often unused in test body)
+    "ARG001",   # Unused function argument (mocks often don't use args)
+    "ARG002",   # Unused method argument (fixtures are often unused in test body)
+    "PLR2004",  # Magic value comparison (test data often has literals)
+    "PLR0912",  # Too many branches (test helpers/fixtures need complexity)
+    "PLR0913",  # Too many arguments (test helpers/fixtures need many params)
+    "PLR0915",  # Too many statements (test setup/teardown can be long)
+    "RUF001",   # Ambiguous unicode (intentional for unicode tests)
+]
+"src/gitctx/indexing/pipeline.py" = [
+    "PLR0915",  # index_repository is complex pipeline orchestration
 ]
 
 [tool.mypy]
@@ -225,6 +240,7 @@ markers = [
     "anyio: marks tests using anyio for async operations",
     "vcr: marks tests using VCR cassettes for API recording/replay",
     "performance: marks tests as performance tests (p95 latency, throughput)",
+    "formatting: marks tests for result formatting (terse, verbose, MCP)",
 ]
 
 [tool.coverage.run]

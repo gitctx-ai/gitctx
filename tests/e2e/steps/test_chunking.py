@@ -240,7 +240,7 @@ def verify_chunk_alignment(chunking_context: dict[str, Any]) -> None:
     chunks_at_boundary = 0
     for chunk in chunks:
         content = chunk.content.lstrip()
-        if content.startswith("def ") or content.startswith("#"):
+        if content.startswith(("def ", "#")):
             chunks_at_boundary += 1
 
     # At least one chunk should align with a function boundary
@@ -541,7 +541,6 @@ def verify_language_metadata(chunking_context: dict[str, Any]) -> None:
 @given(parsers.parse("a blob chunked into {num_chunks:d} pieces"))
 def blob_chunked_into_pieces(chunking_context: dict[str, Any], num_chunks: int) -> None:
     """Create blob that chunks into N pieces."""
-    from gitctx.indexing.chunker import LanguageAwareChunker
 
     # Configure chunking to create exactly N chunks
     # For 5 chunks: 5000 tokens blob / 1000 max_tokens = 5 chunks
@@ -566,7 +565,6 @@ def examine_chunk_metadata(chunking_context: dict[str, Any]) -> None:
     To be implemented in TASK-0001.2.2.3.
     """
     # No-op step for clarity
-    pass
 
 
 @then("each chunk should have a content field")
@@ -656,7 +654,6 @@ def verify_empty_list(chunking_context: dict[str, Any]) -> None:
 def verify_no_errors(chunking_context: dict[str, Any]) -> None:
     """Verify no exceptions raised during chunking."""
     # If we got here, no exception was raised
-    pass
 
 
 # ===== Scenario 9: Token limit compliance verification =====

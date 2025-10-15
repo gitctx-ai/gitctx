@@ -7,6 +7,7 @@ import pytest
 
 from gitctx.git.types import BlobLocation
 from gitctx.indexing.types import Embedding
+from gitctx.storage.lancedb_store import LanceDBStore
 
 
 @pytest.fixture
@@ -19,7 +20,6 @@ def lancedb_store(tmp_path: Path):
     Returns:
         LanceDBStore instance with empty database
     """
-    from gitctx.storage.lancedb_store import LanceDBStore
 
     db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     return LanceDBStore(db_path)

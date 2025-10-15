@@ -83,7 +83,8 @@ def clear_command(
         # Warn about API costs if clearing embeddings
         if clear_emb:
             console.print(
-                f"[yellow]{SYMBOLS['warning']}[/yellow]  Regenerating embeddings will incur API costs"
+                f"[yellow]{SYMBOLS['warning']}[/yellow]  "
+                "Regenerating embeddings will incur API costs"
             )
             console.print()
 
