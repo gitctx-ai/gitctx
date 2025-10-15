@@ -10,6 +10,7 @@ Precedence:
 # ruff: noqa: PLC0415 # Conditional imports for config validation (avoid circular imports)
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -130,6 +131,7 @@ class UserConfig(BaseSettings):
         """Customize settings sources to support OPENAI_API_KEY precedence."""
         # Create YAML source with dynamic path
         yaml_file = _get_user_home() / ".gitctx" / "config.yml"
+        yaml_source: Callable[[], dict[str, Any]]
         if yaml_file.exists():
             # Check file permissions for security
             stat = yaml_file.stat()
@@ -148,11 +150,7 @@ class UserConfig(BaseSettings):
 
             yaml_source = YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file)
         else:
-
-            def empty_source() -> dict[str, Any]:
-                return {}
-
-            yaml_source = empty_source  # type: ignore[assignment]
+            yaml_source = lambda: {}  # noqa: E731,PIE807 # Pydantic requires callable, not bare dict
 
         return (
             init_settings,
@@ -304,14 +302,15 @@ class RepoConfig(BaseSettings):
             # The actual PermissionError will be raised when trying to save later
             file_exists = False
 
+        yaml_source: Callable[[], dict[str, Any]]
         if file_exists:
-            yaml_source = YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file)
+            try:
+                yaml_source = YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file)
+            except PermissionError:
+                # Can't read config file, use defaults (will fail later on save)
+                yaml_source = lambda: {}  # noqa: E731,PIE807 # Pydantic requires callable, not bare dict
         else:
-
-            def empty_source() -> dict[str, Any]:
-                return {}
-
-            yaml_source = empty_source  # type: ignore[assignment]
+            yaml_source = lambda: {}  # noqa: E731,PIE807 # Pydantic requires callable, not bare dict
 
         return (
             init_settings,
