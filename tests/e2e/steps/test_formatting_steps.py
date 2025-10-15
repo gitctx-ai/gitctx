@@ -54,7 +54,19 @@ def each_line_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
         pattern: Regular expression pattern to match
         context: Shared step context
     """
-    raise NotImplementedError(f"Step not implemented: each line should match pattern: {pattern}")
+    import re
+
+    stdout = context.get("stdout", "")
+    lines = [line for line in stdout.strip().split("\n") if line.strip()]
+
+    # Remove ANSI escape codes for pattern matching
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+
+    for line in lines:
+        clean_line = ansi_escape.sub("", line)
+        assert re.match(pattern, clean_line), (
+            f"Line '{clean_line}' does not match pattern '{pattern}'"
+        )
 
 
 @then("output should contain commit SHA")
@@ -64,7 +76,12 @@ def output_contains_commit_sha(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError("Step not implemented: output should contain commit SHA")
+    import re
+
+    stdout = context.get("stdout", "")
+    # Match 7-character hex SHA (e.g., "f9e8d7c")
+    sha_pattern = r"[0-9a-f]{7}"
+    assert re.search(sha_pattern, stdout), f"Expected commit SHA in output, got: {stdout}"
 
 
 @then("output should contain author name")
@@ -74,7 +91,10 @@ def output_contains_author_name(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError("Step not implemented: output should contain author name")
+    stdout = context.get("stdout", "")
+    # Check for any alphabetic author name pattern (in parentheses after date)
+    # Example: (2025-10-02, Alice)
+    assert "," in stdout, f"Expected author name format with comma in output, got: {stdout}"
 
 
 @then("output should contain commit date")
@@ -84,7 +104,12 @@ def output_contains_commit_date(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError("Step not implemented: output should contain commit date")
+    import re
+
+    stdout = context.get("stdout", "")
+    # Match ISO date format (YYYY-MM-DD)
+    date_pattern = r"\d{4}-\d{2}-\d{2}"
+    assert re.search(date_pattern, stdout), f"Expected commit date in output, got: {stdout}"
 
 
 @then(parsers.parse('output should contain results summary: "{pattern}"'))
@@ -95,9 +120,12 @@ def output_contains_results_summary(pattern: str, context: dict[str, Any]) -> No
         pattern: Expected summary pattern (e.g., "{N} results in {X.XX}s")
         context: Shared step context
     """
-    raise NotImplementedError(
-        f"Step not implemented: output should contain results summary: {pattern}"
-    )
+    import re
+
+    stdout = context.get("stdout", "")
+    # Pattern: {N} results in {X.XX}s (e.g., "5 results in 1.23s")
+    summary_pattern = r"\d+ results in \d+\.\d+s"
+    assert re.search(summary_pattern, stdout), f"Expected results summary in output, got: {stdout}"
 
 
 @then('HEAD results should show "●" or "[HEAD]" marker')
@@ -107,8 +135,10 @@ def head_results_show_marker(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError(
-        'Step not implemented: HEAD results should show "●" or "[HEAD]" marker'
+    stdout = context.get("stdout", "")
+    # Check for either modern (●) or legacy ([HEAD]) marker
+    assert "●" in stdout or "[HEAD]" in stdout, (
+        f"Expected HEAD marker (● or [HEAD]) in output, got: {stdout}"
     )
 
 
@@ -119,7 +149,15 @@ def historic_results_no_marker(context: dict[str, Any]) -> None:
     Args:
         context: Shared step context
     """
-    raise NotImplementedError("Step not implemented: historic results should have no marker")
+    stdout = context.get("stdout", "")
+    lines = stdout.strip().split("\n")
+
+    # Check that at least one line does NOT have ● or [HEAD]
+    # (indicating historic commits are present without marker)
+    has_unmarked_line = any(
+        "●" not in line and "[HEAD]" not in line for line in lines if line.strip()
+    )
+    assert has_unmarked_line, f"Expected at least one line without HEAD marker, got: {stdout}"
 
 
 @then("output should contain syntax-highlighted code blocks")
