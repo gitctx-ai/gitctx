@@ -288,6 +288,20 @@ def test_add_chunks_batch_empty_blob_locations_warning(
     assert store.count() == 0
 
 
+def test_add_chunks_batch_empty_embeddings_list(tmp_path: Path, isolated_env):
+    """add_chunks_batch handles empty embeddings list gracefully."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # ACT - Call with empty embeddings list
+    store.add_chunks_batch(embeddings=[], blob_locations={})
+
+    # ASSERT - No chunks inserted, no errors raised
+    assert store.count() == 0
+
+
 def test_add_chunks_batch_uses_most_recent_location(tmp_path: Path, isolated_env, mock_embedding):
     """add_chunks_batch uses location with highest commit_date when blob has multiple locations."""
     from gitctx.git.types import BlobLocation

@@ -283,3 +283,19 @@ def test_search_empty_query_after_strip(
     assert result.exit_code == 2
     output = result.stdout + (result.stderr if hasattr(result, "stderr") else "")
     assert "Error: Query required" in output
+
+
+def test_search_query_exceeds_token_limit(isolated_cli_runner):
+    """Test that queries exceeding MAX_QUERY_TOKENS (8191) exit with code 2."""
+    # ARRANGE - Create a very long query that exceeds token limit
+    # Average ~0.75 tokens per word, so ~11,000 words should exceed 8191 tokens
+    long_query = " ".join(["authentication"] * 11000)
+
+    # ACT - Search with oversized query
+    result = isolated_cli_runner.invoke(app, ["search", long_query])
+
+    # ASSERT
+    assert result.exit_code == 2
+    output = result.stdout + (result.stderr if hasattr(result, "stderr") else "")
+    assert "exceeds 8191 tokens" in output
+    assert "Try a shorter query" in output

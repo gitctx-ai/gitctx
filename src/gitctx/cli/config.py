@@ -17,11 +17,6 @@ console_err = Console(stderr=True)
 config_app = typer.Typer(help="Manage gitctx configuration")
 
 
-def register(app: typer.Typer) -> None:
-    """Register the config command group with the CLI app."""
-    app.add_typer(config_app, name="config")
-
-
 def _translate_validation_error(e: ValidationError, key: str, value: str) -> str:
     """Translate Pydantic ValidationError to user-friendly message.
 

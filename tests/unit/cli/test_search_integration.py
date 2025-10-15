@@ -267,3 +267,34 @@ def test_search_limit_validation(isolated_cli_runner, tmp_path, monkeypatch):
     result_high = isolated_cli_runner.invoke(app, ["search", "test", "--limit", "101"])
     assert result_high.exit_code == 2  # Typer validation error
     assert "Invalid value" in result_high.stdout or "Invalid value" in result_high.stderr
+
+
+def test_search_reraises_non_table_arrow_exceptions(isolated_cli_runner, tmp_path, monkeypatch):
+    """Test search re-raises ArrowException/ValueError that don't mention code_chunks or table."""
+    import pyarrow as pa
+    import pytest
+
+    # ARRANGE
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+    monkeypatch.chdir(repo)
+
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+
+    # ACT & ASSERT - Mock ArrowException without "code_chunks" or "table" keywords
+    # This should be re-raised (not caught and converted to user-friendly error)
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore") as mock_store_class,
+    ):
+        # Simulate generic ArrowException (e.g., schema mismatch, corrupted file)
+        mock_store_class.side_effect = pa.lib.ArrowInvalid("Invalid schema version detected")
+
+        # With catch_exceptions=False, exception should propagate
+        with pytest.raises(pa.lib.ArrowInvalid, match="Invalid schema version"):
+            isolated_cli_runner.invoke(app, ["search", "test"], catch_exceptions=False)

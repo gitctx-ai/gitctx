@@ -29,11 +29,6 @@ DEFAULT_SEARCH_LIMIT = 10
 MAX_QUERY_TOKENS = 8191  # text-embedding-3-* model limit
 
 
-def register(app: typer.Typer) -> None:
-    """Register the search command with the CLI app."""
-    app.command(name="search", help="Search indexed code using semantic similarity")(search_command)
-
-
 def _get_query_text(query: list[str] | None) -> str:
     """Extract query text from CLI args or stdin.
 

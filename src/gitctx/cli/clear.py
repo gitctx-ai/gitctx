@@ -8,11 +8,6 @@ from gitctx.cli.symbols import SYMBOLS
 console = Console()
 
 
-def register(app: typer.Typer) -> None:
-    """Register the clear command with the CLI app."""
-    app.command(name="clear")(clear_command)
-
-
 def clear_command(
     database: bool = typer.Option(
         False,
