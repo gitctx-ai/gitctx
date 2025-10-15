@@ -13,11 +13,27 @@ Author: gitctx team
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
 # === PHASE 1: Core E2E Fixtures (Current) ===
+
+
+@pytest.fixture
+def context() -> dict[str, Any]:
+    """Shared context between BDD steps.
+
+    Used to pass data between Given/When/Then steps in scenarios.
+    Common keys:
+    - repo_path: Path to test repository
+    - custom_env: Environment variables for CLI commands
+    - result: CLI command result
+    - stdout/stderr: Command output
+    - exit_code: Command exit code
+    """
+    return {}
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -35,6 +51,22 @@ def auto_isolate_e2e_working_directory(tmp_path: Path, monkeypatch):
     """
     monkeypatch.chdir(tmp_path)
     yield tmp_path
+
+
+@pytest.fixture(scope="session")
+def e2e_session_api_key() -> str:
+    """Capture OPENAI_API_KEY at session start, before any fixtures clear it.
+
+    This allows BDD steps and tests to access the original API key even after
+    e2e_cli_runner clears the environment for security.
+
+    Returns:
+        str: API key from environment, or "sk-test-key" if not set
+    """
+    import os
+
+    # Use `or` to handle both None and empty string
+    return os.environ.get("OPENAI_API_KEY") or "sk-test-key"
 
 
 @pytest.fixture
@@ -246,6 +278,128 @@ def e2e_git_repo(e2e_git_isolation_env: dict[str, str], tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def e2e_indexed_repo(
+    e2e_git_repo: Path,
+    e2e_cli_runner,
+    context: dict[str, Any],
+    e2e_session_api_key: str,
+    monkeypatch,
+) -> Path:
+    """Create and index a basic git repository (with VCR cassette recording).
+
+    Simple fixture for tests that need "any indexed repo" without custom content.
+
+    Pattern reuse:
+    - e2e_git_repo: Creates basic repo with main.py
+    - e2e_cli_runner: Passed as fixture parameter (maintains isolation)
+    - context["custom_env"]: API key set for auto-merge by wrapped invoke()
+    - VCR: Records indexing API calls once, replays in CI
+    - monkeypatch: Proper directory changing that pytest cleans up
+
+    Returns:
+        Path: Indexed repository root directory
+
+    Example:
+        def test_search(e2e_indexed_repo, e2e_cli_runner, monkeypatch):
+            monkeypatch.chdir(e2e_indexed_repo)  # Change to indexed repo
+            result = e2e_cli_runner.invoke(app, ["search", "test"])
+    """
+    from gitctx.cli.main import app
+
+    # Change to repo directory for indexing (app needs to see .git directory)
+    monkeypatch.chdir(e2e_git_repo)
+
+    # Set API key in context for auto-merge by e2e_cli_runner
+    context["custom_env"] = {"OPENAI_API_KEY": e2e_session_api_key}
+
+    # Run index command - VCR will record API calls, env auto-merged
+    result = e2e_cli_runner.invoke(app, ["index"])
+
+    # Clean up context
+    context.pop("custom_env", None)
+
+    if result.exit_code != 0:
+        pytest.fail(f"Failed to index repo: {result.output}")
+
+    return e2e_git_repo
+
+
+@pytest.fixture
+def e2e_indexed_repo_factory(
+    e2e_git_repo_factory,
+    e2e_cli_runner,
+    context: dict[str, Any],
+    e2e_session_api_key: str,
+):
+    """Factory for creating indexed repositories with custom content.
+
+    Use when you need specific files/structure (e.g., 20+ chunks with keyword).
+
+    Pattern reuse:
+    - e2e_git_repo_factory: Creates customizable repos
+    - e2e_cli_runner: Passed as fixture parameter (same instance)
+    - context["custom_env"]: API key set for auto-merge
+    - Returns path; caller handles directory change with monkeypatch
+
+    Returns:
+        callable: Factory function(files=None, num_commits=1, branches=None, add_gitignore=True)
+
+    Example:
+        def test_with_custom_indexed_repo(e2e_indexed_repo_factory, monkeypatch):
+            files = {"file1.py": "code1", "file2.py": "code2"}
+            repo = e2e_indexed_repo_factory(files=files, num_commits=3)
+            monkeypatch.chdir(repo)  # Caller changes directory if needed
+    """
+
+    def _make_indexed_repo(
+        files=None, num_commits=1, branches=None, add_gitignore=True, monkeypatch=None
+    ):
+        """Create and index a repository with custom structure.
+
+        Args:
+            files: Dict of {filename: content}
+            num_commits: Number of commits to create
+            branches: List of branch names to create
+            add_gitignore: Whether to add .gitignore
+            monkeypatch: Unused (kept for backward compatibility)
+        """
+        import os
+
+        from gitctx.cli.main import app
+
+        # Create repo with custom structure
+        repo_path = e2e_git_repo_factory(
+            files=files, num_commits=num_commits, branches=branches, add_gitignore=add_gitignore
+        )
+
+        # Temporarily change to repo for indexing
+        # Use os.chdir (works consistently on all platforms)
+        # Don't use monkeypatch - caller will chdir separately to persist for test
+        original_dir = os.getcwd()
+        try:
+            os.chdir(repo_path)
+
+            # Set API key in context for auto-merge by e2e_cli_runner
+            context["custom_env"] = {"OPENAI_API_KEY": e2e_session_api_key}
+
+            # Index it (VCR records API calls, env auto-merged)
+            result = e2e_cli_runner.invoke(app, ["index"])
+
+            # Clean up context
+            context.pop("custom_env", None)
+
+            if result.exit_code != 0:
+                pytest.fail(f"Failed to index repo: {result.output}")
+        finally:
+            # Restore directory (caller will chdir again for test)
+            os.chdir(original_dir)
+
+        return repo_path
+
+    return _make_indexed_repo
+
+
+@pytest.fixture
 def e2e_env_factory(e2e_git_isolation_env: dict[str, str]):
     """
     Factory for creating custom environments with isolation.
@@ -324,6 +478,9 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
     - e2e_git_isolation_env: Environment for git operations
     """
 
+    # Counter for unique repo names within a test
+    _counter = {"value": 0}
+
     def _make_repo(
         files: dict[str, str] | None = None,
         num_commits: int = 1,
@@ -331,7 +488,10 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
         add_gitignore: bool = True,
     ) -> Path:
         """Create a git repository with specified structure."""
-        repo_path = tmp_path / f"test_repo_{id(files)}"  # Unique name per call
+        # Use short counter to avoid Windows MAX_PATH (260 char limit)
+        # tmp_path is already unique per test, counter ensures uniqueness within test
+        _counter["value"] += 1
+        repo_path = tmp_path / f"r{_counter['value']}"
         repo_path.mkdir(exist_ok=True)
 
         # Initialize git with isolation and set default branch to 'main'
@@ -350,6 +510,10 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
             ["git", "config", "user.name", "Test User"],
             ["git", "config", "user.email", "test@example.com"],
             ["git", "config", "commit.gpgsign", "false"],
+            # Normalize line endings to LF for cross-platform VCR cassette matching
+            # Without this, Windows uses CRLF which changes embedding request bodies
+            # Note: .gitattributes in main repo doesn't apply to temp test repos
+            ["git", "config", "core.autocrlf", "input"],
         ]:
             subprocess.run(cmd, cwd=repo_path, env=e2e_git_isolation_env, check=True)
 
@@ -400,6 +564,56 @@ def e2e_git_repo_factory(e2e_git_isolation_env: dict[str, str], tmp_path: Path):
 # === VCR.py Configuration for API Response Recording ===
 
 
+def _filter_security_headers(headers: dict[str, Any]) -> dict[str, Any]:
+    """Remove security-sensitive headers from VCR cassettes.
+
+    These headers contain secrets (API keys, auth tokens) that should
+    never be committed to git, even in test cassettes.
+
+    Args:
+        headers: Request headers dictionary
+
+    Returns:
+        dict: Headers with security-sensitive entries removed
+    """
+    security_headers = [
+        "authorization",
+        "api-key",
+        "x-api-key",
+        "openai-organization",
+    ]
+    filtered = headers.copy()
+    for header in security_headers:
+        filtered.pop(header, None)
+    return filtered
+
+
+def _filter_platform_headers(headers: dict[str, Any]) -> dict[str, Any]:
+    """Remove platform/OS-specific headers for cross-platform cassette replay.
+
+    These headers vary between macOS/Linux/Windows and would cause
+    cassette match failures when replaying on different platforms.
+
+    Args:
+        headers: Request headers dictionary
+
+    Returns:
+        dict: Headers with platform-specific entries removed
+    """
+    platform_headers = [
+        "user-agent",
+        "x-stainless-os",
+        "x-stainless-runtime",
+        "x-stainless-runtime-version",
+        "x-stainless-arch",
+        "x-stainless-package-version",
+    ]
+    filtered = headers.copy()
+    for header in platform_headers:
+        filtered.pop(header, None)
+    return filtered
+
+
 @pytest.fixture(scope="module")
 def vcr_config():
     """VCR configuration for E2E tests.
@@ -415,15 +629,27 @@ def vcr_config():
     Returns:
         dict: VCR configuration parameters
     """
+    # Combine all headers to filter (both security and platform)
+    all_filtered_headers = [
+        # Security headers
+        "authorization",
+        "x-api-key",
+        "api-key",
+        "openai-organization",
+        # Platform headers
+        "user-agent",
+        "x-stainless-os",
+        "x-stainless-runtime",
+        "x-stainless-runtime-version",
+        "x-stainless-arch",
+        "x-stainless-package-version",
+    ]
+
     return {
         "cassette_library_dir": "tests/e2e/cassettes",
         "record_mode": "once",  # Record once, then replay
         "match_on": ["method", "scheme", "host", "port", "path", "query", "body"],
-        "filter_headers": [
-            "authorization",  # Strip API keys from cassettes
-            "x-api-key",
-            "api-key",
-        ],
+        "filter_headers": all_filtered_headers,
         "filter_post_data_parameters": [
             "api_key",
         ],

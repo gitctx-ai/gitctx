@@ -32,7 +32,7 @@ class LanceDBStore:
     - 100x faster than traditional vector stores
 
     Attributes:
-        db_path: Path to .gitctx/lancedb directory
+        db_path: Path to .gitctx/db/lancedb directory
         db: LanceDB connection
         chunks_table: Main table for code chunks with embeddings
         metadata_table: Table for index state tracking
@@ -49,7 +49,7 @@ class LanceDBStore:
         """Initialize LanceDB store.
 
         Args:
-            db_path: Path to .gitctx/lancedb directory
+            db_path: Path to .gitctx/db/lancedb directory
             embedding_model: Model name for metadata tracking
             embedding_dimensions: Vector dimensions for validation
         """
@@ -61,7 +61,9 @@ class LanceDBStore:
         self.db_path.mkdir(parents=True, exist_ok=True)
 
         # Connect to LanceDB
-        self.db = lancedb.connect(str(db_path))
+        # Use as_posix() to ensure cross-platform path compatibility
+        connect_path = str(db_path.as_posix())
+        self.db = lancedb.connect(connect_path)
 
         # Table names
         self.chunks_table_name = "code_chunks"
@@ -125,7 +127,7 @@ class LanceDBStore:
                     - The name of the embedding model
                     - A suggested action to delete the LanceDB directory and re-index
                 Example error message:
-                    "Dimension mismatch: existing table has {actual_dims}-dimensional vectors, but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. Action required: Delete .gitctx/lancedb/ and re-index with `gitctx index --force`"
+                    "Dimension mismatch: existing table has {actual_dims}-dimensional vectors, but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. Action required: Delete .gitctx/db/lancedb/ and re-index with `gitctx index --force`"
         """
         # Get vector field from schema
         try:
@@ -140,7 +142,7 @@ class LanceDBStore:
             raise DimensionMismatchError(
                 f"Dimension mismatch: existing table has {actual_dims}-dimensional vectors, "
                 f"but current model '{self.embedding_model}' produces {self.embedding_dimensions}-dimensional vectors. "
-                f"Action required: Delete .gitctx/lancedb/ and re-index with `gitctx index --force`"
+                f"Action required: Delete .gitctx/db/lancedb/ and re-index with `gitctx index --force`"
             )
 
     def count(self) -> int:
@@ -224,12 +226,15 @@ class LanceDBStore:
         from datetime import UTC, datetime
 
         records = []
-
+        skipped_count = 0
+        skipped_blob_shas = []
         for emb in embeddings:
             # Get BlobLocation for this chunk's blob
             locations = blob_locations.get(emb.blob_sha, [])
             if not locations:
                 logger.warning(f"No location found for blob {emb.blob_sha[:8]}... - skipping chunk")
+                skipped_count += 1
+                skipped_blob_shas.append(emb.blob_sha[:8])
                 continue
 
             # Use most recent location by commit_date (when blob appears in multiple commits)
@@ -263,6 +268,11 @@ class LanceDBStore:
             assert self.chunks_table is not None
             self.chunks_table.add(records)
             logger.info(f"Inserted {len(records)} chunks into LanceDB")
+        elif skipped_count > 0:
+            logger.warning(
+                f"Skipped {skipped_count} chunks with no blob location: "
+                f"{', '.join(skipped_blob_shas)}"
+            )
 
     def optimize(self) -> None:
         """Create IVF-PQ index for fast vector search.

@@ -8,19 +8,11 @@ import time
 from pathlib import Path
 from typing import Any
 
-import pytest
 from pytest_bdd import given, parsers, then, when
 
 from gitctx.git.types import BlobLocation
 from gitctx.indexing.types import Embedding
 from gitctx.storage.lancedb_store import LanceDBStore
-
-
-@pytest.fixture
-def context() -> dict[str, Any]:
-    """Shared context between steps."""
-    return {}
-
 
 # ===== Helper Functions =====
 
@@ -111,7 +103,7 @@ def embeddings_have_metadata(context: dict[str, Any]):
 @when("I store embeddings in LanceDB")
 def store_embeddings(context: dict[str, Any], tmp_path: Path):
     """Store embeddings in LanceDB."""
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     store.add_chunks_batch(context["embeddings"], context["blob_locations"])
     context["store"] = store
 
@@ -182,7 +174,7 @@ def embeddings_to_store(count: int, context: dict[str, Any]):
 @when("I insert in batches")
 def insert_in_batches(context: dict[str, Any], tmp_path: Path):
     """Insert embeddings in batches."""
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     context["start_time"] = time.time()
     store.add_chunks_batch(context["embeddings"], context["blob_locations"])
     context["elapsed_time"] = time.time() - context["start_time"]
@@ -218,7 +210,7 @@ def verify_batch_size_configurable(size: int, context: dict[str, Any]):
 def table_with_vectors(count: int, context: dict[str, Any], tmp_path: Path):
     """Create table with specified number of vectors."""
     embeddings, blob_locations = create_mock_embeddings(count, count // 10)
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     store.add_chunks_batch(embeddings, blob_locations)
     context["store"] = store
     context["vector_count"] = count
@@ -274,7 +266,7 @@ def verify_adaptive_subvectors(context: dict[str, Any]):
 def existing_index_with_chunks(count: int, context: dict[str, Any], tmp_path: Path):
     """Create existing index with chunks."""
     embeddings, blob_locations = create_mock_embeddings(count, count // 10)
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     store.add_chunks_batch(embeddings, blob_locations)
     context["store"] = store
     context["initial_count"] = count
@@ -375,7 +367,7 @@ def verify_new_chunks_searchable(context: dict[str, Any]):
 def indexing_completed_at_commit(commit_sha: str, context: dict[str, Any], tmp_path: Path):
     """Set up completed indexing state."""
     embeddings, blob_locations = create_mock_embeddings(10, 2)
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     store.add_chunks_batch(embeddings, blob_locations)
 
     context["store"] = store
@@ -443,10 +435,10 @@ def verify_embedding_model_name(context: dict[str, Any]):
 def existing_index_with_dimensions(dims: int, context: dict[str, Any], tmp_path: Path):
     """Create existing index with specific dimensions."""
     embeddings, blob_locations = create_mock_embeddings(10, 2)
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb", embedding_dimensions=dims)
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb", embedding_dimensions=dims)
     store.add_chunks_batch(embeddings, blob_locations)
     context["store"] = store
-    context["db_path"] = tmp_path / ".gitctx" / "lancedb"
+    context["db_path"] = tmp_path / ".gitctx" / "db" / "lancedb"
 
 
 @when(parsers.parse("I attempt to insert {dims:d}-dimensional vectors"))
@@ -534,7 +526,7 @@ def index_with_chunks_and_files(chunks: int, files: int, context: dict[str, Any]
                 )
             )
 
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     store.add_chunks_batch(embeddings, blob_locations)
     context["store"] = store
 
@@ -581,7 +573,7 @@ def verify_total_blobs_approximate(count: int, context: dict[str, Any]):
 def embeddings_with_denormalized_data(context: dict[str, Any], tmp_path: Path):
     """Set up embeddings with denormalized data."""
     embeddings, blob_locations = create_mock_embeddings(20, 5)
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     store.add_chunks_batch(embeddings, blob_locations)
     context["store"] = store
 
@@ -648,7 +640,7 @@ def verify_is_head_flag_in_results(context: dict[str, Any]):
 @given("a newly initialized LanceDB store")
 def newly_initialized_store(context: dict[str, Any], tmp_path: Path):
     """Create newly initialized store."""
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     context["store"] = store
 
 
@@ -684,19 +676,19 @@ def gitctx_directory_exists(context: dict[str, Any], tmp_path: Path):
 @when("I initialize LanceDB")
 def initialize_lancedb(context: dict[str, Any], tmp_path: Path):
     """Initialize LanceDB."""
-    store = LanceDBStore(tmp_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(tmp_path / ".gitctx" / "db" / "lancedb")
     context["store"] = store
-    context["db_path"] = tmp_path / ".gitctx" / "lancedb"
+    context["db_path"] = tmp_path / ".gitctx" / "db" / "lancedb"
 
 
-@then("database should be created at .gitctx/lancedb/")
+@then("database should be created at .gitctx/db/lancedb/")
 def verify_database_location(context: dict[str, Any]):
     """Verify database created at correct location."""
     db_path = context["db_path"]
     assert db_path.exists()
     assert db_path.is_dir()
     # Use path parts to check path components (works on Windows and Unix)
-    assert db_path.parts[-2:] == (".gitctx", "lancedb")
+    assert db_path.parts[-3:] == (".gitctx", "db", "lancedb")
 
 
 @then(".gitctx should be in .gitignore")

@@ -12,11 +12,6 @@ console = Console()
 console_err = Console(stderr=True)
 
 
-def register(app: typer.Typer) -> None:
-    """Register the index command with the CLI app."""
-    app.command(name="index")(index_command)
-
-
 def index_command(
     verbose: bool = typer.Option(
         False,

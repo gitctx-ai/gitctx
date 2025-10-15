@@ -265,34 +265,61 @@ def mock_api_key(monkeypatch):
 
 ## Running BDD Tests
 
-### Run All E2E Tests
+### With VCR Cassettes (CI and Normal Development)
+
+Most of the time, tests replay recorded cassettes (no API key needed):
 
 ```bash
+# Run all e2e tests (uses cassettes)
 uv run pytest tests/e2e/
-```
 
-### Run Specific Feature
+# Run specific feature
+uv run pytest tests/e2e/test_search_features.py
 
-```bash
-uv run pytest tests/e2e/ -k "search"
-```
-
-### Run with Verbose Output
-
-```bash
+# Run with verbose output
 uv run pytest tests/e2e/ -vv
-```
 
-### Show Print Statements
-
-```bash
+# Show print statements
 uv run pytest tests/e2e/ -s
 ```
 
-### Run in Parallel
+### With Real API Keys (Debugging and Cassette Recording)
+
+Use `direnv exec .` to load API keys from `.envrc` for real API calls:
 
 ```bash
+# Debug failing test with real API
+direnv exec . uv run pytest tests/e2e/test_search_features.py::test_search_with_no_results -vvs
+
+# Re-record all cassettes
+direnv exec . uv run pytest tests/e2e/ --vcr-record=all
+
+# Re-record specific test
+direnv exec . uv run pytest tests/e2e/test_embedding_features.py --vcr-record=once
+
+# Run tests that need fresh API responses
+direnv exec . uv run pytest tests/e2e/test_search_features.py -vv
+```
+
+**When to use direnv:**
+- ✅ Debugging test failures (see actual API responses)
+- ✅ Recording/re-recording VCR cassettes
+- ✅ Validating API behavior changes
+- ✅ Developing new tests before recording cassettes
+
+**When NOT to use direnv:**
+- ❌ Normal test runs (cassettes are faster and free)
+- ❌ CI/CD pipelines (should always use cassettes)
+- ❌ Running full test suite (expensive API costs)
+
+### Running in Parallel
+
+```bash
+# Run tests in parallel (cassettes only)
 uv run pytest tests/e2e/ -n auto
+
+# Parallel with real API (use with caution - rate limits!)
+direnv exec . uv run pytest tests/e2e/ -n 2
 ```
 
 ### Generate HTML Report
@@ -516,6 +543,72 @@ See working examples in:
 - `tests/e2e/steps/cli_steps.py` - `run_command()`
 - `tests/e2e/steps/progress_steps.py` - `run_index_dry_run()`
 - `tests/e2e/steps/search_steps.py` - `query_previously_searched()`
+
+## Fixture Architecture
+
+### Core Fixtures
+
+#### `context` - Shared Scenario State
+
+```python
+@pytest.fixture
+def context() -> dict[str, Any]:
+    """Shared context between BDD steps in a scenario."""
+```
+
+- **Purpose**: Pass data between Given/When/Then steps
+- **Common keys**: `repo_path`, `custom_env`, `result`, `stdout`, `stderr`, `exit_code`
+- **Location**: `tests/e2e/conftest.py` (single source of truth)
+- **Usage**: Auto-injected into step definitions
+
+#### `e2e_indexed_repo` - Pre-indexed Repository
+
+```python
+@pytest.fixture
+def e2e_indexed_repo(
+    e2e_git_repo,
+    e2e_cli_runner,
+    context,
+    e2e_session_api_key,
+    monkeypatch
+) -> Path:
+    """Create and index a basic git repository with VCR cassette recording."""
+```
+
+- **Purpose**: Provides indexed repo for search tests
+- **Security**: Uses `e2e_git_isolation_env` (no SSH/GPG access)
+- **VCR**: Records OpenAI API calls to cassettes
+- **Auto-merge**: API key auto-merged via `context["custom_env"]`
+- **Cleanup**: `monkeypatch.chdir()` ensures directory restored
+
+#### `e2e_indexed_repo_factory` - Custom Indexed Repos
+
+```python
+@pytest.fixture
+def e2e_indexed_repo_factory(...):
+    """Factory for creating indexed repositories with custom content."""
+    def _make_indexed_repo(files=None, num_commits=1, branches=None, add_gitignore=True):
+        ...
+    return _make_indexed_repo
+```
+
+- **Purpose**: Create indexed repos with specific structure
+- **Parameters**:
+  - `files`: Dict of {path: content}
+  - `num_commits`: Number of commits to create
+  - `branches`: List of branch names
+  - `add_gitignore`: Whether to add .gitignore
+- **Directory handling**: Uses `os.chdir()` with try/finally (can't use monkeypatch in closure)
+- **Example**: `repo = e2e_indexed_repo_factory(files={"test.py": "..."}, num_commits=5)`
+
+### Security Isolation Pattern
+
+All fixtures maintain security isolation by:
+1. **Base environment**: `e2e_git_isolation_env` blocks SSH keys, GPG keys, git config
+2. **Auto-merge pattern**: `e2e_cli_runner` automatically merges `context["custom_env"]`
+3. **No cleanup needed**: pytest's monkeypatch/autouse fixtures handle restoration
+
+See `tests/e2e/test_fixtures.py` for 13 comprehensive fixture tests validating this behavior.
 
 ## Common Patterns
 

@@ -81,6 +81,6 @@ Feature: LanceDB Vector Storage
   Scenario: Storage location
     Given .gitctx directory in repo root
     When I initialize LanceDB
-    Then database should be created at .gitctx/lancedb/
+    Then database should be created at .gitctx/db/lancedb/
     And .gitctx should be in .gitignore
     And database files should not be committed to git

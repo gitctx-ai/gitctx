@@ -60,7 +60,7 @@ async def index_repository(
         chunk_overlap_ratio=settings.repo.index.chunk_overlap_ratio,
     )
     embedder = OpenAIEmbedder(api_key=settings.get("api_keys.openai"))
-    store = LanceDBStore(repo_path / ".gitctx" / "lancedb")
+    store = LanceDBStore(repo_path / ".gitctx" / "db" / "lancedb")
 
     reporter.start()
 
@@ -150,6 +150,7 @@ async def index_repository(
 
                 # Store embeddings with blob metadata
                 blob_locations = {blob_record.sha: blob_record.locations}
+
                 store.add_chunks_batch(
                     embeddings=storage_embeddings,
                     blob_locations=blob_locations,

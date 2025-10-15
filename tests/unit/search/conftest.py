@@ -22,6 +22,6 @@ def settings() -> Mock:
 @pytest.fixture
 def store(tmp_path: Path) -> LanceDBStore:
     """Create test LanceDBStore instance."""
-    db_path = tmp_path / ".gitctx" / "lancedb"
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return LanceDBStore(db_path)

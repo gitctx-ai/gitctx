@@ -1,0 +1,4 @@
+# Force LF line endings for YAML files (VCR cassettes)
+# This ensures cross-platform consistency for test cassettes
+*.yaml text eol=lf
+tests/e2e/cassettes/*.yaml text eol=lf

@@ -1,6 +1,3 @@
-# VCR cassette - OpenAI API responses
-# Base64 strings below are embedding vectors (3072 floats), not secrets
-# pragma: allowlist secret
 interactions:
 - request:
     body: '{"input": ["def test(): pass"], "model": "text-embedding-3-large", "dimensions":
@@ -46,20 +43,20 @@ interactions:
         4,\n    \"total_tokens\": 4\n  }\n}\n"
     headers:
       CF-RAY:
-      - 98e110241e417ac8-SJC
+      - 98e3bb49ece9ce70-SJC
       Connection:
       - keep-alive
       Content-Type:
       - application/json
       Date:
-      - Mon, 13 Oct 2025 18:57:30 GMT
+      - Tue, 14 Oct 2025 02:43:52 GMT
       Server:
       - cloudflare
       Set-Cookie:
-      - __cf_bm=JI.e63ifSjoVxBke0Hqv639jjxEBZBoa210zp4bU1Kg-1760381850-1.0.1.1-MJUql_lZ9tIWHBFyIW._DmUPpwhRdT4G16xWAOv6t8arcQ0MlWQcKf6hMPjGbBazeOxyiz1wuOG3vvU4Z7We5TgPNIo9sMScw23TzVIcbnY;
-        path=/; expires=Mon, 13-Oct-25 19:27:30 GMT; domain=.api.openai.com; HttpOnly;
+      - __cf_bm=4z0DyedMqG24WEYmzHN0alVWuups6p1pSack0wTbpd0-1760409832-1.0.1.1-wzELBHsNB_AH0VU6ZUILBgDZPG97lOfe.zM22DVqB15_PrxutebT4MGTIztMY1VQfvZT7dO8bq5JTr3aNOJcoU2ZzSMKr6rbuYHTslDx9CA;
+        path=/; expires=Tue, 14-Oct-25 03:13:52 GMT; domain=.api.openai.com; HttpOnly;
         Secure; SameSite=None
-      - _cfuvid=nPr1eDONhkQ2.wxE5qRndt0Z6VZYOK.sc9P5rwINOKE-1760381850412-0.0.1.1-604800000;
+      - _cfuvid=mileEc80_sXAkkscY8Nz_3Zo..1R.YhW0b.bk.wVQBc-1760409832389-0.0.1.1-604800000;
         path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
       Transfer-Encoding:
       - chunked
@@ -80,7 +77,7 @@ interactions:
       openai-organization:
       - user-xpjgvt8r6ahautifbt2prhie
       openai-processing-ms:
-      - '74'
+      - '105'
       openai-project:
       - proj_mvPOXsElPbT4Fz0z56XsH4tN
       openai-version:
@@ -88,9 +85,9 @@ interactions:
       strict-transport-security:
       - max-age=31536000; includeSubDomains; preload
       via:
-      - envoy-router-66d9959958-zwspp
+      - envoy-router-b69d7bdb9-zw445
       x-envoy-upstream-service-time:
-      - '92'
+      - '119'
       x-openai-proxy-wasm:
       - v0.1
       x-ratelimit-limit-requests:
@@ -106,7 +103,7 @@ interactions:
       x-ratelimit-reset-tokens:
       - 0s
       x-request-id:
-      - req_eb06c9b8a4a548c29945c9150a39f9fa
+      - req_595328c5c96141efaa117eab17cad8a9
     status:
       code: 200
       message: OK

@@ -215,6 +215,8 @@ addopts = [
     "--cov-report=html",
     "--cov-report=xml",
     "--color=yes",
+    "-m",
+    "not performance",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -222,6 +224,7 @@ markers = [
     "unit: marks tests as unit tests",
     "anyio: marks tests using anyio for async operations",
     "vcr: marks tests using VCR cassettes for API recording/replay",
+    "performance: marks tests as performance tests (p95 latency, throughput)",
 ]
 
 [tool.coverage.run]

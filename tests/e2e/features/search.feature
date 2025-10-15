@@ -53,3 +53,84 @@ Feature: Query Embedding for Semantic Search
     Then the exit code should be 2
     And the error should contain "Error: Query exceeds 8191 tokens (got 9000)"
     And the error should contain "Try a shorter"
+
+  # STORY-0001.3.2: Vector Similarity Search scenarios below
+
+  Scenario: Search with unquoted multi-word query
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search authentication middleware"
+    Then the exit code should be 0
+    And results should match query "authentication middleware"
+
+  Scenario: Search with flags before query terms
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search --limit 5 find all api references"
+    Then the exit code should be 0
+    And results should be displayed
+
+  Scenario: Search from stdin (pipeline)
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I pipe "authentication middleware" to "gitctx search"
+    Then the exit code should be 0
+    And results should match query "authentication middleware"
+
+  Scenario: Search returns results sorted by similarity score
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search authentication middleware"
+    Then the exit code should be 0
+    And results should be sorted by _distance ascending (0.0 = best match first)
+    And each result should show cosine similarity score between 0.0 and 1.0
+
+  Scenario: Search with result limit
+    Given an indexed repository with 20+ chunks containing "database" keyword
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search database --limit 5"
+    Then the exit code should be 0
+    And exactly 5 results should be shown
+
+  Scenario: Search with no results
+    Given an indexed repository
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search nonexistent_function_xyz"
+    Then the exit code should be 0
+    And results should be displayed
+
+  Scenario: Search before indexing (exit code 8)
+    Given no index exists at .gitctx/db/lancedb/
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run "gitctx search test"
+    Then the exit code should be 8
+    And the output should contain "Error: No index found"
+    And the output should contain "Run: gitctx index"
+
+  Scenario: Empty stdin with no args (exit code 2)
+    Given an indexed repository
+    When I run "gitctx search" with empty stdin in non-interactive terminal
+    Then the exit code should be 2
+    And the output should contain "Error: Query required (from args or stdin)"
+
+  Scenario: Invalid result limit too low (exit code 2)
+    Given an indexed repository
+    When I run "gitctx search test --limit 0"
+    Then the exit code should be 2
+    And the output should contain "Invalid value for '--limit'"
+    And the output should contain "not in the range 1<=x<=100"
+
+  Scenario: Invalid result limit too high (exit code 2)
+    Given an indexed repository
+    When I run "gitctx search test --limit 150"
+    Then the exit code should be 2
+    And the output should contain "Invalid value for '--limit'"
+    And the output should contain "not in the range 1<=x<=100"
+
+  @performance
+  Scenario: Search performance meets p95 latency target
+    Given an indexed repository with 10000 chunks
+    And environment variable "OPENAI_API_KEY" is "$ENV"
+    When I run search 100 times with query "authentication"
+    Then p95 response time should be under 2.0 seconds
+    And all requests should complete within 5.0 seconds

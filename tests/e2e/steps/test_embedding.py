@@ -52,27 +52,22 @@ def code_chunk_with_tokens(embedding_context: dict[str, Any], num_tokens: int) -
 
 
 @given("OpenAI API key is configured in GitCtxSettings")
-def api_key_configured(embedding_context: dict[str, Any]) -> None:
+def api_key_configured(embedding_context: dict[str, Any], e2e_session_api_key: str) -> None:
     """Configure OpenAI API key in settings."""
-    import os
-
-    # Use real API key from environment if available, otherwise use test key for mocking
-    embedding_context["api_key"] = os.getenv(
-        "OPENAI_API_KEY", "sk-test-key-for-mocked-bdd-tests"
-    )  # pragma: allowlist secret
+    # Use session-captured API key (captured before e2e_cli_runner cleared environment)
+    embedding_context["api_key"] = e2e_session_api_key  # pragma: allowlist secret
 
 
 @when("I generate an embedding for the chunk")
 def generate_embedding_for_chunk(embedding_context: dict[str, Any]) -> None:
     """Generate embedding for single chunk."""
-    import os
-
     import anyio
 
     from gitctx.models.providers.openai import OpenAIEmbedder
 
+    # Use API key from embedding_context (set by api_key_configured step)
     # VCR.py will intercept API calls and use cassettes
-    api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
+    api_key = embedding_context["api_key"]  # pragma: allowlist secret
 
     embedder = OpenAIEmbedder(api_key=api_key)
     chunk = embedding_context["chunk"]
@@ -281,17 +276,18 @@ def verify_cache_miss_logged(embedding_context: dict[str, Any]) -> None:
 
 
 @given("an embedding is generated from the API")
-def generate_embedding_from_api(embedding_context: dict[str, Any]) -> None:
+def generate_embedding_from_api(
+    embedding_context: dict[str, Any], e2e_session_api_key: str
+) -> None:
     """Generate embedding from API."""
-    import os
-
     import anyio
 
     from gitctx.indexing.types import CodeChunk
     from gitctx.models.providers.openai import OpenAIEmbedder
 
+    # Use session-captured API key (captured before e2e_cli_runner cleared environment)
     # VCR.py will intercept API calls and use cassettes
-    api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
+    api_key = e2e_session_api_key  # pragma: allowlist secret
 
     chunk = CodeChunk(
         content="def test(): pass",
@@ -384,11 +380,9 @@ def verify_dimension_error_logged(embedding_context: dict[str, Any]) -> None:
     parsers.re(r"I embed (?P<num_chunks>[\d,]+) chunks totaling (?P<total_tokens>[\d,]+) tokens")
 )
 def embed_chunks_totaling_tokens(
-    embedding_context: dict[str, Any], num_chunks: str, total_tokens: str
+    embedding_context: dict[str, Any], num_chunks: str, total_tokens: str, e2e_session_api_key: str
 ) -> None:
     """Embed large number of chunks for cost tracking."""
-    import os
-
     import anyio
 
     from gitctx.indexing.types import CodeChunk
@@ -418,8 +412,9 @@ def embed_chunks_totaling_tokens(
             )
         )
 
+    # Use session-captured API key (captured before e2e_cli_runner cleared environment)
     # VCR.py will intercept API calls and use cassettes
-    api_key = os.getenv("OPENAI_API_KEY", "sk-vcr-test-key")  # pragma: allowlist secret
+    api_key = e2e_session_api_key  # pragma: allowlist secret
 
     embedder = OpenAIEmbedder(api_key=api_key)
 
