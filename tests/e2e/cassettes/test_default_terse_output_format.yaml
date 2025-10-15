@@ -1,0 +1,135 @@
+interactions:
+- request:
+    body: '{"input": ["*.pyc\n__pycache__/\n.gitctx/"], "model": "text-embedding-3-large",
+      "dimensions": 3072, "encoding_format": "base64"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '121'
+      content-type:
+      - application/json
+      host:
+      - api.openai.com
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-retry-count:
+      - '0'
+    method: POST
+    uri: https://api.openai.com/v1/embeddings
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        sk-test-key. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers:
+      CF-RAY:
+      - 98ebad94a9d06893-SJC
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '261'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Oct 2025 01:52:36 GMT
+      Server:
+      - cloudflare
+      Set-Cookie:
+      - __cf_bm=gRmDgRnD3iZKb8IPdpbvpi0O_sWyRbEmmYVB3.i23Xs-1760493156-1.0.1.1-L3HIYYRcfFU3ppOYt9KhGFZgsf4XtiDivbou9GyRJwFgFNbnQe.Ey9FGdYcib3EBeaWrH2OY4cblNhID.p.i9B2HdiDErDhuu_A9HOaSj6Y;
+        path=/; expires=Wed, 15-Oct-25 02:22:36 GMT; domain=.api.openai.com; HttpOnly;
+        Secure; SameSite=None
+      - _cfuvid=A3hKrtRptVobT9ISLOjljfiwW6.7WO4hD90i_oACewo-1760493156612-0.0.1.1-604800000;
+        path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      X-Content-Type-Options:
+      - nosniff
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      vary:
+      - Origin
+      x-envoy-upstream-service-time:
+      - '2'
+      x-openai-proxy-wasm:
+      - v0.1
+      x-request-id:
+      - req_92eb695372c64b41909674e84f14bff9
+    status:
+      code: 401
+      message: Unauthorized
+- request:
+    body: '{"input": ["print(\"Hello from gitctx test\")"], "model": "text-embedding-3-large",
+      "dimensions": 3072, "encoding_format": "base64"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '125'
+      content-type:
+      - application/json
+      cookie:
+      - __cf_bm=gRmDgRnD3iZKb8IPdpbvpi0O_sWyRbEmmYVB3.i23Xs-1760493156-1.0.1.1-L3HIYYRcfFU3ppOYt9KhGFZgsf4XtiDivbou9GyRJwFgFNbnQe.Ey9FGdYcib3EBeaWrH2OY4cblNhID.p.i9B2HdiDErDhuu_A9HOaSj6Y;
+        _cfuvid=A3hKrtRptVobT9ISLOjljfiwW6.7WO4hD90i_oACewo-1760493156612-0.0.1.1-604800000
+      host:
+      - api.openai.com
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-retry-count:
+      - '0'
+    method: POST
+    uri: https://api.openai.com/v1/embeddings
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"Incorrect API key provided:
+        sk-test-key. You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \       \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\":
+        \"invalid_api_key\"\n    }\n}\n"
+    headers:
+      CF-RAY:
+      - 98ebad94ea386893-SJC
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '261'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 15 Oct 2025 01:52:36 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      X-Content-Type-Options:
+      - nosniff
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      vary:
+      - Origin
+      x-envoy-upstream-service-time:
+      - '0'
+      x-openai-proxy-wasm:
+      - v0.1
+      x-request-id:
+      - req_7ee6fd2b96d4411e9248cc646419e027
+    status:
+      code: 401
+      message: Unauthorized
+version: 1

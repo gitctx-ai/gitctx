@@ -1,9 +1,9 @@
 # STORY-0001.3.3: Result Formatting & Output
 
 **Parent Epic**: [EPIC-0001.3](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Story Points**: 3
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: ██░░░░░░░░ 20%
 
 ## User Story
 
@@ -475,7 +475,7 @@ def test_language_fallback_to_markdown():
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.3.3.1](TASK-0001.3.3.1.md) | Write ALL BDD Scenarios (7 total) | 🔵 Not Started | 3 | 0/7 (all failing) |
+| [TASK-0001.3.3.1](TASK-0001.3.3.1.md) | Write ALL BDD Scenarios (7 total) | ✅ Complete | 1.5 | 0/7 (all failing) |
 | [TASK-0001.3.3.2](TASK-0001.3.3.2.md) | Create Formatter Protocol + Registry (TDD) | 🔵 Not Started | 3 | 1/7 passing |
 | [TASK-0001.3.3.3](TASK-0001.3.3.3.md) | Implement TerseFormatter (TDD) | 🔵 Not Started | 4 | 4/7 passing |
 | [TASK-0001.3.3.4](TASK-0001.3.3.4.md) | Implement VerboseFormatter + MCPFormatter (TDD) | 🔵 Not Started | 5 | 6/7 passing |

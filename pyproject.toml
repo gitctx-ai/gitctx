@@ -225,6 +225,7 @@ markers = [
     "anyio: marks tests using anyio for async operations",
     "vcr: marks tests using VCR cassettes for API recording/replay",
     "performance: marks tests as performance tests (p95 latency, throughput)",
+    "formatting: marks tests for result formatting (terse, verbose, MCP)",
 ]
 
 [tool.coverage.run]
