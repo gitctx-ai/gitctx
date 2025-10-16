@@ -1,6 +1,7 @@
 """Unit tests for indexing pipeline signal handling and cost estimation."""
 # ruff: noqa: PLC0415 # Inline imports for test isolation
 
+import re
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -174,11 +175,11 @@ async def test_dry_run_shows_cost_estimation(tmp_path, capsys):
 
     # Verify cost estimation output
     captured = capsys.readouterr()
-    assert "Blobs:        10" in captured.out
-    assert "Lines:        1,000" in captured.out
-    assert "Est. tokens:  5,000" in captured.out
-    assert "Est. cost:    $0.0025" in captured.out
-    assert "Range:        $0.0020 - $0.0030 (±10%)" in captured.out
+    assert re.search(r"Blobs:\s+10", captured.out)
+    assert re.search(r"Lines:\s+1,000", captured.out)
+    assert re.search(r"Est\.\s+tokens:\s+5,000", captured.out)
+    assert re.search(r"Est\.\s+cost:\s+\$0\.0025", captured.out)
+    assert re.search(r"Range:\s+\$0\.0020\s+-\s+\$0\.0030\s+\(±10%\)", captured.out)
 
     # Verify estimator was called with repo_path and settings
     mock_estimator.estimate_repo_cost.assert_called_once_with(repo_path, mock_settings)
