@@ -40,7 +40,7 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
     )
 
     # Add a file and commit (git_isolation_base automatically disables GPG signing)
-    (repo / "test.py").write_text('print("hello")')
+    (repo / "test.py").write_text('print("hello")', encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
@@ -297,7 +297,7 @@ def test_history_mode_requires_confirmation_non_tty(
         env=git_isolation_base,
         check=True,
     )
-    (repo / "test.py").write_text('print("hello")')
+    (repo / "test.py").write_text('print("hello")', encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, env=git_isolation_base, check=True)
 
@@ -305,7 +305,7 @@ def test_history_mode_requires_confirmation_non_tty(
     gitctx_dir = repo / ".gitctx"
     gitctx_dir.mkdir()
     config_file = gitctx_dir / "config.yml"
-    config_file.write_text("index:\n  index_mode: history\n")
+    config_file.write_text("index:\n  index_mode: history\n", encoding="utf-8")
 
     # Mock the pipeline (shouldn't be called, but mock anyway)
     async def mock_index(*args, **kwargs):
@@ -359,7 +359,7 @@ def test_yes_flag_skips_confirmation(
         env=git_isolation_base,
         check=True,
     )
-    (repo / "test.py").write_text('print("hello")')
+    (repo / "test.py").write_text('print("hello")', encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, env=git_isolation_base, check=True)
 
@@ -367,7 +367,7 @@ def test_yes_flag_skips_confirmation(
     gitctx_dir = repo / ".gitctx"
     gitctx_dir.mkdir()
     config_file = gitctx_dir / "config.yml"
-    config_file.write_text("index:\n  index_mode: history\n")
+    config_file.write_text("index:\n  index_mode: history\n", encoding="utf-8")
 
     # Mock the pipeline
     async def mock_index(*args, **kwargs):
@@ -403,7 +403,7 @@ def test_snapshot_mode_no_warning(isolated_cli_runner, tmp_path, monkeypatch, gi
         env=git_isolation_base,
         check=True,
     )
-    (repo / "test.py").write_text('print("hello")')
+    (repo / "test.py").write_text('print("hello")', encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
     subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, env=git_isolation_base, check=True)
 
