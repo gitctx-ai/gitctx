@@ -224,15 +224,18 @@ class CommitWalker:
             try:
                 head_obj = self.repo.revparse_single("HEAD")
                 # Type assertion: HEAD should resolve to a Commit
-                if isinstance(head_obj, pygit2.Commit):
-                    yield CommitMetadata(
-                        commit_sha=str(head_obj.id),
-                        author_name=head_obj.author.name,
-                        author_email=head_obj.author.email,
-                        commit_date=head_obj.commit_time,
-                        commit_message=head_obj.message,
-                        is_merge=len(head_obj.parent_ids) > 1,
+                if not isinstance(head_obj, pygit2.Commit):
+                    raise TypeError(
+                        f"HEAD does not point to a commit (got {type(head_obj).__name__})."
                     )
+                yield CommitMetadata(
+                    commit_sha=str(head_obj.id),
+                    author_name=head_obj.author.name,
+                    author_email=head_obj.author.email,
+                    commit_date=head_obj.commit_time,
+                    commit_message=head_obj.message,
+                    is_merge=len(head_obj.parent_ids) > 1,
+                )
             except KeyError:
                 pass  # Empty repo, no commits
             return  # Early exit for snapshot mode
