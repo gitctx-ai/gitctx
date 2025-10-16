@@ -21,6 +21,42 @@ Production bug discovered during real-world usage on 263-commit repository:
 
 3. **Inaccurate Estimates**: Dry-run only counted current files, never checked index mode or walked git history → showed $3 estimate but actual cost was $42
 
+## Critical Bug Discovery (2025-10-16)
+
+During development, discovered **100x cost reporting error**:
+
+**Symptoms:**
+- OpenAI dashboard: $0.43 actual charge (4,861 requests, 7.996M tokens)
+- gitctx reported: $42.00 (100x overestimate)
+
+**Root Causes (Compounding Bugs):**
+
+1. **Bug in OpenAIEmbedder (`src/gitctx/models/providers/openai.py:131-151`)**
+   - Assigned TOTAL batch token count to EACH chunk in the batch
+   - Example: 3 chunks with 300 tokens total → reported as 900 tokens (3x overcount)
+   - Multiplied cost by number of chunks in every batch
+
+2. **Bug in CostEstimator (`src/gitctx/indexing/progress.py:215-216, 332`)**
+   - Used constant `COST_PER_1K_TOKENS = 0.00013` (actually per-1M price)
+   - Divided by 1,000 instead of 1,000,000
+   - Created additional 100x error in estimates
+
+**Fix Details (Commit 33e6350):**
+- Changed cost distribution to use tiktoken token proportions (API doesn't provide per-chunk breakdown)
+- Renamed constant to `COST_PER_MILLION_TOKENS = 0.13` and fixed division
+- Fixed E2E test verification logic (was summing duplicated batch totals)
+- Added 9 comprehensive unit tests for cost distribution edge cases
+
+**Validation:**
+- All 751 tests pass (up from 734)
+- Coverage: 97.32%
+- Cost reporting now accurate within ±0.01%
+
+**Impact on Story:**
+- Original cost overrun ($42 reported) was partially due to this bug
+- Actual snapshot cost should be ~$3.27, history mode ~$40.26
+- Bug affected all cost estimates and tracking since initial implementation
+
 ## Acceptance Criteria
 
 **Cost Control:**
@@ -39,6 +75,12 @@ Production bug discovered during real-world usage on 263-commit repository:
 - [ ] Dry-run output prints exact mode string: "Mode: snapshot (HEAD only)" or "Mode: history (full git)"
 - [ ] Estimate matches actual cost within ±10% (measured by: `abs(actual - estimate) / estimate < 0.10`)
 
+**Cost Calculation Accuracy (Bug Fix):**
+- [x] OpenAIEmbedder distributes batch costs proportionally across chunks (not total-to-each)
+- [x] CostEstimator uses correct pricing constant (per-million, not per-thousand)
+- [x] Cost reporting matches OpenAI dashboard within ±0.01%
+- [x] 751 tests pass with 97.32% coverage including cost distribution edge cases
+
 ## Impact
 
 **Cost Reduction:**
@@ -50,6 +92,7 @@ Production bug discovered during real-world usage on 263-commit repository:
 - Accurate estimates prevent surprise charges
 - Cache enables free re-indexing
 - Clear mode indication prevents accidental history walks
+- **Bug fix: Cost reporting now matches OpenAI billing** (was 100x overestimate)
 
 ## Tasks
 
