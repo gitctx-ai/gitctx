@@ -78,18 +78,37 @@ async def embed_with_cache(
     # Chunk the content
     chunks = chunker.chunk_file(content, language)
 
-    # Generate embeddings
-    embeddings = await embedder.embed_chunks(chunks, blob_record.sha)
+    # Generate protocol embeddings (have vectors but no chunk content)
+    protocol_embeddings = await embedder.embed_chunks(chunks, blob_record.sha)
+
+    # Convert to storage embeddings (with full chunk metadata)
+    storage_embeddings: list[Embedding] = []
+    for chunk, proto_emb in zip(chunks, protocol_embeddings, strict=True):
+        storage_embeddings.append(
+            Embedding(
+                vector=proto_emb.vector,
+                token_count=proto_emb.token_count,
+                model=proto_emb.model,
+                cost_usd=proto_emb.cost_usd,
+                blob_sha=blob_record.sha,
+                chunk_index=proto_emb.chunk_index,
+                chunk_content=chunk.content,
+                start_line=chunk.start_line,
+                end_line=chunk.end_line,
+                total_chunks=len(chunks),
+                language=language,
+            )
+        )
 
     # Store in cache
-    cache.set(blob_record.sha, embeddings)
+    cache.set(blob_record.sha, storage_embeddings)
 
     # Log cost and token information
-    total_tokens = sum(e.token_count for e in embeddings)
-    total_cost = sum(e.cost_usd for e in embeddings)
+    total_tokens = sum(e.token_count for e in storage_embeddings)
+    total_cost = sum(e.cost_usd for e in storage_embeddings)
     logger.info(
         f"Embedded blob {blob_record.sha[:8]}: "
-        f"{len(embeddings)} chunks, {total_tokens} tokens, ${total_cost:.6f}"
+        f"{len(storage_embeddings)} chunks, {total_tokens} tokens, ${total_cost:.6f}"
     )
 
-    return embeddings
+    return storage_embeddings
