@@ -6,6 +6,7 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
+import yaml
 
 from gitctx.cli.main import app
 from gitctx.cli.symbols import SYMBOLS
@@ -305,7 +306,8 @@ def test_history_mode_requires_confirmation_non_tty(
     gitctx_dir = repo / ".gitctx"
     gitctx_dir.mkdir()
     config_file = gitctx_dir / "config.yml"
-    config_file.write_text("index:\n  index_mode: history\n", encoding="utf-8")
+    config_data = {"index": {"index_mode": "history"}}
+    config_file.write_text(yaml.dump(config_data), encoding="utf-8")
 
     # Mock the pipeline (shouldn't be called, but mock anyway)
     async def mock_index(*args, **kwargs):
@@ -367,7 +369,8 @@ def test_yes_flag_skips_confirmation(
     gitctx_dir = repo / ".gitctx"
     gitctx_dir.mkdir()
     config_file = gitctx_dir / "config.yml"
-    config_file.write_text("index:\n  index_mode: history\n", encoding="utf-8")
+    config_data = {"index": {"index_mode": "history"}}
+    config_file.write_text(yaml.dump(config_data), encoding="utf-8")
 
     # Mock the pipeline
     async def mock_index(*args, **kwargs):

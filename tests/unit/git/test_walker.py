@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from gitctx.config.settings import GitCtxSettings
+from gitctx.config.settings import GitCtxSettings, IndexMode
 from gitctx.git.types import BlobLocation, CommitMetadata
 from gitctx.git.walker import (
     CommitWalker,
@@ -1630,7 +1630,7 @@ class TestIndexModeConfiguration:
         config = GitCtxSettings()
 
         # Assert
-        assert config.repo.index.index_mode == "snapshot"
+        assert config.repo.index.index_mode == IndexMode.SNAPSHOT
 
     def test_snapshot_mode_only_walks_head_commit(
         self, git_repo_factory, config_snapshot_mode, isolated_env

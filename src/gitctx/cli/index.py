@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from gitctx.cli.symbols import SYMBOLS
+from gitctx.config.settings import IndexMode
 
 console = Console()
 console_err = Console(stderr=True)
@@ -74,7 +75,8 @@ def index_command(
         raise typer.Exit(code=1) from e
 
     # Check for history mode and show warning
-    if not dry_run and settings.repo.index.index_mode == "history" and not skip_confirmation:
+    is_history_mode = settings.repo.index.index_mode == IndexMode.HISTORY
+    if not dry_run and is_history_mode and not skip_confirmation:
         # Show warning with cost implications
         console_err.print("\n[yellow]⚠️  History Mode Enabled[/yellow]")
         console_err.print("  Indexing ALL versions across full git history.")

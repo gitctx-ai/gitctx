@@ -11,8 +11,9 @@ Precedence:
 
 import os
 from collections.abc import Callable
+from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field, SecretStr
@@ -22,6 +23,18 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
+
+# ===================================================================
+# Enums
+# ===================================================================
+
+
+class IndexMode(str, Enum):
+    """Index mode for git walker."""
+
+    SNAPSHOT = "snapshot"  # HEAD tree only
+    HISTORY = "history"  # Full git graph
+
 
 # ===================================================================
 # User Config Components (API Keys)
@@ -204,6 +217,8 @@ class SearchSettings(BaseModel):
 class IndexSettings(BaseModel):
     """Indexing configuration."""
 
+    model_config = {"use_enum_values": True}
+
     # Chunking settings (STORY-0001.2.2)
     chunk_size: int = Field(default=1000, gt=0)
     chunk_overlap: int = Field(default=200, ge=0)
@@ -241,8 +256,8 @@ class IndexSettings(BaseModel):
         default=True,
         description="Skip binary files",
     )
-    index_mode: Literal["snapshot", "history"] = Field(
-        default="snapshot",
+    index_mode: IndexMode = Field(
+        default=IndexMode.SNAPSHOT,
         description="snapshot=HEAD tree only, history=full git graph",
     )
 
@@ -328,9 +343,9 @@ class RepoConfig(BaseSettings):
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
-            "search": self.search.model_dump(),
-            "index": self.index.model_dump(),
-            "model": self.model.model_dump(),
+            "search": self.search.model_dump(mode="json"),
+            "index": self.index.model_dump(mode="json"),
+            "model": self.model.model_dump(mode="json"),
         }
 
         with config_path.open("w") as f:

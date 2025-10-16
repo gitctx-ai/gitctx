@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pygit2
 
-from gitctx.config.settings import GitCtxSettings
+from gitctx.config.settings import GitCtxSettings, IndexMode
 from gitctx.git.types import (
     BlobLocation,
     BlobRecord,
@@ -220,7 +220,7 @@ class CommitWalker:
             CommitMetadata for each unique commit (deduplicated across refs)
         """
         # Snapshot mode - only yield HEAD commit
-        if self.config.repo.index.index_mode == "snapshot":
+        if self.config.repo.index.index_mode == IndexMode.SNAPSHOT:
             try:
                 head_obj = self.repo.revparse_single("HEAD")
                 # Type assertion: HEAD should resolve to a Commit
