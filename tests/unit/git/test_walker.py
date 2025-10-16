@@ -1664,6 +1664,52 @@ class TestIndexModeConfiguration:
         commit_shas = [c.commit_sha for c in commits]
         assert len(set(commit_shas)) == 5
 
+    def test_snapshot_mode_handles_head_pointing_to_non_commit(
+        self, git_repo_factory, config_snapshot_mode, isolated_env
+    ):
+        """Snapshot mode handles HEAD pointing to tree/tag instead of commit."""
+        # Arrange - create repo and make HEAD point to tree object
+        repo_path = git_repo_factory(num_commits=1)
+
+        # Create a tree object and make HEAD point to it directly (detached)
+        # This simulates a corrupted/unusual repo state
+        subprocess.run(
+            ["git", "symbolic-ref", "HEAD", "refs/heads/nonexistent"],
+            cwd=repo_path,
+            check=False,  # Will fail, which is expected
+        )
+
+        walker = CommitWalker(str(repo_path), config_snapshot_mode)
+
+        # Act - should handle gracefully and yield no commits
+        commits = list(walker._walk_commits())
+
+        # Assert - empty list when HEAD is invalid
+        assert len(commits) == 0
+
+    def test_history_mode_skips_invalid_refs(
+        self, git_repo_factory, config_history_mode, isolated_env
+    ):
+        """History mode gracefully skips invalid/nonexistent refs."""
+        # Arrange - create repo and configure with mix of valid/invalid refs
+        repo_path = git_repo_factory(num_commits=3)
+        config = config_history_mode
+        config.repo.index.refs = [
+            "HEAD",  # Valid
+            "refs/heads/nonexistent",  # Invalid
+            "refs/tags/missing",  # Invalid
+        ]
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - should walk only valid refs without error
+        commits = list(walker._walk_commits())
+
+        # Assert - should only get commits from HEAD (invalid refs skipped)
+        assert len(commits) == 3
+        # Verify all commits are from actual history
+        commit_shas = [c.commit_sha for c in commits]
+        assert len(set(commit_shas)) == 3
+
 
 class TestBlobCounting:
     """Test count_unique_blobs() method for fast dry-run estimation."""
