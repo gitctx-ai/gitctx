@@ -156,6 +156,138 @@ Feature: [User-focused feature name]
 4. **Independent scenarios** - Each scenario should run standalone
 5. **Use Background** - Extract common setup to reduce duplication
 
+## Testing Interactive CLI with Typer
+
+### Simulating User Input with CliRunner
+
+**Pattern discovered**: Use `runner.invoke(app, args, input="y\n")` to simulate user input, NOT `sys.stdout.isatty()` mocking.
+
+#### Why This Matters
+
+Typer's `confirm()` function handles TTY detection internally. When using `CliRunner`, it:
+1. Accepts input from the `input=` parameter (simulates user typing)
+2. Raises `typer.Abort` exception in non-interactive mode (no input provided)
+
+#### Correct Implementation Pattern
+
+**In source code** (e.g., `src/gitctx/cli/index.py`):
+
+```python
+# ✅ CORRECT: Let Typer handle TTY detection, catch exception
+try:
+    if not typer.confirm("Continue?", default=False):
+        console_err.print("Cancelled")
+        raise typer.Exit(0)
+except typer.Abort:
+    # Non-interactive environment without --yes flag
+    console_err.print("Error: requires confirmation")
+    console_err.print("Use --yes to skip confirmation in non-interactive environments")
+    raise typer.Exit(code=1) from None
+
+# ❌ WRONG: Manual TTY check prevents testing
+if not sys.stdout.isatty():
+    console_err.print("Error: requires confirmation")
+    raise typer.Exit(code=1)
+```
+
+**In E2E test steps**:
+
+```python
+# ✅ CORRECT: Simulate user input with input= parameter
+@when('I run "gitctx index" interactively and accept')
+def run_index_interactively_accept(e2e_cli_runner, context):
+    from gitctx.cli.main import app
+
+    # Simulate user typing 'y' at prompt
+    result = e2e_cli_runner.invoke(app, ["index"], input="y\n")
+
+    context["result"] = result
+    context["exit_code"] = result.exit_code
+
+@when('I run "gitctx index" interactively and decline')
+def run_index_interactively_decline(e2e_cli_runner, context):
+    from gitctx.cli.main import app
+
+    # Simulate user typing 'n' at prompt
+    result = e2e_cli_runner.invoke(app, ["index"], input="n\n")
+
+    context["result"] = result
+    context["exit_code"] = result.exit_code
+
+# ❌ WRONG: Mocking isatty() doesn't work with CliRunner
+from unittest.mock import patch
+
+@when('I run "gitctx index" interactively')
+def run_index_interactively_wrong(e2e_cli_runner, context):
+    from gitctx.cli.main import app
+
+    # This won't work - CliRunner replaces stdout entirely
+    with patch("sys.stdout.isatty", return_value=True):
+        result = e2e_cli_runner.invoke(app, ["index"])
+```
+
+#### Why Mocking isatty() Doesn't Work
+
+1. **CliRunner replaces stdout**: `CliRunner` creates a new `StringIO` for stdout, so patching `sys.stdout.isatty` doesn't affect the actual check inside the CLI command
+2. **Typer handles detection internally**: `typer.confirm()` already knows how to handle both TTY and non-TTY environments
+3. **input= bypasses TTY check**: When `input=` is provided, Typer reads from it directly (doesn't need TTY)
+
+#### Complete Example
+
+**Feature file** (`tests/e2e/features/indexing.feature`):
+
+```gherkin
+Scenario: History mode requires confirmation in interactive terminal (accept)
+  Given a repository with history mode enabled
+  When I run "gitctx index" interactively and accept
+  Then the exit code should be 0
+  And the error should contain "History Mode Enabled"
+  And the error should contain "10-50x higher"
+  And indexing should complete successfully
+```
+
+**Step definition** (`tests/e2e/steps/indexing_steps.py`):
+
+```python
+@when('I run "gitctx index" interactively and accept')
+def run_index_interactively_accept(e2e_cli_runner, context: dict[str, Any]) -> None:
+    """Run index command with user accepting confirmation.
+
+    Uses CliRunner's input= parameter to simulate user typing 'y' at the prompt.
+    This bypasses TTY detection - typer.confirm() accepts the input directly.
+    """
+    from gitctx.cli.main import app
+
+    # Simulate user input (accept with 'y')
+    result = e2e_cli_runner.invoke(app, ["index"], input="y\n")
+
+    context["result"] = result
+    context["exit_code"] = result.exit_code
+    context["stdout"] = result.stdout
+    context["stderr"] = result.stderr or ""
+```
+
+#### Reference Implementation
+
+See Typer's own test suite:
+- [`/tmp/typer/tests/test_tutorial/test_prompt/test_tutorial001.py`](file:///tmp/typer/tests/test_tutorial/test_prompt/test_tutorial001.py) - Uses `input="Camila\n"` to simulate user input
+- Pattern: `runner.invoke(app, input="value\n")` for all interactive prompts
+
+#### Testing stderr vs stdout
+
+Interactive warnings typically go to stderr, so check the right stream:
+
+```python
+# ✅ CORRECT: Check stderr for warnings/errors
+@then(parsers.parse('the error should contain "{text}"'))
+def check_stderr_contains(text: str, context: dict[str, Any]) -> None:
+    stderr = context["stderr"]
+    assert text in stderr, f"Expected '{text}' in stderr, got: {stderr}"
+
+# Import in test file:
+from tests.e2e.steps.cli_steps import check_stderr_contains
+```
+
 ## Writing Step Definitions
 
 ### Basic Step Implementation
