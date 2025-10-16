@@ -34,9 +34,13 @@ async def index_repository(
     # Cost estimation mode (dry-run)
     if dry_run:
         estimator = CostEstimator()
-        estimate = estimator.estimate_repo_cost(repo_path)
+        estimate = estimator.estimate_repo_cost(repo_path, settings)  # Pass settings!
 
-        print(f"Files:        {format_number(estimate['total_files'])}")
+        # Show mode information
+        mode = settings.repo.index.index_mode
+        mode_desc = "snapshot (HEAD only)" if mode == "snapshot" else "history (full git)"
+        print(f"Mode:         {mode_desc}")
+        print(f"Blobs:        {format_number(estimate['total_files'])}")
         print(f"Lines:        {format_number(estimate['total_lines'])}")
         print(f"Est. tokens:  {format_number(estimate['estimated_tokens'])}")
         print(f"Est. cost:    {format_cost(estimate['estimated_cost'])}")
@@ -49,7 +53,9 @@ async def index_repository(
     # Import pipeline components (lazy import to avoid circular dependencies)
     from gitctx.git.walker import CommitWalker
     from gitctx.indexing.chunker import LanguageAwareChunker
+    from gitctx.indexing.embeddings import embed_with_cache
     from gitctx.models.providers.openai import OpenAIEmbedder
+    from gitctx.storage.embedding_cache import EmbeddingCache
     from gitctx.storage.lancedb_store import LanceDBStore
 
     # Initialize components
@@ -59,6 +65,7 @@ async def index_repository(
         chunk_overlap_ratio=settings.repo.index.chunk_overlap_ratio,
     )
     embedder = OpenAIEmbedder(api_key=settings.get("api_keys.openai"))
+    cache = EmbeddingCache(repo_path / ".gitctx", model=settings.repo.model.embedding)
     store = LanceDBStore(repo_path / ".gitctx" / "db" / "lancedb")
 
     reporter.start()
@@ -100,75 +107,25 @@ async def index_repository(
 
         for blob_record in blob_records:
             try:
-                # Decode blob content
-                content = blob_record.content.decode("utf-8")
-
-                # Detect language for language-aware chunking (use first location's path)
-                from gitctx.indexing.language_detection import detect_language_from_extension
-
-                file_path = blob_record.locations[0].file_path
-                language = detect_language_from_extension(file_path)
-
-                # Chunk the file
-                chunks = chunker.chunk_file(
-                    content=content,
-                    language=language,
-                    max_tokens=settings.repo.index.max_chunk_tokens,
+                # Single orchestrated call: check cache → chunk → embed → save cache
+                embeddings = await embed_with_cache(
+                    chunker=chunker,
+                    embedder=embedder,
+                    cache=cache,
+                    blob_record=blob_record,
                 )
-                reporter.update(chunks=len(chunks))
 
-                # Embed chunks - returns protocol.Embedding with vectors
-                protocol_embeddings = await embedder.embed_chunks(chunks, blob_record.sha)
+                # Track stats (embeddings already have all metadata)
+                total_tokens = sum(e.token_count for e in embeddings)
+                total_cost = sum(e.cost_usd for e in embeddings)
+                reporter.update(tokens=total_tokens, cost=total_cost, chunks=len(embeddings))
 
-                # Track tokens and cost from protocol embeddings
-                total_tokens = sum(e.token_count for e in protocol_embeddings)
-                total_cost = sum(e.cost_usd for e in protocol_embeddings)
-                reporter.update(tokens=total_tokens, cost=total_cost)
-
-                # Convert to storage Embedding format
-                from gitctx.indexing.types import Embedding as StorageEmbedding
-
-                storage_embeddings = []
-
-                for chunk, proto_emb in zip(chunks, protocol_embeddings, strict=True):
-                    storage_embeddings.append(
-                        StorageEmbedding(
-                            vector=proto_emb.vector,
-                            token_count=chunk.token_count,
-                            model=proto_emb.model,
-                            cost_usd=proto_emb.cost_usd,
-                            blob_sha=blob_record.sha,
-                            chunk_index=proto_emb.chunk_index,
-                            chunk_content=chunk.content,
-                            start_line=chunk.start_line,
-                            end_line=chunk.end_line,
-                            total_chunks=len(chunks),
-                            language=language,
-                        )
-                    )
-
-                # Store embeddings with blob metadata
+                # Store (embeddings have all fields: chunk_content, vectors, metadata)
                 blob_locations = {blob_record.sha: blob_record.locations}
+                store.add_chunks_batch(embeddings=embeddings, blob_locations=blob_locations)
 
-                store.add_chunks_batch(
-                    embeddings=storage_embeddings,
-                    blob_locations=blob_locations,
-                )
-
-            except UnicodeDecodeError:
-                # Skip binary files (expected for non-text content)
-                file_path = (
-                    blob_record.locations[0].file_path if blob_record.locations else blob_record.sha
-                )
-                logger.debug(
-                    "Skipping binary file %s (UnicodeDecodeError)",
-                    file_path,
-                    exc_info=True,
-                )
-                reporter.record_error()
-                continue
             except Exception as e:
-                # Log error with full traceback for debugging, show brief message to user
+                # embed_with_cache handles UTF-8 errors internally, log other errors
                 file_path = (
                     blob_record.locations[0].file_path if blob_record.locations else blob_record.sha
                 )

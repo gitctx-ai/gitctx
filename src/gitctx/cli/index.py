@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from gitctx.cli.symbols import SYMBOLS
+from gitctx.config.settings import IndexMode
 
 console = Console()
 console_err = Console(stderr=True)
@@ -26,6 +27,7 @@ def index_command(
         "-q",
         help="Suppress all output except errors",
     ),
+    skip_confirmation: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompts"),
     _force: bool = typer.Option(
         False,
         "--force",
@@ -71,6 +73,29 @@ def index_command(
     except Exception as e:
         console_err.print(f"[red]{SYMBOLS['error']}[/red] Configuration error: {e}")
         raise typer.Exit(code=1) from e
+
+    # Check for history mode and show warning
+    is_history_mode = settings.repo.index.index_mode == IndexMode.HISTORY
+    if not dry_run and is_history_mode and not skip_confirmation:
+        # Show warning with cost implications
+        console_err.print("\n[yellow]⚠️  History Mode Enabled[/yellow]")
+        console_err.print("  Indexing ALL versions across full git history.")
+        console_err.print("  Cost/time may be 10-50x higher than snapshot mode.\n")
+
+        # Prompt for confirmation (default: No)
+        # Note: In non-interactive environments (CI, scripts), use --yes to skip this prompt
+        # typer.confirm() will raise Abort if stdin is not available
+        try:
+            if not typer.confirm("Continue?", default=False):
+                console_err.print("Cancelled")
+                raise typer.Exit(0)
+        except typer.Abort:
+            # Non-interactive environment without --yes flag
+            console_err.print(
+                f"[red]{SYMBOLS['error']}[/red] Error: history mode requires confirmation"
+            )
+            console_err.print("Use --yes to skip confirmation in non-interactive environments")
+            raise typer.Exit(code=1) from None
 
     # Run the indexing pipeline
     from gitctx.indexing.pipeline import index_repository

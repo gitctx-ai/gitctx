@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from gitctx.config.settings import GitCtxSettings
+from gitctx.config.settings import GitCtxSettings, IndexMode
 from gitctx.git.types import BlobLocation, CommitMetadata
 from gitctx.git.walker import (
     CommitWalker,
@@ -73,12 +73,13 @@ class TestCommitWalkerInitialization:
 class TestCommitTraversal:
     """Test commit traversal ordering and deduplication."""
 
-    def test_walk_commits_reverse_chronological(self, git_repo_factory, isolated_env):
+    def test_walk_commits_reverse_chronological(
+        self, git_repo_factory, config_history_mode, isolated_env
+    ):
         """Commits are returned in reverse chronological order (newest first)."""
         # Arrange
         repo_path = git_repo_factory(num_commits=3)
-        config = GitCtxSettings()
-        walker = CommitWalker(str(repo_path), config)
+        walker = CommitWalker(str(repo_path), config_history_mode)
 
         # Act
         commits = list(walker._walk_commits())
@@ -89,12 +90,11 @@ class TestCommitTraversal:
         for i in range(len(commits) - 1):
             assert commits[i].commit_date >= commits[i + 1].commit_date
 
-    def test_walk_commits_deduplication(self, git_repo_factory, isolated_env):
+    def test_walk_commits_deduplication(self, git_repo_factory, config_history_mode, isolated_env):
         """Commits are deduplicated when walking multiple refs."""
         # Arrange
         repo_path = git_repo_factory(num_commits=5)
-        config = GitCtxSettings()
-        walker = CommitWalker(str(repo_path), config)
+        walker = CommitWalker(str(repo_path), config_history_mode)
 
         # Act - walk twice
         first_walk = list(walker._walk_commits())
@@ -112,9 +112,11 @@ class TestCommitTraversal:
         config = GitCtxSettings()
         walker = CommitWalker(str(repo_path), config)
 
-        # Act & Assert: pygit2.GitError raised when repo has no HEAD
-        with pytest.raises((Exception, AttributeError)):
-            list(walker._walk_commits())
+        # Act
+        commits = list(walker._walk_commits())
+
+        # Assert - snapshot mode gracefully returns empty list for repos with no HEAD
+        assert len(commits) == 0
 
 
 class TestCommitMetadataExtraction:
@@ -140,12 +142,11 @@ class TestCommitMetadataExtraction:
         assert commit.commit_date > 0  # Unix timestamp
         assert commit.commit_message.startswith("Commit ")
 
-    def test_extract_multiple_commits(self, git_repo_factory, isolated_env):
+    def test_extract_multiple_commits(self, git_repo_factory, config_history_mode, isolated_env):
         """Each commit has unique SHA and correct metadata."""
         # Arrange
         repo_path = git_repo_factory(num_commits=3)
-        config = GitCtxSettings()
-        walker = CommitWalker(str(repo_path), config)
+        walker = CommitWalker(str(repo_path), config_history_mode)
 
         # Act
         commits = list(walker._walk_commits())
@@ -163,12 +164,11 @@ class TestCommitMetadataExtraction:
 class TestMergeCommitDetection:
     """Test merge commit detection (is_merge flag)."""
 
-    def test_regular_commit_not_merge(self, git_repo_factory, isolated_env):
+    def test_regular_commit_not_merge(self, git_repo_factory, config_history_mode, isolated_env):
         """Regular commits have is_merge=False."""
         # Arrange
         repo_path = git_repo_factory(num_commits=2)
-        config = GitCtxSettings()
-        walker = CommitWalker(str(repo_path), config)
+        walker = CommitWalker(str(repo_path), config_history_mode)
 
         # Act
         commits = list(walker._walk_commits())
@@ -176,12 +176,11 @@ class TestMergeCommitDetection:
         # Assert
         assert all(commit.is_merge is False for commit in commits)
 
-    def test_merge_commit_detection(self, git_repo_factory, isolated_env):
+    def test_merge_commit_detection(self, git_repo_factory, config_history_mode, isolated_env):
         """Merge commits have is_merge=True."""
         # Arrange - create repo with merge commit (3 commits: 1 main, 1 feature, 1 merge)
         repo_path = git_repo_factory(num_commits=3, create_merge=True)
-        config = GitCtxSettings()
-        walker = CommitWalker(str(repo_path), config)
+        walker = CommitWalker(str(repo_path), config_history_mode)
 
         # Act - walk commits and collect metadata
         commits = list(walker._walk_commits())
@@ -200,11 +199,11 @@ class TestMergeCommitDetection:
         merge_commit = merge_commits[0]
         assert merge_commit.is_merge is True
 
-    def test_octopus_merge_detection(self, git_repo_factory, isolated_env):
+    def test_octopus_merge_detection(self, git_repo_factory, isolated_env, config_history_mode):
         """Octopus merge commits (3+ parents) have is_merge=True."""
         # Arrange - create repo with octopus merge (5 commits: 2 main, 2 features, 1 octopus)
         repo_path = git_repo_factory(num_commits=5, merge_type="octopus")
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
         walker = CommitWalker(str(repo_path), config)
 
         # Act - walk commits and collect metadata
@@ -224,12 +223,14 @@ class TestMergeCommitDetection:
         octopus_commit = merge_commits[0]
         assert octopus_commit.is_merge is True
 
-    def test_fast_forward_merge_not_detected_as_merge(self, git_repo_factory, isolated_env):
+    def test_fast_forward_merge_not_detected_as_merge(
+        self, git_repo_factory, isolated_env, config_history_mode
+    ):
         """Fast-forward merge creates linear history with no merge commit."""
         # Arrange - create repo with fast-forward merge
         # This creates linear history (no merge commit should be created)
         repo_path = git_repo_factory(num_commits=3, merge_type="fast-forward")
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
         walker = CommitWalker(str(repo_path), config)
 
         # Act - walk commits and collect metadata
@@ -388,7 +389,9 @@ class TestBlobDeduplication:
         unchanged_blob = unchanged_blobs[0]
         assert len(unchanged_blob.sha) == 40
 
-    def test_all_locations_captured(self, git_repo_factory, git_isolation_base, isolated_env):
+    def test_all_locations_captured(
+        self, git_repo_factory, git_isolation_base, isolated_env, config_history_mode
+    ):
         """All 50 locations for a blob are captured in BlobRecord.locations."""
         # Arrange - create repo with 1 commit, then add unchanged.py
         repo_path = git_repo_factory(num_commits=1)
@@ -425,7 +428,7 @@ class TestBlobDeduplication:
                 check=True,
             )
 
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
         walker = CommitWalker(str(repo_path), config)
 
         # Act
@@ -443,11 +446,13 @@ class TestBlobDeduplication:
             assert loc.file_path == "unchanged.py"
             assert isinstance(loc.is_head, bool)
 
-    def test_resume_from_partial_index(self, git_repo_factory, git_isolation_base, isolated_env):
+    def test_resume_from_partial_index(
+        self, git_repo_factory, git_isolation_base, isolated_env, config_history_mode
+    ):
         """Walker skips already-indexed blobs when pre-seeded."""
         # Arrange
         repo_path = git_repo_factory(num_commits=10)
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
 
         # First walk - get all blob SHAs
         walker1 = CommitWalker(str(repo_path), config)
@@ -521,7 +526,7 @@ class TestHeadBlobTracking:
         assert main_py_blob.locations[0].is_head is True
 
     def test_historical_blob_has_is_head_false(
-        self, git_repo_factory, git_isolation_base, isolated_env
+        self, git_repo_factory, git_isolation_base, config_history_mode, isolated_env
     ):
         """Blob not in HEAD tree has is_head=False."""
         # Arrange
@@ -557,7 +562,7 @@ class TestHeadBlobTracking:
             check=True,
         )
 
-        config = GitCtxSettings()
+        config = config_history_mode
         walker = CommitWalker(str(repo_path), config)
 
         # Act
@@ -728,11 +733,11 @@ class TestBareRepositoryHandling:
         assert walker.repo is not None
         assert walker.repo.is_bare is True
 
-    def test_bare_repository_walks_commits(self, bare_repo, isolated_env):
+    def test_bare_repository_walks_commits(self, bare_repo, isolated_env, config_history_mode):
         """CommitWalker can walk commits in bare repository."""
         # Arrange
         repo_path = bare_repo
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
         walker = CommitWalker(str(repo_path), config)
 
         # Act
@@ -1388,12 +1393,12 @@ class TestProgressReporting:
     """Test progress reporting during commit walking."""
 
     def test_progress_callback_invoked_every_10_commits(
-        self, git_repo_factory, git_isolation_base, isolated_env
+        self, git_repo_factory, git_isolation_base, config_history_mode, isolated_env
     ):
         """Progress callback invoked every 10 commits during walk."""
         # ARRANGE - create repo with 25 commits
         repo_path = git_repo_factory(num_commits=25)
-        config = GitCtxSettings()
+        config = config_history_mode
 
         progress_calls = []
 
@@ -1410,11 +1415,13 @@ class TestProgressReporting:
         assert progress_calls[0].commits_seen == 10
         assert progress_calls[1].commits_seen == 20
 
-    def test_progress_contains_commit_metadata(self, git_repo_factory, isolated_env):
+    def test_progress_contains_commit_metadata(
+        self, git_repo_factory, isolated_env, config_history_mode
+    ):
         """Progress callback receives current commit metadata."""
         # ARRANGE
         repo_path = git_repo_factory(num_commits=15)
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
 
         progress_calls = []
 
@@ -1433,11 +1440,13 @@ class TestProgressReporting:
         assert len(first_progress.current_commit.commit_sha) == 40
         assert first_progress.current_commit.author_name == "Test User"
 
-    def test_progress_tracks_unique_blobs(self, git_repo_factory, git_isolation_base, isolated_env):
+    def test_progress_tracks_unique_blobs(
+        self, git_repo_factory, git_isolation_base, isolated_env, config_history_mode
+    ):
         """Progress callback tracks unique_blobs_found count."""
         # ARRANGE
         repo_path = git_repo_factory(num_commits=15)
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
 
         progress_calls = []
 
@@ -1471,11 +1480,13 @@ class TestProgressReporting:
 class TestErrorHandling:
     """Test error handling and statistics during commit walking."""
 
-    def test_get_stats_returns_walk_stats(self, git_repo_factory, isolated_env):
+    def test_get_stats_returns_walk_stats(
+        self, git_repo_factory, isolated_env, config_history_mode
+    ):
         """Walker provides stats after walk completes."""
         # ARRANGE
         repo_path = git_repo_factory(num_commits=5)
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
         walker = CommitWalker(str(repo_path), config)
 
         # ACT
@@ -1488,11 +1499,11 @@ class TestErrorHandling:
         assert stats.blobs_skipped >= 0
         assert stats.errors is not None
 
-    def test_stats_track_commits_seen(self, git_repo_factory, isolated_env):
+    def test_stats_track_commits_seen(self, git_repo_factory, isolated_env, config_history_mode):
         """Stats accurately track number of commits processed."""
         # ARRANGE
         repo_path = git_repo_factory(num_commits=20)
-        config = GitCtxSettings()
+        config = config_history_mode  # Use history mode
         walker = CommitWalker(str(repo_path), config)
 
         # ACT
@@ -1518,12 +1529,12 @@ class TestErrorHandling:
         assert stats.blobs_indexed > 0
 
     def test_blob_read_error_logged_and_continues(
-        self, git_repo_factory, git_isolation_base, isolated_env, monkeypatch
+        self, git_repo_factory, git_isolation_base, config_history_mode, isolated_env, monkeypatch
     ):
         """Blob read errors are logged and walk continues."""
         # ARRANGE
         repo_path = git_repo_factory(num_commits=5)
-        config = GitCtxSettings()
+        config = config_history_mode
         walker = CommitWalker(str(repo_path), config)
 
         # Simulate blob read failure by patching repo.get method
@@ -1587,3 +1598,175 @@ class TestErrorHandling:
         assert error.commit_sha is not None
         assert len(error.commit_sha) == 40
         assert "Test error" in error.message
+
+
+# ============================================================================
+# Index Mode (Snapshot vs History) - STORY-0001.2.6
+# ============================================================================
+
+
+@pytest.fixture
+def config_snapshot_mode() -> GitCtxSettings:
+    """Config with snapshot mode (HEAD only)."""
+    config = GitCtxSettings()
+    config.repo.index.index_mode = "snapshot"
+    return config
+
+
+@pytest.fixture
+def config_history_mode() -> GitCtxSettings:
+    """Config with history mode (full git graph)."""
+    config = GitCtxSettings()
+    config.repo.index.index_mode = "history"
+    return config
+
+
+class TestIndexModeConfiguration:
+    """Test snapshot vs history mode behavior."""
+
+    def test_default_mode_is_snapshot(self):
+        """Default config should use snapshot mode."""
+        # Arrange & Act
+        config = GitCtxSettings()
+
+        # Assert
+        assert config.repo.index.index_mode == IndexMode.SNAPSHOT
+
+    def test_snapshot_mode_only_walks_head_commit(
+        self, git_repo_factory, config_snapshot_mode, isolated_env
+    ):
+        """Snapshot mode should process only HEAD, not history."""
+        # Arrange - create repo with multiple commits
+        repo_path = git_repo_factory(num_commits=5)
+        walker = CommitWalker(str(repo_path), config_snapshot_mode)
+
+        # Act
+        commits = list(walker._walk_commits())
+
+        # Assert - should yield exactly 1 commit (HEAD)
+        assert len(commits) == 1
+        assert commits[0].commit_sha == str(walker.repo.head.target)
+
+    def test_history_mode_walks_all_commits(
+        self, git_repo_factory, config_history_mode, isolated_env
+    ):
+        """History mode should walk full commit graph."""
+        # Arrange - create repo with multiple commits
+        repo_path = git_repo_factory(num_commits=5)
+        walker = CommitWalker(str(repo_path), config_history_mode)
+
+        # Act
+        commits = list(walker._walk_commits())
+
+        # Assert - should walk all commits
+        assert len(commits) == 5
+        # Verify all commits are unique
+        commit_shas = [c.commit_sha for c in commits]
+        assert len(set(commit_shas)) == 5
+
+    def test_snapshot_mode_handles_head_pointing_to_non_commit(
+        self, git_repo_factory, config_snapshot_mode, isolated_env
+    ):
+        """Snapshot mode handles HEAD pointing to tree/tag instead of commit."""
+        # Arrange - create repo and make HEAD point to tree object
+        repo_path = git_repo_factory(num_commits=1)
+
+        # Create a tree object and make HEAD point to it directly (detached)
+        # This simulates a corrupted/unusual repo state
+        subprocess.run(
+            ["git", "symbolic-ref", "HEAD", "refs/heads/nonexistent"],
+            cwd=repo_path,
+            check=False,  # Will fail, which is expected
+        )
+
+        walker = CommitWalker(str(repo_path), config_snapshot_mode)
+
+        # Act - should handle gracefully and yield no commits
+        commits = list(walker._walk_commits())
+
+        # Assert - empty list when HEAD is invalid
+        assert len(commits) == 0
+
+    def test_history_mode_skips_invalid_refs(
+        self, git_repo_factory, config_history_mode, isolated_env
+    ):
+        """History mode gracefully skips invalid/nonexistent refs."""
+        # Arrange - create repo and configure with mix of valid/invalid refs
+        repo_path = git_repo_factory(num_commits=3)
+        config = config_history_mode
+        config.repo.index.refs = [
+            "HEAD",  # Valid
+            "refs/heads/nonexistent",  # Invalid
+            "refs/tags/missing",  # Invalid
+        ]
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - should walk only valid refs without error
+        commits = list(walker._walk_commits())
+
+        # Assert - should only get commits from HEAD (invalid refs skipped)
+        assert len(commits) == 3
+        # Verify all commits are from actual history
+        commit_shas = [c.commit_sha for c in commits]
+        assert len(set(commit_shas)) == 3
+
+
+class TestBlobCounting:
+    """Test count_unique_blobs() method for fast dry-run estimation."""
+
+    def test_count_unique_blobs_matches_walk_blobs_count(self, git_repo_factory, isolated_env):
+        """count_unique_blobs() should equal len(list(walk_blobs()))."""
+        # Arrange
+        repo_path = git_repo_factory(num_commits=3)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - count method (fast)
+        counted = walker.count_unique_blobs()
+
+        # Act - walk method (full iteration)
+        walker2 = CommitWalker(str(repo_path), config)
+        walked = len(list(walker2.walk_blobs()))
+
+        # Assert - both methods should return same count
+        assert counted == walked
+
+    def test_count_unique_blobs_is_fast(self, git_repo_factory, isolated_env):
+        """count_unique_blobs() should be <1s for 100 commits."""
+        # Arrange - create repo with many commits
+        repo_path = git_repo_factory(num_commits=100)
+        config = GitCtxSettings()
+        config.repo.index.index_mode = "history"
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act
+        start = time.time()
+        count = walker.count_unique_blobs()
+        duration = time.time() - start
+
+        # Assert
+        assert count > 0
+        assert duration < 1.0  # Should be fast!
+
+    def test_count_respects_snapshot_mode(self, git_repo_factory, isolated_env):
+        """count_unique_blobs() in snapshot mode counts only HEAD."""
+        # Arrange - create repo with multiple commits
+        repo_path = git_repo_factory(num_commits=5)
+
+        # Snapshot mode (default)
+        config_snapshot = GitCtxSettings()
+        config_snapshot.repo.index.index_mode = "snapshot"
+        walker_snapshot = CommitWalker(str(repo_path), config_snapshot)
+
+        # History mode
+        config_history = GitCtxSettings()
+        config_history.repo.index.index_mode = "history"
+        walker_history = CommitWalker(str(repo_path), config_history)
+
+        # Act
+        count_snapshot = walker_snapshot.count_unique_blobs()
+        count_history = walker_history.count_unique_blobs()
+
+        # Assert - snapshot should count fewer blobs than history
+        assert count_snapshot > 0
+        assert count_history >= count_snapshot  # History has at least as many

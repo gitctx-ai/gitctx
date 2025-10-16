@@ -66,6 +66,7 @@ def index_command_wrapper(
         "-q",
         help="Suppress all output except errors",
     ),
+    skip_confirmation: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompts"),
     _force: bool = typer.Option(
         False,
         "--force",
@@ -81,7 +82,13 @@ def index_command_wrapper(
     """Index the repository for searching."""
     from gitctx.cli.index import index_command
 
-    index_command(verbose=verbose, quiet=quiet, _force=_force, dry_run=dry_run)
+    index_command(
+        verbose=verbose,
+        quiet=quiet,
+        skip_confirmation=skip_confirmation,
+        _force=_force,
+        dry_run=dry_run,
+    )
 
 
 @app.command(name="search", help="Search indexed code using semantic similarity")

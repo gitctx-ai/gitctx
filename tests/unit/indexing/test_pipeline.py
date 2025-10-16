@@ -1,6 +1,7 @@
 """Unit tests for indexing pipeline signal handling and cost estimation."""
 # ruff: noqa: PLC0415 # Inline imports for test isolation
 
+import re
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -8,6 +9,9 @@ import pytest
 from gitctx.indexing.pipeline import index_repository
 from gitctx.indexing.types import CodeChunk
 from gitctx.indexing.types import Embedding as ProtocolEmbedding
+
+# Test constants
+DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large"
 
 
 def create_mock_blob_location(
@@ -65,6 +69,7 @@ async def test_keyboard_interrupt_shows_interrupted_message(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Mock CommitWalker to raise KeyboardInterrupt
@@ -95,6 +100,7 @@ async def test_keyboard_interrupt_shows_partial_statistics(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     with patch("gitctx.git.walker.CommitWalker") as mock_walker_cls:
@@ -124,6 +130,7 @@ async def test_non_keyboard_interrupt_does_not_exit_130(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     with patch("gitctx.git.walker.CommitWalker") as mock_walker_cls:
@@ -150,6 +157,7 @@ async def test_dry_run_shows_cost_estimation(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Mock CostEstimator
@@ -170,14 +178,14 @@ async def test_dry_run_shows_cost_estimation(tmp_path, capsys):
 
     # Verify cost estimation output
     captured = capsys.readouterr()
-    assert "Files:        10" in captured.out
-    assert "Lines:        1,000" in captured.out
-    assert "Est. tokens:  5,000" in captured.out
-    assert "Est. cost:    $0.0025" in captured.out
-    assert "Range:        $0.0020 - $0.0030 (±10%)" in captured.out
+    assert re.search(r"Blobs:\s+10", captured.out)
+    assert re.search(r"Lines:\s+1,000", captured.out)
+    assert re.search(r"Est\.\s+tokens:\s+5,000", captured.out)
+    assert re.search(r"Est\.\s+cost:\s+\$0\.0025", captured.out)
+    assert re.search(r"Range:\s+\$0\.0020\s+-\s+\$0\.0030\s+\(±10%\)", captured.out)
 
-    # Verify estimator was called
-    mock_estimator.estimate_repo_cost.assert_called_once_with(repo_path)
+    # Verify estimator was called with repo_path and settings
+    mock_estimator.estimate_repo_cost.assert_called_once_with(repo_path, mock_settings)
 
 
 @pytest.mark.anyio
@@ -225,6 +233,7 @@ async def test_empty_repository_exits_early(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
 
     with (
         patch("gitctx.git.walker.CommitWalker") as mock_walker_cls,
@@ -253,6 +262,7 @@ async def test_indexing_processes_single_blob(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob record
@@ -336,6 +346,7 @@ async def test_indexing_handles_unicode_decode_error(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob with binary content (cannot decode)
@@ -373,6 +384,7 @@ async def test_indexing_handles_processing_error(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob
@@ -423,6 +435,7 @@ async def test_indexing_processes_multiple_chunks(tmp_path):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob

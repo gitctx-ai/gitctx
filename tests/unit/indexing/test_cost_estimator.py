@@ -1,5 +1,8 @@
+import subprocess
+
 import tiktoken
 
+from gitctx.config.settings import GitCtxSettings
 from gitctx.indexing.progress import CostEstimator
 
 """Unit tests for cost estimation (TDD approach)."""
@@ -8,11 +11,11 @@ from gitctx.indexing.progress import CostEstimator
 class TestCostEstimatorConstants:
     """Test CostEstimator constants."""
 
-    def test_cost_per_1k_tokens_constant(self):
-        """Test COST_PER_1K_TOKENS matches text-embedding-3-large pricing."""
+    def test_cost_per_million_tokens_constant(self):
+        """Test COST_PER_MILLION_TOKENS matches text-embedding-3-large pricing."""
 
-        # text-embedding-3-large pricing: $0.00013 per 1K tokens
-        assert CostEstimator.COST_PER_1K_TOKENS == 0.00013
+        # text-embedding-3-large pricing: $0.13 per 1M tokens
+        assert CostEstimator.COST_PER_MILLION_TOKENS == 0.13
 
     def test_sampling_parameters(self):
         """Test sampling configuration constants."""
@@ -27,21 +30,21 @@ class TestCostEstimatorConstants:
 class TestCostEstimatorBasic:
     """Test basic cost estimation functionality."""
 
-    def test_estimate_repo_cost_with_tiktoken(self, tmp_path):
+    def test_estimate_repo_cost_with_tiktoken(self, git_repo_factory):
         """Test estimate_repo_cost uses tiktoken for accurate estimation."""
 
         # Create small test repo with realistic code content
-        repo = tmp_path / "test_repo"
-        repo.mkdir()
-
-        # Create Python files with typical code structure
-        # ~4 chars per token for code (cl100k_base)
-        (repo / "main.py").write_text('def main():\n    print("Hello, world!")\n    return 0\n')
-        (repo / "utils.py").write_text("def helper(x):\n    return x * 2\n")
-        (repo / "config.py").write_text('SETTINGS = {"key": "value"}\n')
+        repo = git_repo_factory(
+            num_commits=1,
+            files={
+                "main.py": 'def main():\n    print("Hello, world!")\n    return 0\n',
+                "utils.py": "def helper(x):\n    return x * 2\n",
+                "config.py": 'SETTINGS = {"key": "value"}\n',
+            },
+        )
 
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         # Should have basic counts
         assert result["total_files"] == 3
@@ -54,16 +57,15 @@ class TestCostEstimatorBasic:
         # Cost should be > 0
         assert result["estimated_cost"] > 0
 
-    def test_confidence_range_calculation(self, tmp_path):
+    def test_confidence_range_calculation(self, git_repo_factory):
         """Test confidence range is ±10% with tiktoken sampling."""
 
         # Create repo with some content
-        repo = tmp_path / "test_repo"
-        repo.mkdir()
-        (repo / "file.py").write_text("\n".join([f"def function_{i}(): pass" for i in range(20)]))
+        content = "\n".join([f"def function_{i}(): pass" for i in range(20)])
+        repo = git_repo_factory(num_commits=1, files={"file.py": content})
 
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         estimated_cost = result["estimated_cost"]
 
@@ -71,15 +73,29 @@ class TestCostEstimatorBasic:
         assert result["min_cost"] == estimated_cost * 0.9
         assert result["max_cost"] == estimated_cost * 1.1
 
-    def test_empty_repo_returns_zeros(self, tmp_path):
+    def test_empty_repo_returns_zeros(self, tmp_path, git_isolation_base):
         """Test empty repository returns zero estimates."""
 
-        # Create empty repo
+        # Create empty repo (git init but no commits)
         repo = tmp_path / "empty_repo"
         repo.mkdir()
 
+        # Initialize git but don't commit anything (truly empty)
+        subprocess.run(
+            ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"], cwd=repo, env=git_isolation_base, check=True
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"],
+            cwd=repo,
+            env=git_isolation_base,
+            check=True,
+        )
+
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         assert result["total_files"] == 0
         assert result["total_lines"] == 0
@@ -166,12 +182,8 @@ class TestCostEstimatorFileWalking:
 class TestCostEstimatorTiktokenAccuracy:
     """Test tiktoken-based token estimation accuracy."""
 
-    def test_token_estimation_accuracy_python(self, tmp_path):
+    def test_token_estimation_accuracy_python(self, git_repo_factory):
         """Test token estimation is accurate for Python code."""
-
-        # Create repo with substantial Python code
-        repo = tmp_path / "test_repo"
-        repo.mkdir()
 
         # Real Python code sample (~200 tokens)
         python_code = '''
@@ -197,9 +209,15 @@ def authenticate_user(username: str, password: str) -> bool:
     # Verify password
     return verify_password(password_hash, user.password_hash)
 '''
-        (repo / "auth.py").write_text(python_code)
-        (repo / "utils.py").write_text(python_code)  # Duplicate for more content
-        (repo / "main.py").write_text(python_code)
+        # Create repo with substantial Python code
+        repo = git_repo_factory(
+            num_commits=1,
+            files={
+                "auth.py": python_code,
+                "utils.py": python_code,  # Duplicate for more content
+                "main.py": python_code,
+            },
+        )
 
         # Calculate actual token count with tiktoken
         encoding = tiktoken.get_encoding("cl100k_base")
@@ -208,7 +226,7 @@ def authenticate_user(username: str, password: str) -> bool:
 
         # Get estimate
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         # Should be within ±10% accuracy
         estimated_tokens = result["estimated_tokens"]
@@ -219,21 +237,21 @@ def authenticate_user(username: str, password: str) -> bool:
             f"Expected ~{actual_tokens}, got {estimated_tokens}"
         )
 
-    def test_sampling_provides_consistent_estimates(self, tmp_path):
+    def test_sampling_provides_consistent_estimates(self, git_repo_factory):
         """Test that sampling provides consistent estimates across runs."""
 
         # Create repo with multiple files
-        repo = tmp_path / "test_repo"
-        repo.mkdir()
-
+        files = {}
         for i in range(20):
             content = "\n".join([f"def function_{i}_{j}(): pass" for j in range(10)])
-            (repo / f"file_{i}.py").write_text(content)
+            files[f"file_{i}.py"] = content
+
+        repo = git_repo_factory(num_commits=1, files=files)
 
         estimator = CostEstimator()
 
         # Run estimation multiple times
-        results = [estimator.estimate_repo_cost(repo) for _ in range(5)]
+        results = [estimator.estimate_repo_cost(repo, GitCtxSettings()) for _ in range(5)]
 
         # All estimates should be reasonably close (within 20% of each other)
         # Note: Some variance expected due to random sampling
@@ -246,21 +264,80 @@ def authenticate_user(username: str, password: str) -> bool:
                 f"Sampling variance {variance:.1%} too high. Estimates: {token_estimates}"
             )
 
-    def test_handles_unicode_content(self, tmp_path):
+    def test_handles_unicode_content(self, git_repo_factory):
         """Test estimation handles Unicode content correctly."""
 
-        repo = tmp_path / "test_repo"
-        repo.mkdir()
-
-        # Create files with Unicode content (explicit UTF-8 for Windows compat)
-        (repo / "chinese.py").write_text('greeting = "你好世界"  # Hello World', encoding="utf-8")
-        (repo / "emoji.py").write_text('status = "✅ Complete 🎉"', encoding="utf-8")
-        (repo / "mixed.py").write_text('text = "Hello мир 世界 🌍"', encoding="utf-8")
+        # Create repo with Unicode content (explicit UTF-8 for Windows compat)
+        repo = git_repo_factory(
+            num_commits=1,
+            files={
+                "chinese.py": 'greeting = "你好世界"  # Hello World',
+                "emoji.py": 'status = "✅ Complete 🎉"',
+                "mixed.py": 'text = "Hello мир 世界 🌍"',
+            },
+        )
 
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         # Should handle Unicode without errors
         assert result["estimated_tokens"] > 0
         assert result["estimated_cost"] > 0
         assert result["total_files"] == 3
+
+
+class TestCostEstimatorWithGitHistory:
+    """Test cost estimator uses exact git blob counts."""
+
+    def test_estimate_uses_exact_git_blob_count(self, git_repo_factory, isolated_env):
+        """Estimator should use walker.count_unique_blobs(), not heuristic."""
+        # Arrange - create git repo
+        repo_path = git_repo_factory(num_commits=3)
+        estimator = CostEstimator()
+        settings = GitCtxSettings()
+
+        # Act
+        estimate = estimator.estimate_repo_cost(repo_path, settings)
+
+        # Assert - should return exact count from git (not file count)
+        assert estimate["total_files"] > 0
+
+        # Verify it's using git by creating uncommitted file
+        (repo_path / "uncommitted.py").write_text("print('test')")
+        estimate2 = estimator.estimate_repo_cost(repo_path, settings)
+
+        # Count should be unchanged (uncommitted file not counted)
+        assert estimate2["total_files"] == estimate["total_files"]
+
+    def test_snapshot_vs_history_estimates_differ(self, git_repo_factory, isolated_env):
+        """History mode should estimate higher or equal cost than snapshot."""
+        # Arrange - create repo with multiple commits
+        repo_path = git_repo_factory(num_commits=5)
+        estimator = CostEstimator()
+
+        # Snapshot mode
+        snapshot_config = GitCtxSettings()
+        snapshot_config.repo.index.index_mode = "snapshot"
+        snapshot_est = estimator.estimate_repo_cost(repo_path, snapshot_config)
+
+        # History mode
+        history_config = GitCtxSettings()
+        history_config.repo.index.index_mode = "history"
+        history_est = estimator.estimate_repo_cost(repo_path, history_config)
+
+        # Assert - history should have at least as many blobs (may be same if no new blobs)
+        assert history_est["total_files"] >= snapshot_est["total_files"]
+        assert history_est["estimated_cost"] >= snapshot_est["estimated_cost"]
+
+    def test_estimate_with_none_settings_uses_defaults(self, git_repo_factory, isolated_env):
+        """Estimator should use default settings when None is passed."""
+        # Arrange
+        repo_path = git_repo_factory(num_commits=2)
+        estimator = CostEstimator()
+
+        # Act - pass None for settings
+        estimate = estimator.estimate_repo_cost(repo_path, None)
+
+        # Assert - should use defaults (snapshot mode)
+        assert estimate["total_files"] > 0
+        assert estimate["estimated_cost"] > 0

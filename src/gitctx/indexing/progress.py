@@ -7,12 +7,17 @@ Follows TUI_GUIDE.md patterns:
 """
 # ruff: noqa: PLC0415 # Conditional progress bar imports (optional rich dependency)
 
+from __future__ import annotations
+
 import sys
 import time
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from gitctx.config.settings import GitCtxSettings
 
 from gitctx.cli.symbols import SYMBOLS
 from gitctx.indexing.formatting import format_cost, format_duration, format_number
@@ -207,8 +212,8 @@ class CostEstimator:
     - Benefit: 2x improvement in cost prediction accuracy
     """
 
-    # Model pricing: text-embedding-3-large
-    COST_PER_1K_TOKENS = 0.00013
+    # Model pricing: text-embedding-3-large ($0.13 per 1M tokens)
+    COST_PER_MILLION_TOKENS = 0.13
 
     # Tokenizer encoding (must match embedder model)
     # text-embedding-3-large uses cl100k_base encoding
@@ -218,8 +223,12 @@ class CostEstimator:
     SAMPLE_SIZE_BYTES = 10_000  # Sample 10KB per file
     SAMPLE_PERCENTAGE = 0.1  # Sample 10% of files
 
-    def estimate_repo_cost(self, repo_path: Path) -> CostEstimate:
-        """Estimate cost for indexing a repository using tiktoken sampling.
+    def estimate_repo_cost(
+        self,
+        repo_path: Path,
+        settings: GitCtxSettings | None = None,
+    ) -> CostEstimate:
+        """Estimate cost using EXACT blob count from git (no heuristic!).
 
         Samples 10% of files (up to 10KB each) and uses tiktoken to calculate
         an accurate chars-per-token ratio. Applies this ratio to total content
@@ -227,6 +236,7 @@ class CostEstimator:
 
         Args:
             repo_path: Path to git repository
+            settings: GitCtxSettings instance (uses default if None)
 
         Returns:
             Dictionary with token and cost estimates (±10% accuracy)
@@ -235,14 +245,20 @@ class CostEstimator:
 
         import tiktoken
 
+        from gitctx.config.settings import GitCtxSettings
+        from gitctx.git.walker import CommitWalker
+
         # Get encoding for token counting
         encoding = tiktoken.get_encoding(self.DEFAULT_ENCODING)
 
-        # Collect all indexable files
-        indexable_files = list(self._get_indexable_files(repo_path))
-        total_files = len(indexable_files)
+        # Get EXACT blob count (fast: <1s even for large repos)
+        if settings is None:
+            settings = GitCtxSettings()
 
-        if total_files == 0:
+        walker = CommitWalker(str(repo_path), settings)
+        unique_blob_count = walker.count_unique_blobs()  # Exact, mode-aware!
+
+        if unique_blob_count == 0:
             return {
                 "total_files": 0,
                 "total_lines": 0,
@@ -251,6 +267,10 @@ class CostEstimator:
                 "min_cost": 0.0,
                 "max_cost": 0.0,
             }
+
+        # Sample files for token ratio (existing logic)
+        indexable_files = list(self._get_indexable_files(repo_path))
+        total_files = unique_blob_count  # Use exact count from git!
 
         # Sample files for token estimation
         sample_count = max(1, int(total_files * self.SAMPLE_PERCENTAGE))
@@ -309,7 +329,7 @@ class CostEstimator:
         estimated_tokens = int(total_chars / chars_per_token)
 
         # Calculate cost
-        estimated_cost = (estimated_tokens / 1000) * self.COST_PER_1K_TOKENS
+        estimated_cost = (estimated_tokens / 1_000_000) * self.COST_PER_MILLION_TOKENS
 
         # Confidence range: ±10% based on empirical tiktoken sampling analysis
         # Sampling 10% of files with actual tokenization yields consistent accuracy

@@ -98,8 +98,9 @@ def walk_commit_graph(context: dict[str, Any]) -> None:
     """Walk the commit graph and collect results."""
     repo_path: Path = context["repo_path"]
 
-    # Create config
+    # Create config with history mode for tests that need full git graph
     config = GitCtxSettings()
+    config.repo.index.index_mode = "history"
 
     # Create walker
     walker = CommitWalker(str(repo_path), config)
@@ -763,9 +764,10 @@ def walk_all_refs(context: dict[str, Any]) -> None:
     )
     refs = result.stdout.strip().split("\n")
 
-    # Create config with all branch refs
+    # Create config with all branch refs and history mode
     config = GitCtxSettings()
     config.repo.index.refs = refs
+    config.repo.index.index_mode = "history"
 
     # Create walker
     walker = CommitWalker(str(repo_path), config)
@@ -799,8 +801,9 @@ def walk_with_progress(context: dict[str, Any]) -> None:
     """Walk commit graph with progress callbacks."""
     repo_path: Path = context["repo_path"]
 
-    # Create config
+    # Create config with history mode for progress across all commits
     config = GitCtxSettings()
+    config.repo.index.index_mode = "history"
 
     # Progress tracking
     progress_updates: list[WalkProgress] = []

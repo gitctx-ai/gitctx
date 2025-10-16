@@ -128,25 +128,39 @@ class OpenAIEmbedder:
                     f"Expected {self.DIMENSIONS} dimensions, got {len(vector)}"
                 )
 
-        # Build Embeddings with metadata
+        # Calculate total cost for the batch, then distribute proportionally
+        if api_token_count is not None:
+            total_batch_cost = self.estimate_cost(api_token_count)
+            # Distribute cost proportionally based on tiktoken token counts
+            # (API doesn't tell us per-chunk breakdown, so use tiktoken proportions)
+            total_tiktoken_tokens = sum(chunk.token_count for chunk in chunks)
+            cost_per_tiktoken_token = (
+                total_batch_cost / total_tiktoken_tokens if total_tiktoken_tokens > 0 else 0.0
+            )
+        else:
+            # Fallback: no API token count, calculate per chunk
+            total_batch_cost = sum(self.estimate_cost(chunk.token_count) for chunk in chunks)
+            cost_per_tiktoken_token = None
+
+        # Build Embeddings with proportionally distributed costs
         embeddings = []
         for idx, (chunk, vector) in enumerate(zip(chunks, vectors, strict=False)):
-            # Use API token count if available, otherwise fall back to tiktoken estimate
-            cost = (
-                self.estimate_cost(api_token_count)
-                if api_token_count is not None
-                else self.estimate_cost(chunk.token_count)
-            )
+            # Proportional cost based on this chunk's tiktoken token share
+            if cost_per_tiktoken_token is not None:
+                chunk_cost = chunk.token_count * cost_per_tiktoken_token
+            else:
+                # Fallback: estimate from tiktoken
+                chunk_cost = self.estimate_cost(chunk.token_count)
 
             embeddings.append(
                 Embedding(
                     vector=vector,
                     token_count=chunk.token_count,
                     model=self.MODEL,
-                    cost_usd=cost,
+                    cost_usd=chunk_cost,
                     blob_sha=blob_sha,
                     chunk_index=idx,
-                    api_token_count=api_token_count,
+                    api_token_count=api_token_count,  # Keep batch total for reference
                 )
             )
 

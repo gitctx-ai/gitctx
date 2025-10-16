@@ -31,6 +31,7 @@ class TestCommitWalkerPerformance:
         # in practice and extrapolate
         repo_path = git_repo_factory(num_commits=100)  # Use 100 for reasonable test time
         config = GitCtxSettings()
+        config.repo.index.index_mode = "history"  # Test performance across all commits
         walker = CommitWalker(str(repo_path), config)
 
         # Act - Measure time to walk all commits
@@ -65,6 +66,7 @@ class TestCommitWalkerPerformance:
         # Arrange - Create repo with commits
         repo_path = git_repo_factory(num_commits=100)
         config = GitCtxSettings()
+        config.repo.index.index_mode = "history"  # Test memory across all commits
         walker = CommitWalker(str(repo_path), config)
 
         # Act - Measure memory usage
@@ -108,6 +110,7 @@ class TestCommitWalkerPerformance:
             num_commits=50,  # 50 commits with same 5 files
         )
         config = GitCtxSettings()
+        config.repo.index.index_mode = "history"  # Test dedup across all commits
         walker = CommitWalker(str(repo_path), config)
 
         # Act

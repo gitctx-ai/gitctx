@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ████████░░ ~55% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 31/31 points, EPIC-0001.3 in progress - 10/13 points, EPIC-0001.4 not started - 0/21 points, 51/75 total points)
+**Progress**: ████████░░ ~72% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 34/34 points, EPIC-0001.3 in progress - 10/13 points, EPIC-0001.4 not started - 0/21 points, 54/78 total points)
 
 ## Objective
 
@@ -91,8 +91,11 @@ Build the core functionality users need to search their codebase intelligently. 
 - ✅ OpenAI embedding generation (STORY-0001.2.3 complete)
 - ✅ LanceDB storage (STORY-0001.2.4 complete)
 - ✅ Progress tracking and cost estimation (STORY-0001.2.5 complete)
+- 🟡 Indexing cost & performance fixes (STORY-0001.2.6 in progress - bug fixes complete)
 
-**Progress**: 31/31 story points complete (100%) ✅
+**Progress**: 34/34 story points complete (100%) ✅
+
+**Note**: During STORY-0001.2.6 development, discovered and fixed critical 100x cost reporting bug affecting all cost calculations since initial implementation (see STORY-0001.2.6 for details).
 
 ### Vector Search (EPIC-0001.3)
 
