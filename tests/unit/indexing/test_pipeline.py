@@ -174,14 +174,14 @@ async def test_dry_run_shows_cost_estimation(tmp_path, capsys):
 
     # Verify cost estimation output
     captured = capsys.readouterr()
-    assert "Files:        10" in captured.out
+    assert "Blobs:        10" in captured.out
     assert "Lines:        1,000" in captured.out
     assert "Est. tokens:  5,000" in captured.out
     assert "Est. cost:    $0.0025" in captured.out
     assert "Range:        $0.0020 - $0.0030 (±10%)" in captured.out
 
-    # Verify estimator was called
-    mock_estimator.estimate_repo_cost.assert_called_once_with(repo_path)
+    # Verify estimator was called with repo_path and settings
+    mock_estimator.estimate_repo_cost.assert_called_once_with(repo_path, mock_settings)
 
 
 @pytest.mark.anyio
