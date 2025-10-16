@@ -269,3 +269,141 @@ def test_index_not_git_repository(cli_runner):
     # Error message goes to stderr (via console_err)
     output = (result.stdout + result.stderr).lower()
     assert "not a git repository" in output
+
+
+# ============================================================================
+# History Mode Warning Tests
+# ============================================================================
+
+
+def test_history_mode_requires_confirmation_non_tty(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """History mode requires --yes in non-TTY environments."""
+    # Arrange - create git repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, env=git_isolation_base, check=True)
+
+    # Create config with history mode
+    gitctx_dir = repo / ".gitctx"
+    gitctx_dir.mkdir()
+    config_file = gitctx_dir / "config.yml"
+    config_file.write_text("index:\n  index_mode: history\n")
+
+    # Mock the pipeline (shouldn't be called, but mock anyway)
+    async def mock_index(*args, **kwargs):
+        print("ERROR: Pipeline should not be called")
+
+    with patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index):
+        # Act - run without --yes in non-TTY environment (CliRunner default)
+        result = isolated_cli_runner.invoke(app, ["index"])
+
+        # Assert - error shown requiring confirmation
+        output = result.stdout + (result.stderr or "")
+        assert result.exit_code == 1
+        assert "history mode requires confirmation" in output.lower()
+        assert "--yes" in output
+
+
+def test_yes_flag_skips_confirmation(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
+):
+    """--yes flag should skip confirmation in history mode."""
+    # Arrange
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, env=git_isolation_base, check=True)
+
+    # Create config with history mode
+    gitctx_dir = repo / ".gitctx"
+    gitctx_dir.mkdir()
+    config_file = gitctx_dir / "config.yml"
+    config_file.write_text("index:\n  index_mode: history\n")
+
+    # Mock the pipeline
+    async def mock_index(*args, **kwargs):
+        print("Indexed successfully")
+
+    with patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index):
+        # Act - run with --yes (bypasses TTY check and confirmation)
+        result = isolated_cli_runner.invoke(app, ["index", "--yes"])
+
+        # Assert - no error, proceeds directly to indexing
+        output = result.stdout + (result.stderr or "")
+        assert result.exit_code == 0
+        assert "Indexed successfully" in output
+        assert "requires confirmation" not in output.lower()
+
+
+def test_snapshot_mode_no_warning(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base):
+    """Snapshot mode should not show warning."""
+    # Arrange
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, env=git_isolation_base, check=True)
+
+    # Default config (snapshot mode)
+    # No config file needed - snapshot is default
+
+    # Mock the pipeline
+    async def mock_index(*args, **kwargs):
+        print("Indexed successfully")
+
+    with patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index):
+        # Act
+        result = isolated_cli_runner.invoke(app, ["index"])
+
+        # Assert - no warning
+        output = result.stdout + (result.stderr or "")
+        assert "History Mode" not in output
+        assert "Continue?" not in output
+        assert "Indexed successfully" in output or result.exit_code == 0

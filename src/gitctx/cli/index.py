@@ -2,6 +2,7 @@
 # ruff: noqa: PLC0415 # Inline imports for fast --version startup (lazy load indexing pipeline)
 
 import asyncio
+import sys
 from pathlib import Path
 
 import typer
@@ -26,6 +27,7 @@ def index_command(
         "-q",
         help="Suppress all output except errors",
     ),
+    skip_confirmation: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompts"),
     _force: bool = typer.Option(
         False,
         "--force",
@@ -71,6 +73,26 @@ def index_command(
     except Exception as e:
         console_err.print(f"[red]{SYMBOLS['error']}[/red] Configuration error: {e}")
         raise typer.Exit(code=1) from e
+
+    # Check for history mode and show warning
+    if not dry_run and settings.repo.index.index_mode == "history" and not skip_confirmation:
+        # Check TTY for interactive prompts
+        if not sys.stdout.isatty():
+            console_err.print(
+                f"[red]{SYMBOLS['error']}[/red] Error: history mode requires confirmation"
+            )
+            console_err.print("Use --yes to skip confirmation in non-interactive environments")
+            raise typer.Exit(code=1)
+
+        # Show warning with cost implications
+        console_err.print("\n[yellow]⚠️  History Mode Enabled[/yellow]")
+        console_err.print("  Indexing ALL versions across full git history.")
+        console_err.print("  Cost/time may be 10-50x higher than snapshot mode.\n")
+
+        # Prompt for confirmation (default: No)
+        if not typer.confirm("Continue?", default=False):
+            console_err.print("Cancelled")
+            raise typer.Exit(0)
 
     # Run the indexing pipeline
     from gitctx.indexing.pipeline import index_repository
