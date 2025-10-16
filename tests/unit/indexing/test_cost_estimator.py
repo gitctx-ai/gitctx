@@ -11,11 +11,11 @@ from gitctx.indexing.progress import CostEstimator
 class TestCostEstimatorConstants:
     """Test CostEstimator constants."""
 
-    def test_cost_per_1k_tokens_constant(self):
-        """Test COST_PER_1K_TOKENS matches text-embedding-3-large pricing."""
+    def test_cost_per_million_tokens_constant(self):
+        """Test COST_PER_MILLION_TOKENS matches text-embedding-3-large pricing."""
 
-        # text-embedding-3-large pricing: $0.00013 per 1K tokens
-        assert CostEstimator.COST_PER_1K_TOKENS == 0.00013
+        # text-embedding-3-large pricing: $0.13 per 1M tokens
+        assert CostEstimator.COST_PER_MILLION_TOKENS == 0.13
 
     def test_sampling_parameters(self):
         """Test sampling configuration constants."""

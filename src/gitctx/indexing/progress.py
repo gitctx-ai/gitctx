@@ -212,8 +212,8 @@ class CostEstimator:
     - Benefit: 2x improvement in cost prediction accuracy
     """
 
-    # Model pricing: text-embedding-3-large
-    COST_PER_1K_TOKENS = 0.00013
+    # Model pricing: text-embedding-3-large ($0.13 per 1M tokens)
+    COST_PER_MILLION_TOKENS = 0.13
 
     # Tokenizer encoding (must match embedder model)
     # text-embedding-3-large uses cl100k_base encoding
@@ -329,7 +329,7 @@ class CostEstimator:
         estimated_tokens = int(total_chars / chars_per_token)
 
         # Calculate cost
-        estimated_cost = (estimated_tokens / 1000) * self.COST_PER_1K_TOKENS
+        estimated_cost = (estimated_tokens / 1_000_000) * self.COST_PER_MILLION_TOKENS
 
         # Confidence range: ±10% based on empirical tiktoken sampling analysis
         # Sampling 10% of files with actual tokenization yields consistent accuracy

@@ -118,10 +118,12 @@ def verify_embedding_cost(embedding_context: dict[str, Any], cost: float, formul
     actual_cost = sum(e.cost_usd for e in embeddings)
 
     # If we have actual API token counts, calculate expected cost from those
+    # Note: api_token_count is the BATCH total (same for all embeddings in the batch)
     if all(e.api_token_count is not None for e in embeddings):
-        total_api_tokens = sum(e.api_token_count for e in embeddings)  # type: ignore[misc]
-        expected_cost_from_api = (total_api_tokens / 1_000_000) * 0.13
-        # Verify cost matches API token usage
+        # Use first embedding's api_token_count (they're all the same - batch total)
+        batch_api_tokens = embeddings[0].api_token_count  # type: ignore[union-attr]
+        expected_cost_from_api = (batch_api_tokens / 1_000_000) * 0.13
+        # Verify summed chunk costs match batch cost
         assert abs(actual_cost - expected_cost_from_api) < 0.0000001, (
             f"Cost should match API tokens: expected ${expected_cost_from_api}, got ${actual_cost}"
         )
@@ -449,10 +451,12 @@ def verify_total_cost(embedding_context: dict[str, Any], cost: float, formula: s
     embeddings = embedding_context["embeddings"]
 
     # If we have actual API token counts, calculate expected cost from those
+    # Note: api_token_count is the BATCH total (same for all embeddings in the batch)
     if all(e.api_token_count is not None for e in embeddings):
-        total_api_tokens = sum(e.api_token_count for e in embeddings)  # type: ignore[misc]
-        expected_cost_from_api = (total_api_tokens / 1_000_000) * 0.13
-        # Verify cost matches API token usage
+        # Use first embedding's api_token_count (they're all the same - batch total)
+        batch_api_tokens = embeddings[0].api_token_count  # type: ignore[union-attr]
+        expected_cost_from_api = (batch_api_tokens / 1_000_000) * 0.13
+        # Verify summed chunk costs match batch cost
         assert abs(actual_cost - expected_cost_from_api) < 0.0000001, (
             f"Cost should match API tokens: expected ${expected_cost_from_api}, got ${actual_cost}"
         )
