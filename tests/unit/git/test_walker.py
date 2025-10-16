@@ -1663,3 +1663,64 @@ class TestIndexModeConfiguration:
         # Verify all commits are unique
         commit_shas = [c.commit_sha for c in commits]
         assert len(set(commit_shas)) == 5
+
+
+class TestBlobCounting:
+    """Test count_unique_blobs() method for fast dry-run estimation."""
+
+    def test_count_unique_blobs_matches_walk_blobs_count(self, git_repo_factory, isolated_env):
+        """count_unique_blobs() should equal len(list(walk_blobs()))."""
+        # Arrange
+        repo_path = git_repo_factory(num_commits=3)
+        config = GitCtxSettings()
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act - count method (fast)
+        counted = walker.count_unique_blobs()
+
+        # Act - walk method (full iteration)
+        walker2 = CommitWalker(str(repo_path), config)
+        walked = len(list(walker2.walk_blobs()))
+
+        # Assert - both methods should return same count
+        assert counted == walked
+
+    def test_count_unique_blobs_is_fast(self, git_repo_factory, isolated_env):
+        """count_unique_blobs() should be <1s for 100 commits."""
+        # Arrange - create repo with many commits
+        repo_path = git_repo_factory(num_commits=100)
+        config = GitCtxSettings()
+        config.repo.index.index_mode = "history"
+        walker = CommitWalker(str(repo_path), config)
+
+        # Act
+        start = time.time()
+        count = walker.count_unique_blobs()
+        duration = time.time() - start
+
+        # Assert
+        assert count > 0
+        assert duration < 1.0  # Should be fast!
+
+    def test_count_respects_snapshot_mode(self, git_repo_factory, isolated_env):
+        """count_unique_blobs() in snapshot mode counts only HEAD."""
+        # Arrange - create repo with multiple commits
+        repo_path = git_repo_factory(num_commits=5)
+
+        # Snapshot mode (default)
+        config_snapshot = GitCtxSettings()
+        config_snapshot.repo.index.index_mode = "snapshot"
+        walker_snapshot = CommitWalker(str(repo_path), config_snapshot)
+
+        # History mode
+        config_history = GitCtxSettings()
+        config_history.repo.index.index_mode = "history"
+        walker_history = CommitWalker(str(repo_path), config_history)
+
+        # Act
+        count_snapshot = walker_snapshot.count_unique_blobs()
+        count_history = walker_history.count_unique_blobs()
+
+        # Assert - snapshot should count fewer blobs than history
+        assert count_snapshot > 0
+        assert count_history >= count_snapshot  # History has at least as many

@@ -34,9 +34,13 @@ async def index_repository(
     # Cost estimation mode (dry-run)
     if dry_run:
         estimator = CostEstimator()
-        estimate = estimator.estimate_repo_cost(repo_path)
+        estimate = estimator.estimate_repo_cost(repo_path, settings)  # Pass settings!
 
-        print(f"Files:        {format_number(estimate['total_files'])}")
+        # Show mode information
+        mode = settings.repo.index.index_mode
+        mode_desc = "snapshot (HEAD only)" if mode == "snapshot" else "history (full git)"
+        print(f"Mode:         {mode_desc}")
+        print(f"Blobs:        {format_number(estimate['total_files'])}")
         print(f"Lines:        {format_number(estimate['total_lines'])}")
         print(f"Est. tokens:  {format_number(estimate['estimated_tokens'])}")
         print(f"Est. cost:    {format_cost(estimate['estimated_cost'])}")

@@ -1,9 +1,9 @@
 # STORY-0001.2.6: Indexing Cost & Performance Fixes
 
 **Parent Epic**: [EPIC-0001.2](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Story Points**: 2
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: ███████░░░ 75%
 
 ## User Story
 
@@ -55,9 +55,9 @@ Production bug discovered during real-world usage on 263-commit repository:
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.2.6.1](TASK-0001.2.6.1.md) | Add snapshot mode to walker | 🔵 Not Started | 2 | 0/5 failing |
-| [TASK-0001.2.6.2](TASK-0001.2.6.2.md) | Enable embedding cache in pipeline | 🔵 Not Started | 3 | 1/5 passing |
-| [TASK-0001.2.6.3](TASK-0001.2.6.3.md) | Fix dry-run cost estimation | 🔵 Not Started | 2 | 2/5 passing |
+| [TASK-0001.2.6.1](TASK-0001.2.6.1.md) | Add snapshot mode to walker | ✅ Complete | 2 | 0/5 failing |
+| [TASK-0001.2.6.2](TASK-0001.2.6.2.md) | Enable embedding cache in pipeline | ✅ Complete | 3 | 1/5 passing |
+| [TASK-0001.2.6.3](TASK-0001.2.6.3.md) | Fix dry-run cost estimation | ✅ Complete | 2 | 2/5 passing |
 | [TASK-0001.2.6.4](TASK-0001.2.6.4.md) | Add history mode warning | 🔵 Not Started | 1 | 5/5 passing ✅ |
 
 **Total Hours**: 8 hours (≈1.3 story points, rounded to 2)

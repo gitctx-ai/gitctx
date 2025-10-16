@@ -1,5 +1,6 @@
 import tiktoken
 
+from gitctx.config.settings import GitCtxSettings
 from gitctx.indexing.progress import CostEstimator
 
 """Unit tests for cost estimation (TDD approach)."""
@@ -264,3 +265,60 @@ def authenticate_user(username: str, password: str) -> bool:
         assert result["estimated_tokens"] > 0
         assert result["estimated_cost"] > 0
         assert result["total_files"] == 3
+
+
+class TestCostEstimatorWithGitHistory:
+    """Test cost estimator uses exact git blob counts."""
+
+    def test_estimate_uses_exact_git_blob_count(self, git_repo_factory, isolated_env):
+        """Estimator should use walker.count_unique_blobs(), not heuristic."""
+        # Arrange - create git repo
+        repo_path = git_repo_factory(num_commits=3)
+        estimator = CostEstimator()
+        settings = GitCtxSettings()
+
+        # Act
+        estimate = estimator.estimate_repo_cost(repo_path, settings)
+
+        # Assert - should return exact count from git (not file count)
+        assert estimate["total_files"] > 0
+
+        # Verify it's using git by creating uncommitted file
+        (repo_path / "uncommitted.py").write_text("print('test')")
+        estimate2 = estimator.estimate_repo_cost(repo_path, settings)
+
+        # Count should be unchanged (uncommitted file not counted)
+        assert estimate2["total_files"] == estimate["total_files"]
+
+    def test_snapshot_vs_history_estimates_differ(self, git_repo_factory, isolated_env):
+        """History mode should estimate higher or equal cost than snapshot."""
+        # Arrange - create repo with multiple commits
+        repo_path = git_repo_factory(num_commits=5)
+        estimator = CostEstimator()
+
+        # Snapshot mode
+        snapshot_config = GitCtxSettings()
+        snapshot_config.repo.index.index_mode = "snapshot"
+        snapshot_est = estimator.estimate_repo_cost(repo_path, snapshot_config)
+
+        # History mode
+        history_config = GitCtxSettings()
+        history_config.repo.index.index_mode = "history"
+        history_est = estimator.estimate_repo_cost(repo_path, history_config)
+
+        # Assert - history should have at least as many blobs (may be same if no new blobs)
+        assert history_est["total_files"] >= snapshot_est["total_files"]
+        assert history_est["estimated_cost"] >= snapshot_est["estimated_cost"]
+
+    def test_estimate_with_none_settings_uses_defaults(self, git_repo_factory, isolated_env):
+        """Estimator should use default settings when None is passed."""
+        # Arrange
+        repo_path = git_repo_factory(num_commits=2)
+        estimator = CostEstimator()
+
+        # Act - pass None for settings
+        estimate = estimator.estimate_repo_cost(repo_path, None)
+
+        # Assert - should use defaults (snapshot mode)
+        assert estimate["total_files"] > 0
+        assert estimate["estimated_cost"] > 0
