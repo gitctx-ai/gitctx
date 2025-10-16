@@ -322,6 +322,22 @@ def test_history_mode_requires_confirmation_non_tty(
         assert "--yes" in output
 
 
+# NOTE: The TTY interactive warning prompt (lines 88-95 in index.py) cannot be easily
+# unit tested because:
+# 1. CliRunner simulates a non-TTY environment (sys.stdout.isatty() returns False)
+# 2. Mocking isatty() doesn't work due to Typer's internal I/O handling
+# 3. The interactive prompt requires actual TTY for typer.confirm() to work
+#
+# The TTY warning path is tested via:
+# - Manual testing: `gitctx index` in history mode shows warning
+# - E2E tests: Full workflow testing with real terminal
+#
+# Unit tests cover:
+# - Non-TTY error path (test_history_mode_requires_confirmation_non_tty)
+# - Bypass with --yes flag (test_yes_flag_skips_confirmation)
+# - Snapshot mode has no warning (test_snapshot_mode_no_warning)
+
+
 def test_yes_flag_skips_confirmation(
     isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
 ):
