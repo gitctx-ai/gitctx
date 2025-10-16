@@ -387,9 +387,9 @@ def git_repo_factory(git_isolation_base, tmp_path):
             for filename, content in files.items():
                 file_path = repo_path / filename
                 file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_text(content)
+                file_path.write_text(content, encoding="utf-8")
         else:
-            (repo_path / "main.py").write_text('print("Hello")')
+            (repo_path / "main.py").write_text('print("Hello")', encoding="utf-8")
 
         # Determine how many regular commits to create
         if merge_type == "two-way":
