@@ -10,6 +10,9 @@ from gitctx.indexing.pipeline import index_repository
 from gitctx.indexing.types import CodeChunk
 from gitctx.indexing.types import Embedding as ProtocolEmbedding
 
+# Test constants
+DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large"
+
 
 def create_mock_blob_location(
     commit_sha: str = "test_commit",
@@ -66,7 +69,7 @@ async def test_keyboard_interrupt_shows_interrupted_message(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Mock CommitWalker to raise KeyboardInterrupt
@@ -97,7 +100,7 @@ async def test_keyboard_interrupt_shows_partial_statistics(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     with patch("gitctx.git.walker.CommitWalker") as mock_walker_cls:
@@ -127,7 +130,7 @@ async def test_non_keyboard_interrupt_does_not_exit_130(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     with patch("gitctx.git.walker.CommitWalker") as mock_walker_cls:
@@ -154,7 +157,7 @@ async def test_dry_run_shows_cost_estimation(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Mock CostEstimator
@@ -230,7 +233,7 @@ async def test_empty_repository_exits_early(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
 
     with (
         patch("gitctx.git.walker.CommitWalker") as mock_walker_cls,
@@ -259,7 +262,7 @@ async def test_indexing_processes_single_blob(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob record
@@ -343,7 +346,7 @@ async def test_indexing_handles_unicode_decode_error(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob with binary content (cannot decode)
@@ -381,7 +384,7 @@ async def test_indexing_handles_processing_error(tmp_path, capsys):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob
@@ -432,7 +435,7 @@ async def test_indexing_processes_multiple_chunks(tmp_path):
     mock_settings = Mock()
     mock_settings.repo.index.chunk_overlap_ratio = 0.1
     mock_settings.repo.index.max_chunk_tokens = 500
-    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.repo.model.embedding = DEFAULT_EMBEDDING_MODEL
     mock_settings.get.return_value = "sk-test"
 
     # Create mock blob
