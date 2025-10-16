@@ -44,7 +44,7 @@ class TestCostEstimatorBasic:
         )
 
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         # Should have basic counts
         assert result["total_files"] == 3
@@ -65,7 +65,7 @@ class TestCostEstimatorBasic:
         repo = git_repo_factory(num_commits=1, files={"file.py": content})
 
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         estimated_cost = result["estimated_cost"]
 
@@ -95,7 +95,7 @@ class TestCostEstimatorBasic:
         )
 
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         assert result["total_files"] == 0
         assert result["total_lines"] == 0
@@ -226,7 +226,7 @@ def authenticate_user(username: str, password: str) -> bool:
 
         # Get estimate
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         # Should be within ±10% accuracy
         estimated_tokens = result["estimated_tokens"]
@@ -251,7 +251,7 @@ def authenticate_user(username: str, password: str) -> bool:
         estimator = CostEstimator()
 
         # Run estimation multiple times
-        results = [estimator.estimate_repo_cost(repo) for _ in range(5)]
+        results = [estimator.estimate_repo_cost(repo, GitCtxSettings()) for _ in range(5)]
 
         # All estimates should be reasonably close (within 20% of each other)
         # Note: Some variance expected due to random sampling
@@ -278,7 +278,7 @@ def authenticate_user(username: str, password: str) -> bool:
         )
 
         estimator = CostEstimator()
-        result = estimator.estimate_repo_cost(repo)
+        result = estimator.estimate_repo_cost(repo, GitCtxSettings())
 
         # Should handle Unicode without errors
         assert result["estimated_tokens"] > 0
