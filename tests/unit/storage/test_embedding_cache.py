@@ -7,6 +7,9 @@ import zstandard as zstd
 from gitctx.indexing.types import Embedding
 from gitctx.storage.embedding_cache import EmbeddingCache
 
+# zstd magic number: 0x28B52FFD (little-endian byte sequence)
+ZSTD_MAGIC_BYTES = b"\x28\xb5\x2f\xfd"
+
 
 class TestEmbeddingCache:
     """Test EmbeddingCache storage and retrieval."""
@@ -202,8 +205,7 @@ class TestEmbeddingCacheCompression:
         # ASSERT - File should start with zstd magic bytes
         compressed_file = tmp_path / "embeddings" / "test-model" / "compress_sha.safetensors.zst"
         compressed_bytes = compressed_file.read_bytes()
-        # Zstd magic number: 0x28B52FFD (little-endian: 0xFD2FB528)
-        assert compressed_bytes[:4] == b"\x28\xb5\x2f\xfd"
+        assert compressed_bytes[:4] == ZSTD_MAGIC_BYTES
 
     def test_set_preserves_all_embedding_metadata(self, tmp_path, test_embedding_vector):
         """Test set() preserves all embedding metadata in compressed file."""
@@ -425,7 +427,7 @@ class TestEmbeddingCacheCompression:
         assert loaded is not None
         # Verify file is compressed (starts with zstd magic)
         compressed_file = tmp_path / "embeddings" / "test-model" / "decompress_sha.safetensors.zst"
-        assert compressed_file.read_bytes()[:4] == b"\x28\xb5\x2f\xfd"
+        assert compressed_file.read_bytes()[:4] == ZSTD_MAGIC_BYTES
 
     def test_get_reconstructs_embeddings_identically(self, tmp_path, test_embedding_vector):
         """Test get() reconstructs embeddings identically."""
@@ -601,4 +603,4 @@ class TestEmbeddingCacheCompression:
         # ASSERT
         compressed_file = tmp_path / "embeddings" / "test-model" / "magic_sha.safetensors.zst"
         magic_bytes = compressed_file.read_bytes()[:4]
-        assert magic_bytes == b"\x28\xb5\x2f\xfd"
+        assert magic_bytes == ZSTD_MAGIC_BYTES
