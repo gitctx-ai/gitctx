@@ -549,7 +549,7 @@ def verify_error_suggests_configuration(embedding_context: dict[str, Any]) -> No
 
 
 @given(parsers.parse("I have a test repository with {num_files:d} Python files"))
-def test_repository_with_files(
+def repository_with_files(
     embedding_context: dict[str, Any], num_files: int, tmp_path: Path
 ) -> None:
     """Create test repository with specified number of Python files."""
