@@ -31,6 +31,9 @@ class EmbeddingCache:
         >>> missing = cache.get("nonexistent")  # Returns None
     """
 
+    # Level 3: Balance of speed and ratio (zstd recommendation)
+    COMPRESSION_LEVEL = 3
+
     def __init__(self, cache_dir: Path, model: str = "text-embedding-3-large"):
         """Initialize cache for a specific model.
 

@@ -3,7 +3,7 @@
 **Parent Epic**: [EPIC-0001.4](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 2
-**Progress**: ██░░░░░░░░ 25%
+**Progress**: ████░░░░░░ 50%
 
 ## User Story
 
@@ -249,7 +249,7 @@ dependencies = [
 | ID | Title | Status | Hours | Progress |
 |----|-------|--------|-------|----------|
 | [TASK-0001.4.4.1](TASK-0001.4.4.1.md) | Write BDD Scenarios for Compression Transparency | ✅ Complete | 2 | 2h |
-| [TASK-0001.4.4.2](TASK-0001.4.4.2.md) | Add zstandard Dependency and Compression Constants | 🔵 Not Started | 2 | - |
+| [TASK-0001.4.4.2](TASK-0001.4.4.2.md) | Add zstandard Dependency and Compression Constants | ✅ Complete | 2 | 2h |
 | [TASK-0001.4.4.3](TASK-0001.4.4.3.md) | Implement Compression in set() and Decompression in get() | 🔵 Not Started | 3 | - |
 | [TASK-0001.4.4.4](TASK-0001.4.4.4.md) | Verify Compression Ratio and Performance Benchmarks | 🔵 Not Started | 1 | - |
 
@@ -259,7 +259,7 @@ dependencies = [
 
 **Incremental BDD Tracking:**
 - TASK-1: 0/2 (all scenarios stubbed, failing) ✅
-- TASK-2: 0/2 (foundation only)
+- TASK-2: 0/2 (foundation only) ✅
 - TASK-3: 2/2 (complete ✅)
 - TASK-4: 2/2 (verification ✅)
 
