@@ -1,13 +1,13 @@
 """Step definitions for hybrid search BDD scenarios.
 
-This module contains stubbed step definitions for hybrid search testing.
-All steps raise NotImplementedError until implemented in subsequent tasks.
+This module contains step definitions for hybrid search testing.
 """
 
 from typing import Any
 
 from pytest_bdd import given, parsers, then, when
 
+from gitctx.cli.main import app
 
 # ===== Background Steps =====
 
@@ -19,72 +19,127 @@ def in_git_repository() -> None:
     Implementation: Already handled by pytest fixtures (e2e_git_repo, e2e_indexed_repo_factory)
     """
     # This step is satisfied by the test fixtures
-    pass
 
 
 @given("a repository with files:")
-def repository_with_files_table(context: dict[str, Any], datatable) -> None:
+def repository_with_files_table(
+    context: dict[str, Any], datatable, e2e_indexed_repo_factory, e2e_session_api_key
+) -> None:
     """Create repository with specific file structure from Gherkin table.
-
-    Implementation: TASK-0001.4.1.2 (setup test repositories with custom structure)
 
     Args:
         context: pytest-bdd context object
         datatable: Gherkin data table with file_path and content columns
+        e2e_indexed_repo_factory: Factory fixture for creating indexed repositories
+        e2e_session_api_key: API key for embedding generation
     """
-    raise NotImplementedError(
-        "Repository creation from table not implemented yet. "
-        "Will be implemented in TASK-0001.4.1.2 using e2e_indexed_repo_factory."
-    )
+    # Parse table data from Gherkin scenario
+    # datatable is a list of lists: [['file_path', 'content'], ['path1', 'content1'], ...]
+    # First row is headers, subsequent rows are data
+    files = {}
+    for row in datatable[1:]:  # Skip header row
+        file_path = row[0]  # First column is file_path
+        content = row[1]  # Second column is content
+        files[file_path] = content
+
+    # Set API key in custom_env for indexing
+    context["custom_env"] = {"OPENAI_API_KEY": e2e_session_api_key}
+
+    # Create indexed repository with specified files
+    repo_path = e2e_indexed_repo_factory(files=files)
+
+    # Store repo path in context for subsequent steps
+    context["repo_path"] = repo_path
 
 
 @given("the repository is indexed")
 def repository_is_indexed(context: dict[str, Any]) -> None:
     """Index the repository for searching.
 
-    Implementation: TASK-0001.4.1.2 (index test repository)
+    This step is already satisfied by e2e_indexed_repo_factory which indexes
+    the repository during creation.
 
     Args:
         context: pytest-bdd context object
     """
-    raise NotImplementedError(
-        "Repository indexing not implemented yet. "
-        "Will be implemented in TASK-0001.4.1.2 using e2e_cli_runner."
-    )
+    # Repository already indexed by e2e_indexed_repo_factory
+    # This step is a no-op for readability in Gherkin scenarios
 
 
 # ===== Search Steps =====
 
 
 @when(parsers.parse('I search for "{query}"'))
-def search_with_query(query: str, context) -> None:
+def search_with_query(
+    query: str, context: dict[str, Any], e2e_cli_runner, monkeypatch, e2e_session_api_key
+) -> None:
     """Execute search with given query text.
-
-    Implementation: TASK-0001.4.1.3 (after hybrid search implemented)
 
     Args:
         query: Search query string (used for both BM25 and vector search)
         context: pytest-bdd context object
+        e2e_cli_runner: CLI runner fixture
+        monkeypatch: pytest monkeypatch fixture
+        e2e_session_api_key: API key for embedding generation
     """
-    raise NotImplementedError(
-        f'Search with query "{query}" not implemented yet. '
-        "Will be implemented in TASK-0001.4.1.3 when hybrid search is working."
-    )
+    # Change to repository directory
+    repo_path = context["repo_path"]
+    monkeypatch.chdir(repo_path)
+
+    # Set API key for search (embedding generation)
+    context["custom_env"] = {"OPENAI_API_KEY": e2e_session_api_key}
+
+    # Execute search command
+    # e2e_cli_runner automatically merges context["custom_env"]
+    result = e2e_cli_runner.invoke(app, ["search", query])
+
+    # Clear custom_env to prevent leaking to next command
+    context.pop("custom_env", None)
+
+    # Store results in context
+    context["result"] = result
+    context["stdout"] = result.stdout
+    context["stderr"] = result.stderr or ""
+    context["exit_code"] = result.exit_code
 
 
 @then(parsers.parse('the first result should be "{file_path}"'))
-def check_first_result(file_path: str, context) -> None:
+def check_first_result(file_path: str, context: dict[str, Any]) -> None:
     """Verify the first search result matches expected file path.
-
-    Implementation: TASK-0001.4.1.3 (after hybrid search implemented)
 
     Args:
         file_path: Expected file path for first result
         context: pytest-bdd context object
     """
-    raise NotImplementedError(
-        f'First result verification for "{file_path}" not implemented yet. '
-        "Will be implemented in TASK-0001.4.1.3 when hybrid search is working."
+    result = context["result"]
+    stdout = context["stdout"]
+    stderr = context.get("stderr", "")
+
+    # Verify search succeeded
+    assert result.exit_code == 0, (
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+    )
+
+    # Parse search output for file paths
+    # Search output format: "File: path/to/file.py"
+    lines = stdout.split("\n")
+    file_paths = []
+    for line in lines:
+        if line.strip().startswith("File:"):
+            # Extract file path from "File: path/to/file.py"
+            path = line.split("File:", 1)[1].strip()
+            file_paths.append(path)
+
+    # Verify at least one result
+    assert len(file_paths) > 0, f"No search results found in output:\n{stdout}"
+
+    # Verify first result matches expected file path
+    first_result = file_paths[0]
+    assert first_result == file_path, (
+        f"First result mismatch:\n"
+        f"  Expected: {file_path}\n"
+        f"  Got: {first_result}\n"
+        f"Full output:\n{stdout}"
     )
 
 
@@ -103,11 +158,7 @@ def check_bm25_score(context) -> None:
     )
 
 
-@then(
-    parsers.parse(
-        'results should include both "{file1}" and "{file2}"'
-    )
-)
+@then(parsers.parse('results should include both "{file1}" and "{file2}"'))
 def check_results_include_both(file1: str, file2: str, context) -> None:
     """Verify search results include both specified files.
 
