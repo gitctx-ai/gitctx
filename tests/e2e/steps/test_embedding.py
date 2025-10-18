@@ -543,3 +543,90 @@ def verify_error_suggests_configuration(embedding_context: dict[str, Any]) -> No
 
     # Should suggest configuration method
     assert "openai_api_key" in error_msg or "settings" in error_msg or "env" in error_msg
+
+
+# ===== Scenario 7: Embedding cache compressed on disk =====
+
+
+@given(parsers.parse("I have a test repository with {num_files:d} Python files"))
+def test_repository_with_files(embedding_context: dict[str, Any], num_files: int) -> None:
+    """Create test repository with specified number of Python files.
+
+    To be implemented in TASK-0001.4.4.2 (foundation).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.2")
+
+
+@when("I index the repository")
+def index_repository(embedding_context: dict[str, Any]) -> None:
+    """Index the test repository.
+
+    To be implemented in TASK-0001.4.4.2 (foundation).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.2")
+
+
+@when("I check the .gitctx/embeddings/ directory")
+def check_embeddings_directory(embedding_context: dict[str, Any]) -> None:
+    """Check the embeddings directory for cache files.
+
+    To be implemented in TASK-0001.4.4.3 (compression implementation).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+
+
+@then("cache files should have .safetensors.zst extension")
+def verify_compressed_extension(embedding_context: dict[str, Any]) -> None:
+    """Verify cache files have compressed extension.
+
+    To be implemented in TASK-0001.4.4.3 (compression implementation).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+
+
+@then("cache size should be approximately 8% smaller than uncompressed")
+def verify_compression_ratio(embedding_context: dict[str, Any]) -> None:
+    """Verify cache size meets compression ratio target.
+
+    To be implemented in TASK-0001.4.4.4 (verification).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.4")
+
+
+# ===== Scenario 8: Decompression transparent to search =====
+
+
+@given("I have indexed a repository with compressed cache")
+def indexed_repo_with_compressed_cache(embedding_context: dict[str, Any]) -> None:
+    """Create indexed repository with compressed cache.
+
+    To be implemented in TASK-0001.4.4.2 (foundation).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.2")
+
+
+@when(parsers.parse('I search for "{query}"'))
+def search_for_query(embedding_context: dict[str, Any], query: str) -> None:
+    """Execute search query.
+
+    To be implemented in TASK-0001.4.4.3 (compression implementation).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+
+
+@then("search results should be returned correctly")
+def verify_results_correct(embedding_context: dict[str, Any]) -> None:
+    """Verify search results are correct.
+
+    To be implemented in TASK-0001.4.4.3 (compression implementation).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+
+
+@then("decompression overhead should be minimal")
+def verify_decompression_overhead(embedding_context: dict[str, Any]) -> None:
+    """Verify decompression overhead is minimal.
+
+    To be implemented in TASK-0001.4.4.4 (verification).
+    """
+    raise NotImplementedError("TODO: TASK-0001.4.4.4")
