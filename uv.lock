@@ -456,6 +456,7 @@ dependencies = [
     { name = "shellingham" },
     { name = "tiktoken" },
     { name = "typer" },
+    { name = "zstandard" },
 ]
 
 [package.optional-dependencies]
@@ -508,6 +509,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12.0" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12" },
     { name = "vcrpy", marker = "extra == 'dev'", specifier = ">=6.0.1" },
+    { name = "zstandard", specifier = ">=0.22.0" },
 ]
 provides-extras = ["dev"]
 

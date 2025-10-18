@@ -49,3 +49,16 @@ Feature: OpenAI Embedding Generation
     Then a ConfigurationError should be raised
     And the error message should indicate missing API key
     And suggest how to configure the key
+
+  Scenario: Embedding cache compressed on disk
+    Given I have a test repository with 10 Python files
+    When I index the repository
+    And I check the .gitctx/embeddings/ directory
+    Then cache files should have .safetensors.zst extension
+    And cache size should be approximately 8% smaller than uncompressed
+
+  Scenario: Decompression transparent to search
+    Given I have indexed a repository with compressed cache
+    When I search for "authentication"
+    Then search results should be returned correctly
+    And decompression overhead should be minimal
