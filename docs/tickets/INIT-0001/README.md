@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ████████░░ ~72% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 34/34 points, EPIC-0001.3 in progress - 10/13 points, EPIC-0001.4 not started - 0/21 points, 54/78 total points)
+**Progress**: ████████░░ ~72% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 34/34 points, EPIC-0001.3 in progress - 10/13 points, EPIC-0001.4 not started - 0/18 points, EPIC-0001.5 not started - 0/21 points, 54/96 total points)
 
 ## Objective
 
@@ -23,7 +23,8 @@ Build the core functionality users need to search their codebase intelligently. 
 | [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | ✅ Complete | ██████████ 100% | Core Team |
 | [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing Implementation | ✅ Complete | ██████████ 100% | Core Team |
 | [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search Implementation | 🟡 In Progress | ████████░░ 77% | Core Team |
-| [EPIC-0001.4](EPIC-0001.4/README.md) | Performance & Observability | 🔵 Not Started | ░░░░░░░░░░ 0% | Core Team |
+| [EPIC-0001.4](EPIC-0001.4/README.md) | Search Quality & Usability | 🔵 Not Started | ░░░░░░░░░░ 0% | Core Team |
+| [EPIC-0001.5](EPIC-0001.5/README.md) | Performance & Observability | 🔵 Not Started | ░░░░░░░░░░ 0% | Core Team |
 
 ## Success Metrics
 
@@ -107,16 +108,28 @@ Build the core functionality users need to search their codebase intelligently. 
 
 **Note**: Performance optimization moved to EPIC-0001.4 due to indexing speed dependency.
 
-### Performance & Observability (EPIC-0001.4)
+### Search Quality & Usability (EPIC-0001.4)
 
-- 🔵 Protocol performance testing infrastructure (STORY-0001.4.1 not started)
-- 🔵 Indexing performance optimization (STORY-0001.4.2 not started)
-- 🔵 Search performance optimization (STORY-0001.4.3 not started)
-- 🔵 LangSmith integration & prompt evals (STORY-0001.4.4 not started)
+- 🔵 Hybrid search (BM25 + vector) (not started)
+- 🔵 Recency & relevance boosting (not started)
+- 🔵 File-grouped result presentation (not started)
+- 🔵 Safetensors compression with zstd (not started)
+- 🔵 TUI performance & usability (not started)
+
+**Progress**: 0/18 story points complete (0%)
+
+**Note**: MVP viability epic focusing on search quality first, speed second. Key insight: "The core problem isn't search performance (speed) - it's search relevance (quality)."
+
+### Performance & Observability (EPIC-0001.5)
+
+- 🔵 Protocol performance testing infrastructure (STORY-0001.5.1 not started)
+- 🔵 Indexing performance optimization (STORY-0001.5.2 not started)
+- 🔵 Search performance optimization (STORY-0001.5.3 not started)
+- 🔵 LangSmith integration & prompt evals (STORY-0001.5.4 not started)
 
 **Progress**: 0/21 story points complete (0%)
 
-**Note**: Created during EPIC-0001.3 gap analysis. Key insight: "Any protocol deserves performance monitoring."
+**Note**: Post-MVP optimization epic. Depends on EPIC-0001.4 completion.
 
 ## Acceptance Criteria
 
@@ -187,10 +200,12 @@ The MVP is complete when:
 1. **EPIC-0001.3**: Complete vector search implementation
    - 🔵 STORY-0001.3.3: Result Formatting & Output (3 points) - Ready to start
    - Run: `/start-next-task STORY-0001.3.3`
-2. **EPIC-0001.4**: Begin performance optimization (after EPIC-0001.3 complete)
-   - Implementation order: STORY-0001.4.1 → 0001.4.2 → 0001.4.3 → 0001.4.4
-   - Critical: Indexing performance (STORY-0001.4.2) must precede search performance (STORY-0001.4.3)
-3. Prepare for alpha testing with optimized index + search
+2. **EPIC-0001.4**: Begin search quality & usability improvements (after EPIC-0001.3 complete)
+   - Run: `/plan-epic EPIC-0001.4` to create 5 stories
+   - Implementation order: Hybrid Search + Compression (parallel) → Recency Boosting → File Grouping → TUI Performance
+3. **EPIC-0001.5**: Performance optimization (after EPIC-0001.4 complete)
+   - Focus on speed after quality is proven
+4. Prepare for alpha testing with quality search results
 
 ## Notes
 
