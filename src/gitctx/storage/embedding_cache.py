@@ -1,11 +1,13 @@
 """Embedding cache using safetensors for persistent storage."""
 
+import json
 import logging
+import struct
 from pathlib import Path
 
 import numpy as np
-from safetensors import safe_open
-from safetensors.numpy import save_file
+import zstandard as zstd
+from safetensors.numpy import load, save
 
 from gitctx.indexing.types import Embedding
 
@@ -46,7 +48,7 @@ class EmbeddingCache:
         self.model = model
 
     def get(self, blob_sha: str) -> list[Embedding] | None:
-        """Load cached embeddings for a blob.
+        """Load cached embeddings with transparent decompression.
 
         Args:
             blob_sha: Git blob SHA
@@ -54,47 +56,57 @@ class EmbeddingCache:
         Returns:
             List of Embedding objects if cached, None if not found
         """
-        path = self.cache_dir / f"{blob_sha}.safetensors"
+        path = self.cache_dir / f"{blob_sha}.safetensors.zst"
         if not path.exists():
             return None
 
         try:
-            # Load safetensor file with metadata
-            with safe_open(str(path), framework="numpy") as f:  # type: ignore[no-untyped-call]
-                metadata = f.metadata() or {}
+            # Decompress
+            compressed = path.read_bytes()
+            dctx = zstd.ZstdDecompressor()
+            decompressed = dctx.decompress(compressed)
 
-                # Reconstruct Embedding objects from arrays + metadata
-                embeddings = []
-                chunk_count = int(metadata.get("chunks", 0))
+            # Extract metadata from safetensors header
+            # (Standard safetensors pattern for bytes - see https://huggingface.co/docs/safetensors/metadata_parsing)
+            header_size = struct.unpack("<Q", decompressed[:8])[0]
+            json_header = decompressed[8 : 8 + header_size].decode("utf-8")
+            header = json.loads(json_header)
+            metadata = header.get("__metadata__", {})
 
-                for i in range(chunk_count):
-                    tensor = f.get_tensor(f"chunk_{i}")
-                    vector = tensor.tolist()
-                    embeddings.append(
-                        Embedding(
-                            vector=vector,
-                            token_count=int(metadata.get(f"chunk_{i}_tokens", 0)),
-                            model=self.model,
-                            cost_usd=float(metadata.get(f"chunk_{i}_cost", 0.0)),
-                            blob_sha=blob_sha,
-                            chunk_index=i,
-                        )
+            # Load tensors from decompressed bytes
+            tensors = load(decompressed)
+
+            # Reconstruct Embedding objects from tensors + metadata
+            embeddings = []
+            chunk_count = int(metadata.get("chunks", 0))
+            for i in range(chunk_count):
+                tensor = tensors[f"chunk_{i}"]
+                vector = tensor.tolist()
+                embeddings.append(
+                    Embedding(
+                        vector=vector,
+                        token_count=int(metadata.get(f"chunk_{i}_tokens", 0)),
+                        model=self.model,
+                        cost_usd=float(metadata.get(f"chunk_{i}_cost", 0.0)),
+                        blob_sha=blob_sha,
+                        chunk_index=i,
                     )
+                )
+            return embeddings
 
-                return embeddings
         except Exception as e:
             # Corrupted file - log and return None
             logger.warning(f"Failed to load cache for {blob_sha[:8]}: {e}")
             return None
 
     def set(self, blob_sha: str, embeddings: list[Embedding]) -> None:
-        """Save embeddings to cache.
+        """Save embeddings with zstd compression.
 
         Args:
             blob_sha: Git blob SHA
             embeddings: List of Embedding objects to cache
         """
-        path = self.cache_dir / f"{blob_sha}.safetensors"
+        path = self.cache_dir / f"{blob_sha}.safetensors.zst"
 
         # Convert Embedding list to numpy arrays for safetensors
         tensors = {}
@@ -109,4 +121,12 @@ class EmbeddingCache:
         metadata["blob_sha"] = blob_sha
         metadata["chunks"] = str(len(embeddings))
 
-        save_file(tensors, str(path), metadata=metadata)
+        # Serialize to bytes (NOT file)
+        safetensors_bytes = save(tensors, metadata=metadata)
+
+        # Compress with zstd
+        cctx = zstd.ZstdCompressor(level=self.COMPRESSION_LEVEL)
+        compressed = cctx.compress(safetensors_bytes)
+
+        # Write compressed bytes
+        path.write_bytes(compressed)

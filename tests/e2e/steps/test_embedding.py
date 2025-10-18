@@ -549,39 +549,71 @@ def verify_error_suggests_configuration(embedding_context: dict[str, Any]) -> No
 
 
 @given(parsers.parse("I have a test repository with {num_files:d} Python files"))
-def test_repository_with_files(embedding_context: dict[str, Any], num_files: int) -> None:
-    """Create test repository with specified number of Python files.
+def test_repository_with_files(
+    embedding_context: dict[str, Any], num_files: int, tmp_path: Path
+) -> None:
+    """Create test repository with specified number of Python files."""
+    # Create simple test cache directory (no full indexing needed for compression test)
+    cache_dir = tmp_path / ".gitctx"
+    cache_dir.mkdir(parents=True)
 
-    To be implemented in TASK-0001.4.4.2 (foundation).
-    """
-    raise NotImplementedError("TODO: TASK-0001.4.4.2")
+    # Create cache instance
+    cache = EmbeddingCache(cache_dir, model="text-embedding-3-large")
+
+    # Store in context
+    embedding_context["cache_dir"] = cache_dir
+    embedding_context["cache"] = cache
+    embedding_context["num_files"] = num_files
 
 
 @when("I index the repository")
 def index_repository(embedding_context: dict[str, Any]) -> None:
-    """Index the test repository.
+    """Index the test repository by creating compressed cache files."""
+    cache = embedding_context["cache"]
+    num_files = embedding_context["num_files"]
 
-    To be implemented in TASK-0001.4.4.2 (foundation).
-    """
-    raise NotImplementedError("TODO: TASK-0001.4.4.2")
+    # Create sample embeddings for each "file"
+    for i in range(num_files):
+        blob_sha = f"blob_sha_{i:03d}"
+        embedding = Embedding(
+            vector=[0.1 + i * 0.01] * 3072,
+            token_count=100 + i * 10,
+            model="text-embedding-3-large",
+            cost_usd=0.000013 + i * 0.000001,
+            blob_sha=blob_sha,
+            chunk_index=0,
+        )
+        cache.set(blob_sha, [embedding])
+
+    embedding_context["indexed_files"] = num_files
 
 
 @when("I check the .gitctx/embeddings/ directory")
 def check_embeddings_directory(embedding_context: dict[str, Any]) -> None:
-    """Check the embeddings directory for cache files.
+    """Check the embeddings directory for cache files."""
+    cache_dir = embedding_context["cache_dir"]
+    embeddings_dir = cache_dir / "embeddings" / "text-embedding-3-large"
 
-    To be implemented in TASK-0001.4.4.3 (compression implementation).
-    """
-    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+    # Find all cache files
+    cache_files = list(embeddings_dir.glob("*"))
+
+    embedding_context["cache_files"] = cache_files
+    embedding_context["embeddings_dir"] = embeddings_dir
 
 
 @then("cache files should have .safetensors.zst extension")
 def verify_compressed_extension(embedding_context: dict[str, Any]) -> None:
-    """Verify cache files have compressed extension.
+    """Verify cache files have compressed extension."""
+    cache_files = embedding_context["cache_files"]
 
-    To be implemented in TASK-0001.4.4.3 (compression implementation).
-    """
-    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+    assert len(cache_files) > 0, "Should have at least one cache file"
+
+    # Verify all files have .safetensors.zst extension
+    for cache_file in cache_files:
+        assert cache_file.suffix == ".zst", f"File {cache_file.name} should have .zst extension"
+        assert cache_file.name.endswith(".safetensors.zst"), (
+            f"File {cache_file.name} should end with .safetensors.zst"
+        )
 
 
 @then("cache size should be approximately 8% smaller than uncompressed")
@@ -597,30 +629,58 @@ def verify_compression_ratio(embedding_context: dict[str, Any]) -> None:
 
 
 @given("I have indexed a repository with compressed cache")
-def indexed_repo_with_compressed_cache(embedding_context: dict[str, Any]) -> None:
-    """Create indexed repository with compressed cache.
+def indexed_repo_with_compressed_cache(embedding_context: dict[str, Any], tmp_path: Path) -> None:
+    """Create indexed repository with compressed cache."""
+    # Create cache directory
+    cache_dir = tmp_path / ".gitctx"
+    cache_dir.mkdir(parents=True)
 
-    To be implemented in TASK-0001.4.4.2 (foundation).
-    """
-    raise NotImplementedError("TODO: TASK-0001.4.4.2")
+    # Create cache instance
+    cache = EmbeddingCache(cache_dir, model="text-embedding-3-large")
+
+    # Create sample compressed embeddings
+    test_files = ["auth.py", "login.py", "database.py"]
+    for i, _filename in enumerate(test_files):
+        blob_sha = f"blob_{i}"
+        embedding = Embedding(
+            vector=[0.2 + i * 0.1] * 3072,
+            token_count=150 + i * 25,
+            model="text-embedding-3-large",
+            cost_usd=0.0000195 + i * 0.00000325,
+            blob_sha=blob_sha,
+            chunk_index=0,
+        )
+        cache.set(blob_sha, [embedding])
+
+    # Store in context
+    embedding_context["cache"] = cache
+    embedding_context["test_files"] = test_files
 
 
 @when(parsers.parse('I search for "{query}"'))
 def search_for_query(embedding_context: dict[str, Any], query: str) -> None:
-    """Execute search query.
+    """Execute search query by loading from cache."""
+    cache = embedding_context["cache"]
 
-    To be implemented in TASK-0001.4.4.3 (compression implementation).
-    """
-    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+    # Simulate search by loading a cached embedding
+    # (Real search would use vector similarity, but we're just testing decompression)
+    result = cache.get("blob_0")  # Load from compressed cache
+
+    embedding_context["query"] = query
+    embedding_context["search_result"] = result
 
 
 @then("search results should be returned correctly")
 def verify_results_correct(embedding_context: dict[str, Any]) -> None:
-    """Verify search results are correct.
+    """Verify search results are correct (decompression worked)."""
+    result = embedding_context["search_result"]
 
-    To be implemented in TASK-0001.4.4.3 (compression implementation).
-    """
-    raise NotImplementedError("TODO: TASK-0001.4.4.3")
+    # Verify decompression worked and data is intact
+    assert result is not None, "Should have loaded embedding from compressed cache"
+    assert len(result) == 1, "Should have one embedding"
+    assert len(result[0].vector) == 3072, "Should have 3072 dimensions"
+    assert result[0].token_count == 150, "Should preserve token_count"
+    assert result[0].model == "text-embedding-3-large", "Should preserve model"
 
 
 @then("decompression overhead should be minimal")
