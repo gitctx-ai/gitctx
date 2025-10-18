@@ -1,9 +1,6 @@
 # Claude settings
 .claude/settings.local.json
 
-# gitctx - NEVER run gitctx from the repo root (use temp test environments)
-.gitctx/
-
 # direnv
 .envrc.local
 
