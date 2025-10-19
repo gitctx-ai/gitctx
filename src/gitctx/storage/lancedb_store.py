@@ -355,7 +355,10 @@ class LanceDBStore:
         Each SearchResult includes three score fields for analysis/debugging:
         - bm25_score: BM25 keyword score (_score field, higher = better match)
         - vector_score: Cosine similarity (1.0 - _distance, 0-1 range)
+            For BM25-only matches without vector component, vector_score = -inf
         - hybrid_score: RRF combined score (_relevance_score, 0-1 range, higher = more relevant)
+
+        Note: For rare BM25-only matches (no vector match), distance = inf and vector_score = -inf
 
         **Post-Filtering**:
 
@@ -385,7 +388,7 @@ class LanceDBStore:
 
         Args:
             query_vector: Query embedding vector (must match table dimensions)
-            query_text: Query text for BM25 keyword search (required for hybrid mode)
+            query_text: Query text for BM25 keyword search (required, cannot be empty)
             limit: Maximum results to return BEFORE filtering (LanceDB retrieves top-N)
             filter_head_only: Only return chunks from HEAD commit (WHERE clause)
             max_distance: Maximum cosine distance threshold (0.0-2.0).
@@ -415,6 +418,11 @@ class LanceDBStore:
             ...     max_distance=0.3
             ... )
         """
+        # Validate query_text is not empty (required for BM25 keyword matching)
+        if not query_text or not query_text.strip():
+            msg = "Hybrid search requires non-empty query_text for BM25 keyword matching"
+            raise ValueError(msg)
+
         from lancedb import rerankers
 
         assert self.chunks_table is not None
@@ -450,19 +458,21 @@ class LanceDBStore:
         search_results = []
         for result in filtered_results:
             # Extract score breakdown from LanceDB response
+            # LanceDB returns internal fields (_distance, _score, _relevance_score)
+            # We map these to public SearchResult fields (distance, bm25_score, hybrid_score)
             # Note: In hybrid search, _distance can theoretically be None for BM25-only matches
-            # Use 2.0 (max cosine distance) as sentinel for "no vector match"
+            # Use float('inf') to represent "no vector similarity" (infinite distance)
             raw_distance = result.get("_distance")
-            distance = raw_distance if raw_distance is not None else 2.0
-            vector_score = 1.0 - distance  # Convert distance to similarity score
+            distance = raw_distance if raw_distance is not None else float('inf')
+            vector_score = 1.0 - distance if distance != float('inf') else -float('inf')  # -inf for no vector match
             bm25_score = result.get("_score")  # BM25 score (may be None)
             hybrid_score = result.get("_relevance_score")  # RRF combined score
 
             search_result = SearchResult(
-                # Core chunk fields
+                # Core chunk fields (mapped from LanceDB schema)
                 chunk_content=result["chunk_content"],
                 file_path=result["file_path"],
-                distance=distance,  # Always float (2.0 if no vector match)
+                distance=distance,  # Mapped from _distance (underscore removed for public API)
                 commit_sha=result["commit_sha"],
                 token_count=result["token_count"],
                 blob_sha=result["blob_sha"],
@@ -478,10 +488,10 @@ class LanceDBStore:
                 commit_message=result["commit_message"],
                 is_head=result["is_head"],
                 is_merge=result["is_merge"],
-                # Score breakdown fields (NEW in STORY-0001.4.1)
-                bm25_score=bm25_score,
-                vector_score=vector_score,
-                hybrid_score=hybrid_score,
+                # Score breakdown fields (mapped from LanceDB internal fields)
+                bm25_score=bm25_score,  # Mapped from _score
+                vector_score=vector_score,  # Computed from _distance
+                hybrid_score=hybrid_score,  # Mapped from _relevance_score
             )
             search_results.append(search_result)
 

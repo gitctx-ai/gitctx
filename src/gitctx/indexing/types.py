@@ -97,6 +97,7 @@ class SearchResult:
         chunk_content: Chunk text content
         file_path: File path relative to repository root
         distance: Cosine distance from query vector (0-∞, lower = more similar)
+            For BM25-only matches without vector component: inf (infinite distance)
         commit_sha: Git commit SHA (40-character hex string)
         token_count: Exact token count for this chunk
         blob_sha: Git blob SHA (40-character hex string)
@@ -115,12 +116,14 @@ class SearchResult:
         is_merge: True if chunk comes from a merge commit
 
         # Score breakdown fields (NEW in STORY-0001.4.1 for hybrid search)
-        bm25_score: BM25 keyword matching score from _score field
-            (higher = better match)
+        # Note: LanceDB stores scores in internal fields (_distance, _score, _relevance_score)
+        # but SearchResult uses public API naming without underscores
+        bm25_score: BM25 keyword matching score (mapped from LanceDB _score field)
+            (higher = better match, None if not available)
         vector_score: Cosine similarity computed as 1.0 - distance
-            (0-1 range)
-        hybrid_score: RRF combined score from _relevance_score field
-            (0-1 range, higher = more relevant)
+            (0-1 range, -inf for BM25-only matches, None if not available)
+        hybrid_score: RRF combined score (mapped from LanceDB _relevance_score field)
+            (0-1 range, higher = more relevant, None if not available)
 
     Examples:
         >>> result = SearchResult(

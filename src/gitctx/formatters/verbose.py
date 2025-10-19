@@ -84,9 +84,12 @@ class VerboseFormatter:
             # Format HEAD marker based on terminal type
             head_marker = SYMBOLS["head"] if is_head else " "
 
+            # Format score (handle inf for BM25-only matches)
+            score_str = "BM25" if score == float('inf') else f"{score:.2f}"
+
             # Print header line
             console.print(
-                f"\n{file_path}:{start_line}-{end_line} ({score:.2f}) "
+                f"\n{file_path}:{start_line}-{end_line} ({score_str}) "
                 f"{head_marker} {commit_sha[:7]}"
             )
 

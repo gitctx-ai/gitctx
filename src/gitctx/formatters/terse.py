@@ -14,10 +14,11 @@ Example:
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from rich.console import Console
+
+from gitctx.formatters.utils import format_commit_date
 
 
 class TerseFormatter:
@@ -81,18 +82,14 @@ class TerseFormatter:
             truncated_message = first_line[:50]
 
             # Format commit date to YYYY-MM-DD
-            # Handle both ISO 8601 strings ("2025-01-15T10:30:00Z") and Unix timestamps
-            if isinstance(commit_date, str):
-                # ISO 8601 string format
-                dt = datetime.fromisoformat(commit_date.replace("Z", "+00:00"))
-                formatted_date = dt.strftime("%Y-%m-%d")
-            else:
-                # Unix timestamp (int or float)
-                formatted_date = datetime.fromtimestamp(commit_date).strftime("%Y-%m-%d")
+            formatted_date = format_commit_date(commit_date)
+
+            # Format score (handle inf for BM25-only matches)
+            score_str = "BM25" if score == float('inf') else f"{score:.2f}"
 
             # Format and print line (no_wrap + crop=False to prevent truncation)
             console.print(
-                f"{file_path}:{start_line}:{score:.2f}{head_marker} "
+                f"{file_path}:{start_line}:{score_str}{head_marker} "
                 f"{commit_sha[:7]} ({formatted_date}, {author_name}) "
                 f'"{truncated_message}"',
                 no_wrap=True,
