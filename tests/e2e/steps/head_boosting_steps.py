@@ -1,30 +1,69 @@
 """Step definitions for HEAD boosting E2E tests.
 
-All steps are stubbed with NotImplementedError - to be implemented in TASK-0001.4.2.2 and TASK-0001.4.2.3.
+TASK-0001.4.2.2: Basic booster testing (direct GitHeadBooster.boost() calls)
+TASK-0001.4.2.3: Full search integration (LanceDBStore with boosting)
 """
 
 from typing import Any
 
 from pytest_bdd import given, parsers, then, when
 
+from gitctx.indexing.types import SearchResult
+from gitctx.search.git_head_booster import GitHeadBooster
 
 # ===== Given Steps =====
 
 
-@given("a repository with files at different commits:", target_fixture="repo_with_head_and_historical")
+@given(
+    "a repository with files at different commits:",
+    target_fixture="repo_with_head_and_historical",
+)
 def repo_with_head_and_historical(datatable, context: dict[str, Any]) -> None:
-    """Create repository with HEAD and historical files.
+    """Create mock search results simulating HEAD and historical files.
 
     Table columns:
     - file_path: Path to the file
     - content: File content
     - is_head: Whether this is a HEAD commit (true/false)
 
-    To be implemented in TASK-0001.4.2.2 (GitHeadBooster creation).
+    TASK-0001.4.2.2: Creates mock SearchResult objects for direct booster testing.
+    TASK-0001.4.2.3: Will use e2e_indexed_repo_factory for real search integration.
     """
-    raise NotImplementedError(
-        "TASK-0001.4.2.2: Create indexed repo with is_head metadata using e2e_indexed_repo_factory"
-    )
+    # Parse table and create mock SearchResult objects
+    mock_results = []
+    for row in datatable[1:]:  # Skip header row
+        file_path = row[0]
+        content = row[1]
+        is_head = row[2].lower() == "true"
+
+        # Create mock SearchResult (simulating hybrid search output)
+        result = SearchResult(
+            chunk_content=content,
+            file_path=file_path,
+            distance=0.3,
+            commit_sha="a" * 40,
+            token_count=len(content.split()),
+            blob_sha="b" * 40,
+            chunk_index=0,
+            start_line=1,
+            end_line=10,
+            total_chunks=1,
+            language="python",
+            author_name="Test Author",
+            author_email="test@example.com",
+            commit_date="2025-01-15T10:00:00Z",
+            commit_message="test commit",
+            is_head=is_head,
+            is_merge=False,
+            bm25_score=0.7,
+            vector_score=0.85,
+            hybrid_score=0.8,  # Same score for both (will test boost effect)
+        )
+        mock_results.append(result)
+
+    # Store in context for later steps
+    context["mock_search_results"] = mock_results
+    context["booster"] = GitHeadBooster(head_multiplier=1.5)
 
 
 @given("a repository with files:", target_fixture="repo_with_scored_files")
@@ -40,7 +79,8 @@ def repo_with_scored_files(datatable, context: dict[str, Any]) -> None:
     To be implemented in TASK-0001.4.2.3 (integration with LanceDBStore).
     """
     raise NotImplementedError(
-        "TASK-0001.4.2.3: Create indexed repo with hybrid_score metadata for testing boost calculations"
+        "TASK-0001.4.2.3: Create indexed repo with hybrid_score metadata "
+        "for testing boost calculations"
     )
 
 
@@ -49,13 +89,21 @@ def repo_with_scored_files(datatable, context: dict[str, Any]) -> None:
 
 @when(parsers.parse('I search for "{query}"'))
 def search_for_query(query: str, context: dict[str, Any]) -> None:
-    """Execute search with HEAD boosting enabled.
+    """Execute booster on mock search results.
 
-    To be implemented in TASK-0001.4.2.3 (integration with LanceDBStore).
+    TASK-0001.4.2.2: Calls GitHeadBooster.boost() directly on mock results.
+    TASK-0001.4.2.3: Will run actual gitctx search with LanceDBStore integration.
     """
-    raise NotImplementedError(
-        "TASK-0001.4.2.3: Run gitctx search and capture results with boosted scores"
-    )
+    # Get mock results and booster from context
+    mock_results = context.get("mock_search_results", [])
+    booster = context.get("booster")
+
+    # Apply booster (simulates what LanceDBStore will do)
+    boosted_results = booster.boost(mock_results)
+
+    # Store boosted results for verification
+    context["boosted_results"] = boosted_results
+    context["original_results"] = mock_results
 
 
 # ===== Then Steps =====
@@ -65,10 +113,22 @@ def search_for_query(query: str, context: dict[str, Any]) -> None:
 def file_ranks_above(file1: str, file2: str, context: dict[str, Any]) -> None:
     """Verify file1 appears before file2 in search results.
 
-    To be implemented in TASK-0001.4.2.3 (integration verification).
+    TASK-0001.4.2.2: Verifies boosted results have correct ordering by score.
+    TASK-0001.4.2.3: Will verify full search pipeline ordering.
     """
-    raise NotImplementedError(
-        "TASK-0001.4.2.3: Parse search results and verify ranking order"
+    boosted_results = context.get("boosted_results", [])
+
+    # Find files in results
+    file1_result = next((r for r in boosted_results if r.file_path == file1), None)
+    file2_result = next((r for r in boosted_results if r.file_path == file2), None)
+
+    assert file1_result is not None, f"File {file1} not found in results"
+    assert file2_result is not None, f"File {file2} not found in results"
+
+    # Verify file1 has higher score than file2
+    assert file1_result.hybrid_score > file2_result.hybrid_score, (
+        f"{file1} (score={file1_result.hybrid_score}) should rank above "
+        f"{file2} (score={file2_result.hybrid_score})"
     )
 
 
@@ -87,11 +147,29 @@ def file_ranks_first_with_score(file: str, expected_score: float, context: dict[
 def head_results_have_boost(context: dict[str, Any]) -> None:
     """Verify HEAD results have 1.5x multiplier applied to scores.
 
-    To be implemented in TASK-0001.4.2.3 (boost verification).
+    TASK-0001.4.2.2: Verifies GitHeadBooster.boost() applied 1.5x correctly.
     """
-    raise NotImplementedError(
-        "TASK-0001.4.2.3: Parse search results and verify HEAD scores are 1.5x higher than base"
-    )
+    boosted_results = context.get("boosted_results", [])
+    original_results = context.get("original_results", [])
+
+    assert len(boosted_results) > 0, "No boosted results found"
+    assert len(original_results) > 0, "No original results found"
+
+    # Verify HEAD results have 1.5x boost
+    for original, boosted in zip(original_results, boosted_results, strict=False):
+        if original.is_head:
+            expected_score = original.hybrid_score * 1.5
+            assert boosted.hybrid_score == expected_score, (
+                f"HEAD result {boosted.file_path}: "
+                f"expected {expected_score}, got {boosted.hybrid_score}"
+            )
+            # Verify immutability: original unchanged
+            assert original.hybrid_score == 0.8, "Original result was modified!"
+        else:
+            # Historical results should be unchanged
+            assert boosted.hybrid_score == original.hybrid_score, (
+                f"Historical result {boosted.file_path} should not be boosted"
+            )
 
 
 @then("boost does not override semantic relevance")
