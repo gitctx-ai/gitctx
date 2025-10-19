@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from io import StringIO
 
 from rich.console import Console
@@ -19,22 +20,23 @@ def test_verbose_formatter_has_name_and_description() -> None:
     assert len(formatter.description) > 0
 
 
-def test_verbose_formatter_multiline_format() -> None:
+def test_verbose_formatter_multiline_format(mock_search_result_factory) -> None:
     """Test that VerboseFormatter outputs multiple lines per result."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 52,
-            "distance": 0.92,
-            "is_head": True,
-            "commit_sha": "f9e8d7c1234",  # pragma: allowlist secret
-            "commit_message": "Add OAuth support",
-            "chunk_content": "def authenticate(user, password):\n    pass",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=52,
+            distance=0.92,
+            is_head=True,
+            commit_sha="f9e8d7c1234",  # pragma: allowlist secret
+            commit_message="Add OAuth support",
+            chunk_content="def authenticate(user, password):\n    pass",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -47,22 +49,23 @@ def test_verbose_formatter_multiline_format() -> None:
     assert len(lines) > 3
 
 
-def test_verbose_formatter_header_with_line_range() -> None:
+def test_verbose_formatter_header_with_line_range(mock_search_result_factory) -> None:
     """Test that header includes file path with line range."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 52,
-            "distance": 0.92,
-            "is_head": False,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth",
-            "chunk_content": "code",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=52,
+            distance=0.92,
+            is_head=False,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth",
+            chunk_content="code",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -74,22 +77,23 @@ def test_verbose_formatter_header_with_line_range() -> None:
     assert "src/auth.py:45-52" in result
 
 
-def test_verbose_formatter_score_in_header() -> None:
+def test_verbose_formatter_score_in_header(mock_search_result_factory) -> None:
     """Test that score appears in header with 2 decimal places."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 52,
-            "distance": 0.92345,
-            "is_head": False,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth",
-            "chunk_content": "code",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=52,
+            distance=0.92345,
+            is_head=False,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth",
+            chunk_content="code",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -102,22 +106,23 @@ def test_verbose_formatter_score_in_header() -> None:
     assert "0.923" not in result
 
 
-def test_verbose_formatter_head_marker_in_header() -> None:
+def test_verbose_formatter_head_marker_in_header(mock_search_result_factory) -> None:
     """Test that HEAD marker appears in header for HEAD commits."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 52,
-            "distance": 0.92,
-            "is_head": True,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth",
-            "chunk_content": "code",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=52,
+            distance=0.92,
+            is_head=True,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth",
+            chunk_content="code",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -130,22 +135,23 @@ def test_verbose_formatter_head_marker_in_header() -> None:
     assert "●" in result or "[HEAD]" in result
 
 
-def test_verbose_formatter_commit_sha_in_header() -> None:
+def test_verbose_formatter_commit_sha_in_header(mock_search_result_factory) -> None:
     """Test that commit SHA (7 chars) appears in header."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 52,
-            "distance": 0.92,
-            "is_head": False,
-            "commit_sha": "f9e8d7c1234567890",  # pragma: allowlist secret
-            "commit_message": "Add OAuth",
-            "chunk_content": "code",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=52,
+            distance=0.92,
+            is_head=False,
+            commit_sha="f9e8d7c1234567890",  # pragma: allowlist secret
+            commit_message="Add OAuth",
+            chunk_content="code",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -158,22 +164,23 @@ def test_verbose_formatter_commit_sha_in_header() -> None:
     assert "f9e8d7c1234567890" not in result  # pragma: allowlist secret
 
 
-def test_verbose_formatter_metadata_line_dimmed() -> None:
+def test_verbose_formatter_metadata_line_dimmed(mock_search_result_factory) -> None:
     """Test that metadata line contains commit message."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 52,
-            "distance": 0.92,
-            "is_head": False,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth support for GitHub",
-            "chunk_content": "code",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=52,
+            distance=0.92,
+            is_head=False,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth support for GitHub",
+            chunk_content="code",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -185,22 +192,23 @@ def test_verbose_formatter_metadata_line_dimmed() -> None:
     assert "Add OAuth support for GitHub" in result
 
 
-def test_verbose_formatter_syntax_highlighting() -> None:
+def test_verbose_formatter_syntax_highlighting(mock_search_result_factory) -> None:
     """Test that syntax highlighting is applied (ANSI codes present)."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 47,
-            "distance": 0.92,
-            "is_head": False,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth",
-            "chunk_content": "def authenticate():\n    pass",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=47,
+            distance=0.92,
+            is_head=False,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth",
+            chunk_content="def authenticate():\n    pass",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -214,22 +222,23 @@ def test_verbose_formatter_syntax_highlighting() -> None:
     assert "authenticate" in result
 
 
-def test_verbose_formatter_line_numbers_enabled() -> None:
+def test_verbose_formatter_line_numbers_enabled(mock_search_result_factory) -> None:
     """Test that line numbers are shown in code block."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 47,
-            "distance": 0.92,
-            "is_head": False,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth",
-            "chunk_content": "def authenticate():\n    pass",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=47,
+            distance=0.92,
+            is_head=False,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth",
+            chunk_content="def authenticate():\n    pass",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -242,22 +251,23 @@ def test_verbose_formatter_line_numbers_enabled() -> None:
     assert "45" in result or "46" in result
 
 
-def test_verbose_formatter_start_line_offset() -> None:
+def test_verbose_formatter_start_line_offset(mock_search_result_factory) -> None:
     """Test that line numbers start at correct offset."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 100,
-            "end_line": 102,
-            "distance": 0.92,
-            "is_head": False,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth",
-            "chunk_content": "def test():\n    pass",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=100,
+            end_line=102,
+            distance=0.92,
+            is_head=False,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth",
+            chunk_content="def test():\n    pass",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -270,22 +280,23 @@ def test_verbose_formatter_start_line_offset() -> None:
     assert "100" in result or "101" in result
 
 
-def test_verbose_formatter_theme_monokai() -> None:
+def test_verbose_formatter_theme_monokai(mock_search_result_factory) -> None:
     """Test that monokai theme is used (implicit - just verify no crash)."""
 
-    results = [
-        {
-            "file_path": "src/auth.py",
-            "start_line": 45,
-            "end_line": 47,
-            "distance": 0.92,
-            "is_head": False,
-            "commit_sha": "f9e8d7c",
-            "commit_message": "Add OAuth",
-            "chunk_content": "def authenticate():\n    pass",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/auth.py",
+            start_line=45,
+            end_line=47,
+            distance=0.92,
+            is_head=False,
+            commit_sha="f9e8d7c",
+            commit_message="Add OAuth",
+            chunk_content="def authenticate():\n    pass",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -297,22 +308,23 @@ def test_verbose_formatter_theme_monokai() -> None:
     assert len(result) > 0
 
 
-def test_verbose_formatter_language_from_result() -> None:
+def test_verbose_formatter_language_from_result(mock_search_result_factory) -> None:
     """Test that language is taken from result metadata."""
 
-    results = [
-        {
-            "file_path": "test.js",
-            "start_line": 1,
-            "end_line": 3,
-            "distance": 0.85,
-            "is_head": False,
-            "commit_sha": "abc1234",  # pragma: allowlist secret
-            "commit_message": "Add test",
-            "chunk_content": "function test() { return 42; }",
-            "language": "javascript",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="test.js",
+            start_line=1,
+            end_line=3,
+            distance=0.85,
+            is_head=False,
+            commit_sha="abc1234",  # pragma: allowlist secret
+            commit_message="Add test",
+            chunk_content="function test() { return 42; }",
+            language="javascript",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -325,22 +337,26 @@ def test_verbose_formatter_language_from_result() -> None:
     assert "function" in result
 
 
-def test_verbose_formatter_language_fallback_markdown() -> None:
+def test_verbose_formatter_language_fallback_markdown(mock_search_result_factory) -> None:
     """Test that unknown/missing language falls back to markdown."""
 
-    results = [
-        {
-            "file_path": "unknown.xyz",
-            "start_line": 1,
-            "end_line": 3,
-            "distance": 0.75,
-            "is_head": False,
-            "commit_sha": "def456",  # pragma: allowlist secret
-            "commit_message": "Unknown file",
-            "chunk_content": "some random content",
-            # No language field
-        }
+    # Create result without language field by using factory and removing language from dict
+    results_objs = [
+        mock_search_result_factory(
+            file_path="unknown.xyz",
+            start_line=1,
+            end_line=3,
+            distance=0.75,
+            is_head=False,
+            commit_sha="def456",  # pragma: allowlist secret
+            commit_message="Unknown file",
+            chunk_content="some random content",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
+    # Remove language field to test fallback behavior
+    for result in results:
+        del result["language"]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -353,33 +369,34 @@ def test_verbose_formatter_language_fallback_markdown() -> None:
     assert "some random content" in result
 
 
-def test_verbose_formatter_blank_line_separator() -> None:
+def test_verbose_formatter_blank_line_separator(mock_search_result_factory) -> None:
     """Test that results are separated by blank lines."""
 
-    results = [
-        {
-            "file_path": "file1.py",
-            "start_line": 1,
-            "end_line": 2,
-            "distance": 0.9,
-            "is_head": False,
-            "commit_sha": "aaa1111",  # pragma: allowlist secret
-            "commit_message": "First",
-            "chunk_content": "code1",
-            "language": "python",
-        },
-        {
-            "file_path": "file2.py",
-            "start_line": 10,
-            "end_line": 11,
-            "distance": 0.8,
-            "is_head": False,
-            "commit_sha": "bbb2222",  # pragma: allowlist secret
-            "commit_message": "Second",
-            "chunk_content": "code2",
-            "language": "python",
-        },
+    results_objs = [
+        mock_search_result_factory(
+            file_path="file1.py",
+            start_line=1,
+            end_line=2,
+            distance=0.9,
+            is_head=False,
+            commit_sha="aaa1111",  # pragma: allowlist secret
+            commit_message="First",
+            chunk_content="code1",
+            language="python",
+        ),
+        mock_search_result_factory(
+            file_path="file2.py",
+            start_line=10,
+            end_line=11,
+            distance=0.8,
+            is_head=False,
+            commit_sha="bbb2222",  # pragma: allowlist secret
+            commit_message="Second",
+            chunk_content="code2",
+            language="python",
+        ),
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -395,22 +412,23 @@ def test_verbose_formatter_blank_line_separator() -> None:
     assert "\n\n" in result
 
 
-def test_verbose_formatter_custom_theme() -> None:
+def test_verbose_formatter_custom_theme(mock_search_result_factory) -> None:
     """Test that custom theme is used for syntax highlighting."""
 
-    results = [
-        {
-            "file_path": "test.py",
-            "start_line": 1,
-            "end_line": 5,
-            "distance": 0.85,
-            "is_head": True,
-            "commit_sha": "abc1234",  # pragma: allowlist secret
-            "commit_message": "Test commit",
-            "chunk_content": "def test(): pass",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="test.py",
+            start_line=1,
+            end_line=5,
+            distance=0.85,
+            is_head=True,
+            commit_sha="abc1234",  # pragma: allowlist secret
+            commit_message="Test commit",
+            chunk_content="def test(): pass",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
@@ -425,22 +443,23 @@ def test_verbose_formatter_custom_theme() -> None:
     assert "def test(): pass" in result
 
 
-def test_verbose_formatter_default_theme() -> None:
+def test_verbose_formatter_default_theme(mock_search_result_factory) -> None:
     """Test that default theme (monokai) is used when not specified."""
 
-    results = [
-        {
-            "file_path": "test.py",
-            "start_line": 1,
-            "end_line": 5,
-            "distance": 0.85,
-            "is_head": True,
-            "commit_sha": "abc1234",  # pragma: allowlist secret
-            "commit_message": "Test commit",
-            "chunk_content": "def test(): pass",
-            "language": "python",
-        }
+    results_objs = [
+        mock_search_result_factory(
+            file_path="test.py",
+            start_line=1,
+            end_line=5,
+            distance=0.85,
+            is_head=True,
+            commit_sha="abc1234",  # pragma: allowlist secret
+            commit_message="Test commit",
+            chunk_content="def test(): pass",
+            language="python",
+        )
     ]
+    results = [asdict(r) for r in results_objs]
 
     output = StringIO()
     console = Console(file=output, legacy_windows=False, width=200)
