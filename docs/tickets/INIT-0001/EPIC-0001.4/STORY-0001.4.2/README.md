@@ -1,9 +1,9 @@
 # STORY-0001.4.2: Recency & Relevance Boosting
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🟡 In Progress
+**Status**: 🟢 Complete
 **Story Points**: 3
-**Progress**: ████▓░░░░░ 50%
+**Progress**: ██████████ 100%
 
 ## User Story
 
@@ -13,12 +13,12 @@ So that I see the most up-to-date implementation first (not deprecated code from
 
 ## Acceptance Criteria
 
-- [ ] GitHeadBooster class created with HEAD-only boost (1.5x multiplier - mid-range of typical BM25 boost factors 1.2-2.0 per Robertson & Zaragoza 2009, 'The Probabilistic Relevance Framework: BM25 and Beyond', sufficient to break ties without overriding strong semantic matches per Scenario 2, can increase to 2.0x based on EPIC-0001.5 evaluation data)
-- [ ] Boost applied AFTER hybrid search RRF ranking (post-processing)
-- [ ] HEAD chunks identified by `is_head=True` flag in search results
-- [ ] Search results ordered by: `boosted_score = hybrid_score * (1.5 if is_head else 1.0)`
-- [ ] BDD scenarios verify HEAD code ranks above historical code for same semantic match
-- [ ] No hand-crafted heuristics beyond HEAD boost (defer sophisticated ranking to EPIC-0001.5)
+- [x] GitHeadBooster class created with HEAD-only boost (1.5x multiplier - mid-range of typical BM25 boost factors 1.2-2.0 per Robertson & Zaragoza 2009, 'The Probabilistic Relevance Framework: BM25 and Beyond', sufficient to break ties without overriding strong semantic matches per Scenario 2, can increase to 2.0x based on EPIC-0001.5 evaluation data)
+- [x] Boost applied AFTER hybrid search RRF ranking (post-processing)
+- [x] HEAD chunks identified by `is_head=True` flag in search results
+- [x] Search results ordered by: `boosted_score = hybrid_score * (1.5 if is_head else 1.0)`
+- [x] BDD scenarios verify HEAD code ranks above historical code for same semantic match
+- [x] No hand-crafted heuristics beyond HEAD boost (defer sophisticated ranking to EPIC-0001.5)
 
 ## BDD Scenarios
 
@@ -256,8 +256,8 @@ See EPIC-0001.5 README for detailed discussion of deferred ranking improvements.
 |----|-------|--------|-------|-----------------|
 | [TASK-0001.4.2.1](TASK-0001.4.2.1.md) | Write BDD Scenarios for HEAD Boosting | ✅ Complete | 2 | 0/3 (stubbed) |
 | [TASK-0001.4.2.2](TASK-0001.4.2.2.md) | Create GitHeadBooster Class with TDD | ✅ Complete | 4 | 0/3 → 1/3 |
-| [TASK-0001.4.2.3](TASK-0001.4.2.3.md) | Integrate GitHeadBooster into LanceDBStore | 🔵 Not Started | 3-4 | 1/3 → 3/3 |
-| [TASK-0001.4.2.4](TASK-0001.4.2.4.md) | Integration Testing and Story Completion | 🔵 Not Started | 2-3 | 3/3 maintained |
+| [TASK-0001.4.2.3](TASK-0001.4.2.3.md) | Integrate GitHeadBooster into LanceDBStore | ✅ Complete | 4 | 1/3 → 3/3 |
+| [TASK-0001.4.2.4](TASK-0001.4.2.4.md) | Integration Testing and Story Completion | ✅ Complete | 3 | 3/3 maintained |
 
 **Total Hours**: 10-13 hours (story: 3 points × 4h/point = 12h ✓)
 

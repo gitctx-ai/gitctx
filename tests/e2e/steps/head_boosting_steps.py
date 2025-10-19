@@ -4,6 +4,7 @@ TASK-0001.4.2.2: Basic booster testing (direct GitHeadBooster.boost() calls)
 TASK-0001.4.2.3: Full search integration (LanceDBStore with boosting)
 """
 
+import math
 from typing import Any
 
 from pytest_bdd import given, parsers, then, when
@@ -68,7 +69,7 @@ def repo_with_head_and_historical(datatable, context: dict[str, Any]) -> None:
 
 @given("a repository with files:", target_fixture="repo_with_scored_files")
 def repo_with_scored_files(datatable, context: dict[str, Any]) -> None:
-    """Create repository with files at specific hybrid scores.
+    """Create mock search results with specific hybrid scores.
 
     Table columns:
     - file_path: Path to the file
@@ -76,12 +77,44 @@ def repo_with_scored_files(datatable, context: dict[str, Any]) -> None:
     - is_head: Whether this is a HEAD commit (true/false)
     - hybrid_score: Pre-calculated hybrid score (for testing boost math)
 
-    To be implemented in TASK-0001.4.2.3 (integration with LanceDBStore).
+    TASK-0001.4.2.4: Create mock SearchResult objects with predefined scores.
     """
-    raise NotImplementedError(
-        "TASK-0001.4.2.3: Create indexed repo with hybrid_score metadata "
-        "for testing boost calculations"
-    )
+    # Parse table and create mock SearchResult objects with specific hybrid scores
+    mock_results = []
+    for row in datatable[1:]:  # Skip header row
+        file_path = row[0]
+        content = row[1]
+        is_head = row[2].lower() == "true"
+        hybrid_score = float(row[3])
+
+        # Create mock SearchResult with specified hybrid score
+        result = SearchResult(
+            chunk_content=content,
+            file_path=file_path,
+            distance=0.3,  # Arbitrary - not used in boost tests
+            commit_sha="a" * 40,
+            token_count=len(content.split()),
+            blob_sha="b" * 40,
+            chunk_index=0,
+            start_line=1,
+            end_line=10,
+            total_chunks=1,
+            language="python",
+            author_name="Test Author",
+            author_email="test@example.com",
+            commit_date="2025-01-15T10:00:00Z",
+            commit_message="test commit",
+            is_head=is_head,
+            is_merge=False,
+            bm25_score=0.5,  # Arbitrary - hybrid_score is what matters
+            vector_score=0.5,  # Arbitrary - hybrid_score is what matters
+            hybrid_score=hybrid_score,  # Use specified score from table
+        )
+        mock_results.append(result)
+
+    # Store in context for later steps
+    context["mock_search_results"] = mock_results
+    context["booster"] = GitHeadBooster(head_multiplier=1.5)
 
 
 # ===== When Steps =====
@@ -93,6 +126,7 @@ def search_for_query(query: str, context: dict[str, Any]) -> None:
 
     TASK-0001.4.2.2: Calls GitHeadBooster.boost() directly on mock results.
     TASK-0001.4.2.3: Will run actual gitctx search with LanceDBStore integration.
+    TASK-0001.4.2.4: Re-sort by hybrid_score after boosting (simulates LanceDBStore).
     """
     # Get mock results and booster from context
     mock_results = context.get("mock_search_results", [])
@@ -100,6 +134,9 @@ def search_for_query(query: str, context: dict[str, Any]) -> None:
 
     # Apply booster (simulates what LanceDBStore will do)
     boosted_results = booster.boost(mock_results)
+
+    # Re-sort by hybrid_score descending (LanceDBStore does this)
+    boosted_results = sorted(boosted_results, key=lambda r: r.hybrid_score, reverse=True)
 
     # Store boosted results for verification
     context["boosted_results"] = boosted_results
@@ -134,12 +171,48 @@ def file_ranks_above(file1: str, file2: str, context: dict[str, Any]) -> None:
 
 @then(parsers.parse('"{file}" should rank first with score {expected_score:f}'))
 def file_ranks_first_with_score(file: str, expected_score: float, context: dict[str, Any]) -> None:
+    """Verify file appears first with expected score.
+
+    TASK-0001.4.2.4: Verify first result matches expected score.
+    """
+    boosted_results = context.get("boosted_results", [])
+
+    assert len(boosted_results) > 0, "No boosted results found"
+
+    # First result should be the expected file
+    first_result = boosted_results[0]
+    assert first_result.file_path == file, (
+        f"Expected {file} to rank first, got {first_result.file_path}"
+    )
+
+    # Score should match expected
+    assert first_result.hybrid_score == expected_score, (
+        f"Expected score {expected_score}, got {first_result.hybrid_score}"
+    )
+
+
+@then(parsers.parse('"{file}" should rank first with boosted score {expected_score:f}'))
+def file_ranks_first_with_boosted_score(
+    file: str, expected_score: float, context: dict[str, Any]
+) -> None:
     """Verify file appears first with expected boosted score.
 
-    To be implemented in TASK-0001.4.2.3 (boost calculation verification).
+    TASK-0001.4.2.4: Verify first result matches expected boosted score.
+    Uses approximate equality to handle floating point precision.
     """
-    raise NotImplementedError(
-        "TASK-0001.4.2.3: Parse search results and verify first result matches expected score"
+    boosted_results = context.get("boosted_results", [])
+
+    assert len(boosted_results) > 0, "No boosted results found"
+
+    # First result should be the expected file
+    first_result = boosted_results[0]
+    assert first_result.file_path == file, (
+        f"Expected {file} to rank first, got {first_result.file_path}"
+    )
+
+    # Score should match expected boosted score (approximate equality for floating point)
+    assert math.isclose(first_result.hybrid_score, expected_score, rel_tol=1e-9), (
+        f"Expected boosted score {expected_score}, got {first_result.hybrid_score}"
     )
 
 
