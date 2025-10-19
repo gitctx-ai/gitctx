@@ -25,14 +25,17 @@ def test_search_strategy_search_signature() -> None:
     search_method = SearchStrategy.search
     sig = inspect.signature(search_method)
 
-    # Should have 5 parameters: query_vector, query_text, limit, filter_head_only, max_distance
+    # Should have parameters: self, query_vector, query_text, limit, filter_head_only, max_distance
     params = list(sig.parameters.keys())
-    assert "query_vector" in params
-    assert "query_text" in params
-    assert "limit" in params
-    assert "filter_head_only" in params
-    assert "max_distance" in params
-    assert len(params) == 6  # self + 5 params
+    expected_params = {
+        "self",
+        "query_vector",
+        "query_text",
+        "limit",
+        "filter_head_only",
+        "max_distance",
+    }
+    assert set(params) == expected_params
 
 
 def test_search_strategy_query_vector_type() -> None:
