@@ -46,10 +46,10 @@ class TerseFormatter:
             results: List of search result dictionaries with keys:
                 - file_path: Path to file
                 - start_line: Starting line number
-                - _distance: Similarity score (0-1)
+                - distance: Similarity score (0-1)
                 - is_head: Whether commit is HEAD
                 - commit_sha: Full commit SHA
-                - commit_date: Commit date string
+                - commit_date: Commit date (ISO 8601 string)
                 - author_name: Author name
                 - commit_message: Commit message
             console: Rich Console instance for formatted output
@@ -62,7 +62,7 @@ class TerseFormatter:
             # Extract values
             file_path = result["file_path"]
             start_line = result["start_line"]
-            score = result["_distance"]
+            score = result["distance"]
             is_head = result["is_head"]
             commit_sha = result["commit_sha"]
             commit_date = result["commit_date"]
@@ -80,8 +80,16 @@ class TerseFormatter:
             first_line = commit_message.split("\n")[0]
             truncated_message = first_line[:50]
 
-            # Format commit date from Unix timestamp to YYYY-MM-DD
-            formatted_date = datetime.fromtimestamp(commit_date).strftime("%Y-%m-%d")
+            # Format commit date to YYYY-MM-DD
+            # Handle both ISO 8601 strings ("2025-01-15T10:30:00Z") and Unix timestamps
+            if isinstance(commit_date, str):
+                # ISO 8601 string format
+                formatted_date = datetime.fromisoformat(commit_date.replace("Z", "+00:00")).strftime(
+                    "%Y-%m-%d"
+                )
+            else:
+                # Unix timestamp (int or float)
+                formatted_date = datetime.fromtimestamp(commit_date).strftime("%Y-%m-%d")
 
             # Format and print line (no_wrap + crop=False to prevent truncation)
             console.print(

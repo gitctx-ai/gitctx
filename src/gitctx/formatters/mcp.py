@@ -74,7 +74,7 @@ class MCPFormatter:
                 - file_path: Path to file
                 - start_line: Starting line number
                 - end_line: Ending line number
-                - _distance: Similarity score (0-1)
+                - distance: Similarity score (0-1)
                 - commit_sha: Full commit SHA
                 - chunk_content: Code content
                 - language: Language for syntax highlighting (optional)
@@ -90,7 +90,7 @@ class MCPFormatter:
                 {
                     "file_path": r["file_path"],
                     "line_numbers": f"{r['start_line']}-{r['end_line']}",
-                    "score": float(f"{r['_distance']:.3f}"),
+                    "score": float(f"{r['distance']:.3f}"),
                     "commit_sha": r["commit_sha"],
                 }
                 for r in results
@@ -107,7 +107,7 @@ class MCPFormatter:
             file_path = result["file_path"]
             start_line = result["start_line"]
             end_line = result["end_line"]
-            score = result["_distance"]
+            score = result["distance"]
             commit_sha = result["commit_sha"]
             chunk_content = result["chunk_content"]
             language = result.get("language", "markdown")

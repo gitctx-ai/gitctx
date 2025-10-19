@@ -58,24 +58,35 @@ def mock_search_repo(
     mock_settings.user.theme = "monokai"
 
     # Mock LanceDBStore to bypass actual database operations
+    from gitctx.indexing.types import SearchResult
+
     mock_store = Mock()
     mock_store.count = Mock(return_value=100)  # Non-zero = index exists
     mock_store.get_query_embedding = Mock(return_value=None)  # Cache miss - force embed_query call
     mock_store.search = Mock(
         return_value=[
-            {
-                "file_path": "test.py",
-                "start_line": 1,
-                "end_line": 1,
-                "_distance": 0.15,
-                "commit_sha": "abc123",
-                "commit_message": "Initial commit",
-                "commit_date": 1728864000,  # Unix timestamp for 2024-10-13
-                "author_name": "Test User",
-                "is_head": True,
-                "language": "python",
-                "chunk_content": 'print("hello")',
-            }
+            SearchResult(
+                file_path="test.py",
+                start_line=1,
+                end_line=1,
+                distance=0.15,
+                commit_sha="abc123",
+                commit_message="Initial commit",
+                commit_date="2024-10-13T00:00:00Z",  # ISO timestamp
+                author_name="Test User",
+                author_email="test@example.com",
+                is_head=True,
+                is_merge=False,
+                language="python",
+                chunk_content='print("hello")',
+                token_count=50,
+                blob_sha="blob123",
+                chunk_index=0,
+                total_chunks=1,
+                bm25_score=None,
+                vector_score=None,
+                hybrid_score=None,
+            )
         ]
     )
 

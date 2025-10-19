@@ -57,7 +57,7 @@ class VerboseFormatter:
                 - file_path: Path to file
                 - start_line: Starting line number
                 - end_line: Ending line number
-                - _distance: Similarity score (0-1)
+                - distance: Similarity score (0-1)
                 - is_head: Whether commit is HEAD
                 - commit_sha: Full commit SHA
                 - commit_message: Commit message
@@ -74,7 +74,7 @@ class VerboseFormatter:
             file_path = result["file_path"]
             start_line = result["start_line"]
             end_line = result["end_line"]
-            score = result["_distance"]
+            score = result["distance"]
             is_head = result["is_head"]
             commit_sha = result["commit_sha"]
             commit_message = result["commit_message"]

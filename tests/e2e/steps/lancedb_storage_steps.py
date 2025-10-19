@@ -147,15 +147,17 @@ def verify_metadata_fields(context: dict[str, Any]):
 def verify_single_query_context(context: dict[str, Any]):
     """Verify single query returns complete context."""
     store = context["store"]
+    store.optimize()  # Create INVERTED index for hybrid search
     query_vector = [0.1] * 3072
-    results = store.search(query_vector, limit=5)
+    query_text = "code"
+    results = store.search(query_vector, query_text, limit=5)
 
     assert len(results) > 0
     # Verify complete context in results (no joins needed)
     first = results[0]
-    assert "file_path" in first
-    assert "commit_sha" in first
-    assert "author_name" in first
+    assert hasattr(first, "file_path")
+    assert hasattr(first, "commit_sha")
+    assert hasattr(first, "author_name")
 
 
 # ===== Scenario 2: Batch insertion for efficiency =====
@@ -236,10 +238,11 @@ def verify_ivf_pq_index_created(context: dict[str, Any]):
 def verify_cosine_similarity(context: dict[str, Any]):
     """Verify cosine similarity metric used."""
     # LanceDB uses cosine by default in optimize()
-    # Verify search still returns results
+    # Verify search still returns results (hybrid search requires query_text)
     store = context["store"]
     query_vector = [0.1] * 3072
-    results = store.search(query_vector, limit=5)
+    query_text = "code"
+    results = store.search(query_vector, query_text, limit=5)
     assert len(results) > 0
 
 
@@ -355,9 +358,11 @@ def verify_old_chunks_unchanged(context: dict[str, Any]):
 def verify_new_chunks_searchable(context: dict[str, Any]):
     """Verify new chunks are searchable."""
     store = context["store"]
+    store.optimize()  # Create INVERTED index for hybrid search
     # Search with vector close to new chunks (0.5 range)
     query_vector = [0.5] * 3072
-    results = store.search(query_vector, limit=10)
+    query_text = "code"
+    results = store.search(query_vector, query_text, limit=10)
     assert len(results) > 0
 
 
@@ -582,8 +587,10 @@ def embeddings_with_denormalized_data(context: dict[str, Any], tmp_path: Path):
 def search_similar_vectors(context: dict[str, Any]):
     """Search for similar vectors."""
     store = context["store"]
+    store.optimize()  # Create INVERTED index for hybrid search
     query_vector = [0.1] * 3072
-    context["results"] = store.search(query_vector, limit=10)
+    query_text = "code"
+    context["results"] = store.search(query_vector, query_text, limit=10)
 
 
 @then("results should include chunk content")
@@ -591,29 +598,29 @@ def verify_chunk_content_in_results(context: dict[str, Any]):
     """Verify chunk content in results."""
     results = context["results"]
     assert len(results) > 0
-    assert "chunk_content" in results[0]
+    assert hasattr(results[0], "chunk_content")
 
 
 @then("results should include file_path")
 def verify_file_path_in_results(context: dict[str, Any]):
     """Verify file_path in results."""
     results = context["results"]
-    assert "file_path" in results[0]
+    assert hasattr(results[0], "file_path")
 
 
 @then("results should include line_range with start_line and end_line")
 def verify_line_range_in_results(context: dict[str, Any]):
     """Verify line_range in results."""
     results = context["results"]
-    assert "start_line" in results[0]
-    assert "end_line" in results[0]
+    assert hasattr(results[0], "start_line")
+    assert hasattr(results[0], "end_line")
 
 
 @then("results should include blob_sha")
 def verify_blob_sha_in_results(context: dict[str, Any]):
     """Verify blob_sha in results."""
     results = context["results"]
-    assert "blob_sha" in results[0]
+    assert hasattr(results[0], "blob_sha")
 
 
 @then("results should include commit_sha, author, date, message")
@@ -621,17 +628,17 @@ def verify_commit_info_in_results(context: dict[str, Any]):
     """Verify commit info in results."""
     results = context["results"]
     first = results[0]
-    assert "commit_sha" in first
-    assert "author_name" in first
-    assert "commit_date" in first
-    assert "commit_message" in first
+    assert hasattr(first, "commit_sha")
+    assert hasattr(first, "author_name")
+    assert hasattr(first, "commit_date")
+    assert hasattr(first, "commit_message")
 
 
 @then("results should include is_head flag")
 def verify_is_head_flag_in_results(context: dict[str, Any]):
     """Verify is_head flag in results."""
     results = context["results"]
-    assert "is_head" in results[0]
+    assert hasattr(results[0], "is_head")
 
 
 # ===== Scenario 9: Empty index handling =====

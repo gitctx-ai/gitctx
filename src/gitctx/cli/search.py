@@ -287,6 +287,7 @@ def search_command(
         max_distance = 1.0 - min_similarity
         results = store.search(
             query_vector=query_vector,
+            query_text=query_text,  # NEW: Required for hybrid search (BM25 + vector)
             limit=limit,
             filter_head_only=False,
             max_distance=max_distance,
@@ -307,8 +308,13 @@ def search_command(
 
     # Format and display results
     try:
+        from dataclasses import asdict
+
+        # Convert SearchResult objects to dicts for formatter compatibility
+        results_dicts = [asdict(result) for result in results]
+
         formatter = get_formatter(resolved_format)
-        formatter.format(results, console, theme=resolved_theme)
+        formatter.format(results_dicts, console, theme=resolved_theme)
     except ValueError as err:
         # Unknown formatter name
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")

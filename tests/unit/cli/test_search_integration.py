@@ -109,6 +109,8 @@ def test_search_returns_sorted_results(
     mock_settings.repo.model = Mock()
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
+    mock_settings.user = Mock()
+    mock_settings.user.theme = "monokai"
 
     # Mock results with ascending _distance (all fields required by formatters)
     mock_results = [
@@ -211,7 +213,7 @@ def test_search_respects_limit(isolated_cli_runner, tmp_path, monkeypatch, test_
 
 
 def test_search_result_has_all_fields(
-    isolated_cli_runner, tmp_path, monkeypatch, test_embedding_vector
+    isolated_cli_runner, tmp_path, monkeypatch, test_embedding_vector, mock_search_result_factory
 ):
     """Test search returns denormalized results with all 11 fields."""
     # ARRANGE
@@ -225,21 +227,23 @@ def test_search_result_has_all_fields(
     mock_settings.repo.model = Mock()
     mock_settings.repo.model.embedding = "text-embedding-3-large"
     mock_settings.get = Mock(return_value="sk-test-key")
+    mock_settings.user = Mock()
+    mock_settings.user.theme = "monokai"
 
-    # Mock result with all 11 denormalized fields
-    mock_result = {
-        "file_path": "auth.py",
-        "start_line": 10,
-        "end_line": 20,
-        "_distance": 0.15,
-        "commit_sha": "abc123def",  # pragma: allowlist secret
-        "commit_message": "Add auth",
-        "commit_date": 1727740800,  # Unix timestamp for 2024-10-01
-        "author_name": "Alice",
-        "is_head": True,
-        "language": "python",
-        "chunk_content": "def authenticate(): pass",
-    }
+    # Mock result with all denormalized fields (using factory for SearchResult)
+    mock_result = mock_search_result_factory(
+        file_path="auth.py",
+        start_line=10,
+        end_line=20,
+        distance=0.15,
+        commit_sha="abc123def",  # pragma: allowlist secret
+        commit_message="Add auth",
+        commit_date=1727740800,  # Unix timestamp for 2024-10-01
+        author_name="Alice",
+        is_head=True,
+        language="python",
+        chunk_content="def authenticate(): pass",
+    )
 
     # ACT
     with (
@@ -262,16 +266,17 @@ def test_search_result_has_all_fields(
 
         # ASSERT
         assert result.exit_code == 0
-        # Verify result returned from LanceDB has all fields
+        # Verify result returned from LanceDB has all SearchResult fields
         returned_results = mock_store.search.return_value
         assert len(returned_results) == 1
+        # SearchResult is a dataclass, check with hasattr
         assert all(
-            field in returned_results[0]
+            hasattr(returned_results[0], field)
             for field in [
                 "file_path",
                 "start_line",
                 "end_line",
-                "_distance",
+                "distance",  # Changed from "_distance"
                 "commit_sha",
                 "commit_message",
                 "commit_date",
