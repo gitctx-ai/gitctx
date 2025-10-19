@@ -443,8 +443,7 @@ class LanceDBStore:
         # Note: _distance can be None for BM25-only matches in hybrid search - keep those
         # Reference: https://github.com/lancedb/lancedb/issues/745
         filtered_results = [
-            r for r in results
-            if r.get("_distance") is None or abs(r["_distance"]) <= max_distance
+            r for r in results if r.get("_distance") is None or abs(r["_distance"]) <= max_distance
         ]
 
         # Convert to SearchResult objects with score breakdown
