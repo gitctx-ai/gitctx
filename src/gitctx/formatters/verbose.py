@@ -31,6 +31,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 
 from gitctx.cli.symbols import SYMBOLS
+from gitctx.formatters.base import format_distance_score
 
 
 class VerboseFormatter:
@@ -85,7 +86,7 @@ class VerboseFormatter:
             head_marker = SYMBOLS["head"] if is_head else " "
 
             # Format score (handle inf for BM25-only matches)
-            score_str = "BM25" if score == float("inf") else f"{score:.2f}"
+            score_str = format_distance_score(score, precision=2)
 
             # Print header line
             console.print(

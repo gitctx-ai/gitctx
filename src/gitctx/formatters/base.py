@@ -39,3 +39,28 @@ class ResultFormatter(Protocol):
             None - Results are written directly to console
         """
         ...
+
+
+def format_distance_score(distance: float, precision: int = 2) -> str:
+    """Format distance score, handling infinite values for BM25-only matches.
+
+    In hybrid search, BM25-only matches (without vector component) have
+    distance = inf to indicate "no vector similarity". This function
+    formats such cases as "BM25" for clarity.
+
+    Args:
+        distance: Cosine distance value (0.0-2.0, or inf for BM25-only)
+        precision: Number of decimal places for numeric scores (default: 2)
+
+    Returns:
+        Formatted score string ("BM25" for inf, otherwise numeric with precision)
+
+    Examples:
+        >>> format_distance_score(0.85, precision=2)
+        '0.85'
+        >>> format_distance_score(float("inf"))
+        'BM25'
+        >>> format_distance_score(0.12345, precision=3)
+        '0.123'
+    """
+    return "BM25" if distance == float("inf") else f"{distance:.{precision}f}"

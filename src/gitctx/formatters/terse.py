@@ -18,6 +18,7 @@ from typing import Any
 
 from rich.console import Console
 
+from gitctx.formatters.base import format_distance_score
 from gitctx.formatters.utils import format_commit_date
 
 
@@ -85,7 +86,7 @@ class TerseFormatter:
             formatted_date = format_commit_date(commit_date)
 
             # Format score (handle inf for BM25-only matches)
-            score_str = "BM25" if score == float("inf") else f"{score:.2f}"
+            score_str = format_distance_score(score, precision=2)
 
             # Format and print line (no_wrap + crop=False to prevent truncation)
             console.print(

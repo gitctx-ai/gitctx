@@ -97,6 +97,7 @@ class SearchStrategy(Protocol):
 
     def search(
         self,
+        # Note: np.ndarray imported under TYPE_CHECKING (avoids runtime numpy import)
         query_vector: np.ndarray,
         query_text: str,
         limit: int = 10,

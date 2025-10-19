@@ -1029,9 +1029,9 @@ def mock_search_result_factory():
         blob_sha: str = "def5678",
         chunk_index: int = 0,
         total_chunks: int = 1,
-        bm25_score: float | None = 1.5,
-        vector_score: float = 0.85,
-        hybrid_score: float | None = 0.9,
+        bm25_score: float | None = None,
+        vector_score: float | None = None,
+        hybrid_score: float | None = None,
     ) -> SearchResult:
         """Generate mock SearchResult with specified fields."""
         return SearchResult(
