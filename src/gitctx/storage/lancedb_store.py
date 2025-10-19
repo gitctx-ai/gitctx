@@ -17,6 +17,7 @@ from numpy.typing import NDArray
 from gitctx.git.types import BlobLocation
 from gitctx.indexing.types import Embedding, SearchResult
 from gitctx.models.errors import DimensionMismatchError
+from gitctx.search.git_head_booster import GitHeadBooster
 from gitctx.storage.schema import CHUNK_SCHEMA
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,9 @@ class LanceDBStore:
         self.chunks_table = None
         self.metadata_table = None
         self._init_tables()
+
+        # Initialize GitHeadBooster for search ranking
+        self.booster = GitHeadBooster(head_multiplier=1.5)
 
     def _init_tables(self) -> None:
         """Initialize or open existing tables."""
@@ -446,17 +450,9 @@ class LanceDBStore:
         # Execute query and get results
         results = query.to_list()
 
-        # Post-filter by distance (LanceDB doesn't support WHERE on _distance)
-        # Use abs() to handle rare floating-point precision issues
-        # Note: _distance can be None for BM25-only matches in hybrid search - keep those
-        # Reference: https://github.com/lancedb/lancedb/issues/745
-        filtered_results = [
-            r for r in results if r.get("_distance") is None or abs(r["_distance"]) <= max_distance
-        ]
-
-        # Convert to SearchResult objects with score breakdown
+        # Convert to SearchResult objects first (before filtering/boosting)
         search_results = []
-        for result in filtered_results:
+        for result in results:
             # Extract score breakdown from LanceDB response
             # LanceDB returns internal fields (_distance, _score, _relevance_score)
             # We map these to public SearchResult fields (distance, bm25_score, hybrid_score)
@@ -496,7 +492,22 @@ class LanceDBStore:
             )
             search_results.append(search_result)
 
-        return search_results
+        # Apply HEAD boost (1.5x multiplier for HEAD chunks)
+        boosted_results = self.booster.boost(search_results)
+
+        # Post-filter by distance (LanceDB doesn't support WHERE on _distance)
+        # Apply after boosting to maintain correct filtering behavior
+        # Note: _distance can be None for BM25-only matches in hybrid search - keep those
+        # Reference: https://github.com/lancedb/lancedb/issues/745
+        filtered_results = [
+            r for r in boosted_results if r.distance == float("inf") or r.distance <= max_distance
+        ]
+
+        # Re-rank by boosted hybrid_score (descending)
+        ranked_results = sorted(filtered_results, key=lambda r: r.hybrid_score, reverse=True)
+
+        # Apply limit
+        return ranked_results[:limit]
 
     def save_index_state(
         self, last_commit: str, indexed_blobs: list[str], embedding_model: str

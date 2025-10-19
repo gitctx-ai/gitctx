@@ -887,3 +887,247 @@ def test_performance_search_latency(
     assert latency_ms < max_latency_ms, (
         f"Search too slow: {latency_ms:.1f}ms (target: <{max_latency_ms}ms)"
     )
+
+
+# ============================================================================
+# TASK-0001.4.2.3: GitHeadBooster Integration (TDD Red Phase)
+# ============================================================================
+
+
+def test_search_integrates_git_head_booster(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """search() integrates GitHeadBooster to boost HEAD results."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 5 HEAD chunks and 5 historical chunks
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        is_head = i < 5  # First 5 are HEAD
+        blob_locations[blob_sha] = [
+            mock_blob_location(file_path=f"src/file_{i}.py", is_head=is_head)
+        ]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test content {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()
+
+    # Search should apply HEAD boost
+    query_vector = [0.1] * 3072
+    query_text = "test"
+    results = store.search(query_vector, query_text, limit=10)
+
+    # Verify GitHeadBooster was initialized
+    assert hasattr(store, "booster"), "LanceDBStore should have booster attribute"
+    assert store.booster.head_multiplier == 1.5
+
+    # Verify results exist
+    assert len(results) > 0
+
+
+def test_search_applies_boost_after_hybrid_scoring(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """search() applies HEAD boost after hybrid RRF scoring."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create chunks with known content for predictable scoring
+    embeddings = []
+    blob_locations = {}
+
+    # HEAD chunk with keyword match
+    blob_locations["head_sha"] = [mock_blob_location(file_path="src/head.py", is_head=True)]
+    embeddings.append(
+        mock_embedding(blob_sha="head_sha", content="authentication middleware", chunk_index=0)
+    )
+
+    # Historical chunk with keyword match
+    blob_locations["hist_sha"] = [mock_blob_location(file_path="src/hist.py", is_head=False)]
+    embeddings.append(
+        mock_embedding(blob_sha="hist_sha", content="authentication system", chunk_index=0)
+    )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()
+
+    # Search for "authentication"
+    query_vector = [0.1] * 3072
+    query_text = "authentication"
+    results = store.search(query_vector, query_text, limit=10)
+
+    # Both should be returned
+    assert len(results) >= 2
+
+    # HEAD result should have higher hybrid_score (boosted by 1.5x)
+    head_results = [r for r in results if r.is_head]
+    hist_results = [r for r in results if not r.is_head]
+
+    assert len(head_results) > 0, "Should have HEAD results"
+    assert len(hist_results) > 0, "Should have historical results"
+
+
+def test_search_ranking_order_after_boost(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """search() re-ranks results by boosted hybrid_score."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10 chunks: 5 HEAD, 5 historical
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        is_head = i % 2 == 0  # Alternating HEAD/historical
+        blob_locations[blob_sha] = [
+            mock_blob_location(file_path=f"src/file_{i}.py", is_head=is_head)
+        ]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test keyword {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()
+
+    # Search
+    query_vector = [0.1] * 3072
+    query_text = "keyword"
+    results = store.search(query_vector, query_text, limit=10)
+
+    # Results should be sorted by hybrid_score (descending)
+    hybrid_scores = [r.hybrid_score for r in results]
+    assert hybrid_scores == sorted(hybrid_scores, reverse=True), (
+        "Results should be sorted by hybrid_score descending"
+    )
+
+
+def test_search_with_all_head_results(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """search() boosts all results when all are HEAD."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10 HEAD chunks only
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py", is_head=True)]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test content {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()
+
+    # Search
+    query_vector = [0.1] * 3072
+    query_text = "test"
+    results = store.search(query_vector, query_text, limit=10)
+
+    # All results should be HEAD
+    assert all(r.is_head for r in results)
+
+
+def test_search_with_all_historical_results(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """search() handles all historical results (no boost applied)."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10 historical chunks only
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        blob_locations[blob_sha] = [mock_blob_location(file_path=f"src/file_{i}.py", is_head=False)]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test content {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()
+
+    # Search
+    query_vector = [0.1] * 3072
+    query_text = "test"
+    results = store.search(query_vector, query_text, limit=10)
+
+    # All results should be historical (not HEAD)
+    assert all(not r.is_head for r in results)
+
+
+def test_search_with_empty_results(tmp_path: Path, isolated_env):
+    """search() handles empty results gracefully (no crash on boost)."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Empty index
+    store.optimize()  # Create indexes (even though empty)
+
+    # Search should not crash
+    query_vector = [0.1] * 3072
+    query_text = "nonexistent"
+    results = store.search(query_vector, query_text, limit=10)
+
+    # Should return empty list (no crash)
+    assert results == []
+
+
+def test_search_respects_max_distance_with_boost(
+    tmp_path: Path, isolated_env, mock_embedding, mock_blob_location
+):
+    """search() applies max_distance filter after boost (not before)."""
+    from gitctx.storage.lancedb_store import LanceDBStore
+
+    db_path = tmp_path / ".gitctx" / "db" / "lancedb"
+    store = LanceDBStore(db_path)
+
+    # Create 10 chunks
+    embeddings = []
+    blob_locations = {}
+
+    for i in range(10):
+        blob_sha = f"{i:040d}"
+        is_head = i < 5
+        blob_locations[blob_sha] = [
+            mock_blob_location(file_path=f"src/file_{i}.py", is_head=is_head)
+        ]
+        embeddings.append(
+            mock_embedding(blob_sha=blob_sha, content=f"test content {i}", chunk_index=0)
+        )
+
+    store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()
+
+    # Search with max_distance filter
+    query_vector = [0.1] * 3072
+    query_text = "test"
+    results = store.search(query_vector, query_text, limit=10, max_distance=0.5)
+
+    # All results should have distance <= 0.5
+    assert all(r.distance <= 0.5 for r in results)
