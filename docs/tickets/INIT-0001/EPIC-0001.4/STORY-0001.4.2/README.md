@@ -1,9 +1,9 @@
 # STORY-0001.4.2: Recency & Relevance Boosting
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Story Points**: 3
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: ██▓░░░░░░░ 25%
 
 ## User Story
 
@@ -254,7 +254,7 @@ See EPIC-0001.5 README for detailed discussion of deferred ranking improvements.
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|-----------------|
-| [TASK-0001.4.2.1](TASK-0001.4.2.1.md) | Write BDD Scenarios for HEAD Boosting | 🔵 Not Started | 2 | 0/3 (stubbed) |
+| [TASK-0001.4.2.1](TASK-0001.4.2.1.md) | Write BDD Scenarios for HEAD Boosting | ✅ Complete | 2 | 0/3 (stubbed) |
 | [TASK-0001.4.2.2](TASK-0001.4.2.2.md) | Create GitHeadBooster Class with TDD | 🔵 Not Started | 3-4 | 0/3 → 1/3 |
 | [TASK-0001.4.2.3](TASK-0001.4.2.3.md) | Integrate GitHeadBooster into LanceDBStore | 🔵 Not Started | 3-4 | 1/3 → 3/3 |
 | [TASK-0001.4.2.4](TASK-0001.4.2.4.md) | Integration Testing and Story Completion | 🔵 Not Started | 2-3 | 3/3 maintained |
