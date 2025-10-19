@@ -463,8 +463,9 @@ class LanceDBStore:
             # Note: In hybrid search, _distance can theoretically be None for BM25-only matches
             # Use float('inf') to represent "no vector similarity" (infinite distance)
             raw_distance = result.get("_distance")
-            distance = raw_distance if raw_distance is not None else float('inf')
-            vector_score = 1.0 - distance if distance != float('inf') else -float('inf')  # -inf for no vector match
+            distance = raw_distance if raw_distance is not None else float("inf")
+            # -inf for no vector match (BM25-only results)
+            vector_score = 1.0 - distance if distance != float("inf") else -float("inf")
             bm25_score = result.get("_score")  # BM25 score (may be None)
             hybrid_score = result.get("_relevance_score")  # RRF combined score
 

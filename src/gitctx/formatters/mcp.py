@@ -90,7 +90,9 @@ class MCPFormatter:
                 {
                     "file_path": r["file_path"],
                     "line_numbers": f"{r['start_line']}-{r['end_line']}",
-                    "score": "BM25" if r['distance'] == float('inf') else float(f"{r['distance']:.3f}"),
+                    "score": (
+                        "BM25" if r["distance"] == float("inf") else float(f"{r['distance']:.3f}")
+                    ),
                     "commit_sha": r["commit_sha"],
                 }
                 for r in results
@@ -116,7 +118,7 @@ class MCPFormatter:
             console.print(f"## {file_path}:{start_line}-{end_line}")
 
             # Format score (handle inf for BM25-only matches)
-            score_str = "BM25" if score == float('inf') else f"{score:.3f}"
+            score_str = "BM25" if score == float("inf") else f"{score:.3f}"
 
             # Print metadata line
             console.print(f"**Score:** {score_str} | **Commit:** {commit_sha[:7]}")

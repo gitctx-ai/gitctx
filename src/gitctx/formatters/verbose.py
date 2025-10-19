@@ -85,7 +85,7 @@ class VerboseFormatter:
             head_marker = SYMBOLS["head"] if is_head else " "
 
             # Format score (handle inf for BM25-only matches)
-            score_str = "BM25" if score == float('inf') else f"{score:.2f}"
+            score_str = "BM25" if score == float("inf") else f"{score:.2f}"
 
             # Print header line
             console.print(
