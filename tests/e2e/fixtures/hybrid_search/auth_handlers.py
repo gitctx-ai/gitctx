@@ -21,7 +21,7 @@ def authenticate_user(username, password):
     # Apply authentication logic to validate user
     is_valid = check_password(username, password)
     if is_valid:
-        return generate_token_for_user(username)
+        return generate_token_for_user(username)  # noqa: F821
     return None
 
 

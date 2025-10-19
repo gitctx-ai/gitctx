@@ -84,9 +84,8 @@ class TerseFormatter:
             # Handle both ISO 8601 strings ("2025-01-15T10:30:00Z") and Unix timestamps
             if isinstance(commit_date, str):
                 # ISO 8601 string format
-                formatted_date = datetime.fromisoformat(commit_date.replace("Z", "+00:00")).strftime(
-                    "%Y-%m-%d"
-                )
+                dt = datetime.fromisoformat(commit_date.replace("Z", "+00:00"))
+                formatted_date = dt.strftime("%Y-%m-%d")
             else:
                 # Unix timestamp (int or float)
                 formatted_date = datetime.fromtimestamp(commit_date).strftime("%Y-%m-%d")

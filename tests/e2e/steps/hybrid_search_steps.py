@@ -34,7 +34,7 @@ def repository_with_files_table(
         e2e_indexed_repo_factory: Factory fixture for creating indexed repositories
         e2e_session_api_key: API key for embedding generation
     """
-    from pathlib import Path
+    from pathlib import Path  # noqa: PLC0415
 
     # Parse table data from Gherkin scenario
     # datatable is a list of lists: [['file_path', 'fixture'], ['path1', 'fixture1'], ...]
@@ -125,9 +125,9 @@ def check_first_result(expected_file: str, context: dict[str, Any]) -> None:
     stderr = context.get("stderr", "")
 
     # Verify search succeeded
-    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""
+    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""  # noqa: E501
     assert result.exit_code == 0, (
-        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
     # Parse search output for file paths
@@ -136,7 +136,7 @@ def check_first_result(expected_file: str, context: dict[str, Any]) -> None:
     lines = stdout.split("\n")
     file_paths = []
     for line in lines:
-        line = line.strip()
+        line = line.strip()  # noqa: PLW2901
         # Skip empty lines and summary line
         if not line or "results in" in line or line.startswith("💡"):
             continue
@@ -205,9 +205,9 @@ def check_results_include_both(file1: str, file2: str, context) -> None:
     stderr = context.get("stderr", "")
 
     # Verify search succeeded
-    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""
+    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""  # noqa: E501
     assert result.exit_code == 0, (
-        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
     # Parse search output for file paths
@@ -216,7 +216,7 @@ def check_results_include_both(file1: str, file2: str, context) -> None:
     lines = stdout.split("\n")
     file_paths = []
     for line in lines:
-        line = line.strip()
+        line = line.strip()  # noqa: PLW2901
         # Skip empty lines and summary line
         if not line or "results in" in line or line.startswith("💡"):
             continue
@@ -249,9 +249,9 @@ def check_results_include_file(file_path: str, context) -> None:
     stderr = context.get("stderr", "")
 
     # Verify search succeeded
-    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""
+    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""  # noqa: E501
     assert result.exit_code == 0, (
-        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
     # Parse search output for file paths
@@ -259,7 +259,7 @@ def check_results_include_file(file_path: str, context) -> None:
     lines = stdout.split("\n")
     file_paths = []
     for line in lines:
-        line = line.strip()
+        line = line.strip()  # noqa: PLW2901
         # Skip empty lines and summary line
         if not line or "results in" in line or line.startswith("💡"):
             continue
@@ -271,7 +271,7 @@ def check_results_include_file(file_path: str, context) -> None:
 
     # Verify file is present
     assert file_path in file_paths, (
-        f"File '{file_path}' not found in results.\nFound files: {file_paths}\nFull output:\n{stdout}"
+        f"File '{file_path}' not found in results.\nFound files: {file_paths}\nFull output:\n{stdout}"  # noqa: E501
     )
 
 
@@ -320,9 +320,9 @@ def check_rank_first(expected_file: str, context) -> None:
     stderr = context.get("stderr", "")
 
     # Verify search succeeded
-    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""
+    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""  # noqa: E501
     assert result.exit_code == 0, (
-        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
     # Parse search output for file paths
@@ -331,7 +331,7 @@ def check_rank_first(expected_file: str, context) -> None:
     lines = stdout.split("\n")
     file_paths = []
     for line in lines:
-        line = line.strip()
+        line = line.strip()  # noqa: PLW2901
         # Skip empty lines and summary line
         if not line or "results in" in line or line.startswith("💡"):
             continue
@@ -368,9 +368,9 @@ def check_rank_second(expected_file: str, context) -> None:
     stderr = context.get("stderr", "")
 
     # Verify search succeeded
-    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""
+    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""  # noqa: E501
     assert result.exit_code == 0, (
-        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
     # Parse search output for file paths
@@ -379,7 +379,7 @@ def check_rank_second(expected_file: str, context) -> None:
     lines = stdout.split("\n")
     file_paths = []
     for line in lines:
-        line = line.strip()
+        line = line.strip()  # noqa: PLW2901
         # Skip empty lines and summary line
         if not line or "results in" in line or line.startswith("💡"):
             continue
@@ -419,9 +419,9 @@ def check_rank_lower(file1: str, file2: str, context) -> None:
     stderr = context.get("stderr", "")
 
     # Verify search succeeded
-    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""
+    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""  # noqa: E501
     assert result.exit_code == 0, (
-        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
     # Parse search output for file paths
@@ -430,7 +430,7 @@ def check_rank_lower(file1: str, file2: str, context) -> None:
     lines = stdout.split("\n")
     file_paths = []
     for line in lines:
-        line = line.strip()
+        line = line.strip()  # noqa: PLW2901
         # Skip empty lines and summary line
         if not line or "results in" in line or line.startswith("💡"):
             continue
@@ -474,9 +474,9 @@ def check_jwt_ranks_higher_than_docs(context) -> None:
     stderr = context.get("stderr", "")
 
     # Verify search succeeded
-    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""
+    exception_info = f"\nEXCEPTION:\n{result.exception}" if hasattr(result, 'exception') and result.exception else ""  # noqa: E501
     assert result.exit_code == 0, (
-        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"
+        f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
     # Parse search output for file paths
@@ -484,7 +484,7 @@ def check_jwt_ranks_higher_than_docs(context) -> None:
     lines = stdout.split("\n")
     file_paths = []
     for line in lines:
-        line = line.strip()
+        line = line.strip()  # noqa: PLW2901
         # Skip empty lines and summary line
         if not line or "results in" in line or line.startswith("💡"):
             continue
@@ -503,11 +503,11 @@ def check_jwt_ranks_higher_than_docs(context) -> None:
 
     # Verify both files are in results
     assert jwt_file in file_paths, (
-        f"JWT file '{jwt_file}' not found in results.\\nFound files: {file_paths}\\nFull output:\\n{stdout}"
+        f"JWT file '{jwt_file}' not found in results.\\nFound files: {file_paths}\\nFull output:\\n{stdout}"  # noqa: E501
     )
 
     assert docs_file in file_paths, (
-        f"Documentation file '{docs_file}' not found in results.\\nFound files: {file_paths}\\nFull output:\\n{stdout}"
+        f"Documentation file '{docs_file}' not found in results.\\nFound files: {file_paths}\\nFull output:\\n{stdout}"  # noqa: E501
     )
 
     # Get positions (0-indexed)
