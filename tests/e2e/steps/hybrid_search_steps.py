@@ -129,7 +129,7 @@ def check_first_result(expected_file: str, context: dict[str, Any]) -> None:
         f"\nEXCEPTION:\n{result.exception}"
         if hasattr(result, "exception") and result.exception
         else ""
-    )  # noqa: E501
+    )
     assert result.exit_code == 0, (
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
@@ -213,7 +213,7 @@ def check_results_include_both(file1: str, file2: str, context) -> None:
         f"\nEXCEPTION:\n{result.exception}"
         if hasattr(result, "exception") and result.exception
         else ""
-    )  # noqa: E501
+    )
     assert result.exit_code == 0, (
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
@@ -261,7 +261,7 @@ def check_results_include_file(file_path: str, context) -> None:
         f"\nEXCEPTION:\n{result.exception}"
         if hasattr(result, "exception") and result.exception
         else ""
-    )  # noqa: E501
+    )
     assert result.exit_code == 0, (
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
@@ -336,7 +336,7 @@ def check_rank_first(expected_file: str, context) -> None:
         f"\nEXCEPTION:\n{result.exception}"
         if hasattr(result, "exception") and result.exception
         else ""
-    )  # noqa: E501
+    )
     assert result.exit_code == 0, (
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
@@ -388,7 +388,7 @@ def check_rank_second(expected_file: str, context) -> None:
         f"\nEXCEPTION:\n{result.exception}"
         if hasattr(result, "exception") and result.exception
         else ""
-    )  # noqa: E501
+    )
     assert result.exit_code == 0, (
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
@@ -443,7 +443,7 @@ def check_rank_lower(file1: str, file2: str, context) -> None:
         f"\nEXCEPTION:\n{result.exception}"
         if hasattr(result, "exception") and result.exception
         else ""
-    )  # noqa: E501
+    )
     assert result.exit_code == 0, (
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
@@ -502,7 +502,7 @@ def check_jwt_ranks_higher_than_docs(context) -> None:
         f"\nEXCEPTION:\n{result.exception}"
         if hasattr(result, "exception") and result.exception
         else ""
-    )  # noqa: E501
+    )
     assert result.exit_code == 0, (
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
