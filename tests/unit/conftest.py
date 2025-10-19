@@ -960,14 +960,14 @@ def test_embedding_vector():
 
 @pytest.fixture
 def mock_search_result_factory():
-    """Factory for creating mock search results with all required fields.
+    """Factory for creating mock SearchResult objects with all required fields.
 
     Provides sensible defaults for all formatter fields while allowing
     customization for specific test scenarios. Reduces duplication across
     test files and ensures consistency when result schema changes.
 
     Returns:
-        callable: Factory function(**kwargs) -> dict[str, Any]
+        callable: Factory function(**kwargs) -> SearchResult
 
     Usage:
         def test_formatters(mock_search_result_factory):
@@ -990,46 +990,71 @@ def mock_search_result_factory():
     Available parameters (all optional):
     - file_path: str = "test.py"
     - start_line: int = 1
-    - end_line: int | None = None (omitted if None)
+    - end_line: int = 5
     - distance: float = 0.85
     - commit_sha: str = "abc1234"
     - commit_date: int = 1760501897 (Unix timestamp)
     - author_name: str = "TestAuthor"
+    - author_email: str = "test@example.com"
     - commit_message: str = "Test commit"
     - is_head: bool = True
+    - is_merge: bool = False
     - chunk_content: str = "test content"
     - language: str = "python"
+    - token_count: int = 10
+    - blob_sha: str = "def5678"
+    - chunk_index: int = 0
+    - total_chunks: int = 1
+    - bm25_score: float | None = 1.5
+    - vector_score: float = 0.85
+    - hybrid_score: float | None = 0.9
     """
-    from typing import Any
+    from gitctx.indexing.types import SearchResult
 
     def _make_result(
         file_path: str = "test.py",
         start_line: int = 1,
-        end_line: int | None = None,
+        end_line: int = 5,
         distance: float = 0.85,
         commit_sha: str = "abc1234",
         commit_date: int = 1760501897,
         author_name: str = "TestAuthor",
+        author_email: str = "test@example.com",
         commit_message: str = "Test commit",
         is_head: bool = True,
+        is_merge: bool = False,
         chunk_content: str = "test content",
         language: str = "python",
-    ) -> dict[str, Any]:
-        """Generate mock search result with specified fields."""
-        result: dict[str, Any] = {
-            "file_path": file_path,
-            "start_line": start_line,
-            "_distance": distance,
-            "commit_sha": commit_sha,
-            "commit_date": commit_date,
-            "author_name": author_name,
-            "commit_message": commit_message,
-            "is_head": is_head,
-            "chunk_content": chunk_content,
-            "language": language,
-        }
-        if end_line is not None:
-            result["end_line"] = end_line
-        return result
+        token_count: int = 10,
+        blob_sha: str = "def5678",
+        chunk_index: int = 0,
+        total_chunks: int = 1,
+        bm25_score: float | None = None,
+        vector_score: float | None = None,
+        hybrid_score: float | None = None,
+    ) -> SearchResult:
+        """Generate mock SearchResult with specified fields."""
+        return SearchResult(
+            file_path=file_path,
+            start_line=start_line,
+            end_line=end_line,
+            distance=distance,
+            commit_sha=commit_sha,
+            commit_date=commit_date,
+            author_name=author_name,
+            author_email=author_email,
+            commit_message=commit_message,
+            is_head=is_head,
+            is_merge=is_merge,
+            chunk_content=chunk_content,
+            language=language,
+            token_count=token_count,
+            blob_sha=blob_sha,
+            chunk_index=chunk_index,
+            total_chunks=total_chunks,
+            bm25_score=bm25_score,
+            vector_score=vector_score,
+            hybrid_score=hybrid_score,
+        )
 
     return _make_result

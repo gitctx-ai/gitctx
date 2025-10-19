@@ -202,6 +202,13 @@ ignore_missing_imports = true
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
+module = "gitctx.storage.protocols"
+disallow_any_unimported = false
+# Tier 1: External dependency - numpy types used under TYPE_CHECKING guard
+# numpy import is conditional (TYPE_CHECKING), causes no-any-unimported error
+# No documentation required for Tier 1 (external dependency without type stubs)
+
+[[tool.mypy.overrides]]
 module = "safetensors.*"
 ignore_missing_imports = true
 follow_imports = "skip"

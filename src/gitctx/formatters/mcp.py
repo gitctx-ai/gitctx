@@ -45,6 +45,8 @@ from typing import Any
 import yaml
 from rich.console import Console
 
+from gitctx.formatters.base import format_distance_score
+
 
 class MCPFormatter:
     """Structured markdown for AI tools.
@@ -74,7 +76,7 @@ class MCPFormatter:
                 - file_path: Path to file
                 - start_line: Starting line number
                 - end_line: Ending line number
-                - _distance: Similarity score (0-1)
+                - distance: Similarity score (0-1)
                 - commit_sha: Full commit SHA
                 - chunk_content: Code content
                 - language: Language for syntax highlighting (optional)
@@ -90,7 +92,11 @@ class MCPFormatter:
                 {
                     "file_path": r["file_path"],
                     "line_numbers": f"{r['start_line']}-{r['end_line']}",
-                    "score": float(f"{r['_distance']:.3f}"),
+                    "score": (
+                        "BM25"
+                        if r["distance"] == float("inf")
+                        else float(format_distance_score(r["distance"], precision=3))
+                    ),
                     "commit_sha": r["commit_sha"],
                 }
                 for r in results
@@ -107,7 +113,7 @@ class MCPFormatter:
             file_path = result["file_path"]
             start_line = result["start_line"]
             end_line = result["end_line"]
-            score = result["_distance"]
+            score = result["distance"]
             commit_sha = result["commit_sha"]
             chunk_content = result["chunk_content"]
             language = result.get("language", "markdown")
@@ -115,8 +121,11 @@ class MCPFormatter:
             # Print header
             console.print(f"## {file_path}:{start_line}-{end_line}")
 
+            # Format score (handle inf for BM25-only matches)
+            score_str = format_distance_score(score, precision=3)
+
             # Print metadata line
-            console.print(f"**Score:** {score:.3f} | **Commit:** {commit_sha[:7]}")
+            console.print(f"**Score:** {score_str} | **Commit:** {commit_sha[:7]}")
 
             # Print code block with language tag
             console.print(f"```{language}")

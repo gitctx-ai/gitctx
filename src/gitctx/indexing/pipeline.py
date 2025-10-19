@@ -139,6 +139,10 @@ async def index_repository(
                 reporter.record_error()
                 continue
 
+        # Phase 3: Optimize indexes (INVERTED for BM25 + IVF-PQ for vectors)
+        reporter.phase("Optimizing indexes")
+        store.optimize()
+
     except KeyboardInterrupt:
         # Handle graceful cancellation (SIGINT)
         # Print message and let exception propagate to CLI layer for exit code 130

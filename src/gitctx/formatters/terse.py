@@ -14,10 +14,12 @@ Example:
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from rich.console import Console
+
+from gitctx.formatters.base import format_distance_score
+from gitctx.formatters.utils import format_commit_date
 
 
 class TerseFormatter:
@@ -46,10 +48,10 @@ class TerseFormatter:
             results: List of search result dictionaries with keys:
                 - file_path: Path to file
                 - start_line: Starting line number
-                - _distance: Similarity score (0-1)
+                - distance: Similarity score (0-1)
                 - is_head: Whether commit is HEAD
                 - commit_sha: Full commit SHA
-                - commit_date: Commit date string
+                - commit_date: Commit date (ISO 8601 string)
                 - author_name: Author name
                 - commit_message: Commit message
             console: Rich Console instance for formatted output
@@ -62,7 +64,7 @@ class TerseFormatter:
             # Extract values
             file_path = result["file_path"]
             start_line = result["start_line"]
-            score = result["_distance"]
+            score = result["distance"]
             is_head = result["is_head"]
             commit_sha = result["commit_sha"]
             commit_date = result["commit_date"]
@@ -80,12 +82,15 @@ class TerseFormatter:
             first_line = commit_message.split("\n")[0]
             truncated_message = first_line[:50]
 
-            # Format commit date from Unix timestamp to YYYY-MM-DD
-            formatted_date = datetime.fromtimestamp(commit_date).strftime("%Y-%m-%d")
+            # Format commit date to YYYY-MM-DD
+            formatted_date = format_commit_date(commit_date)
+
+            # Format score (handle inf for BM25-only matches)
+            score_str = format_distance_score(score, precision=2)
 
             # Format and print line (no_wrap + crop=False to prevent truncation)
             console.print(
-                f"{file_path}:{start_line}:{score:.2f}{head_marker} "
+                f"{file_path}:{start_line}:{score_str}{head_marker} "
                 f"{commit_sha[:7]} ({formatted_date}, {author_name}) "
                 f'"{truncated_message}"',
                 no_wrap=True,

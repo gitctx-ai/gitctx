@@ -457,9 +457,12 @@ def test_optimize_skips_indexing_below_256_vectors(
 
     store.optimize()
 
-    # Verify info message was logged
-    assert "Not enough vectors (100) for indexing" in caplog.text
-    assert "minimum: 256" in caplog.text
+    # Verify INVERTED index created for BM25 (always created for hybrid search)
+    assert "Creating INVERTED index for BM25 search (100 vectors)" in caplog.text
+    assert "INVERTED index created successfully" in caplog.text
+
+    # Verify IVF-PQ vector index was skipped (below 256 threshold)
+    assert "Skipping IVF-PQ index (100 vectors < 256 minimum)" in caplog.text
 
 
 def test_search_returns_denormalized_metadata(
@@ -483,38 +486,38 @@ def test_search_returns_denormalized_metadata(
         )
 
     store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()  # Create INVERTED index for hybrid search
 
-    # Search with a query vector
+    # Search with a query vector (hybrid search requires query_text)
     query_vector = [0.1] * 3072
-    results = store.search(query_vector, limit=5)
+    query_text = "test"
+    results = store.search(query_vector, query_text, limit=5)
 
     assert len(results) > 0
     first = results[0]
 
-    # Verify all 19 fields present
-    expected_fields = [
-        "vector",
-        "chunk_content",
-        "token_count",
-        "blob_sha",
-        "chunk_index",
-        "start_line",
-        "end_line",
-        "total_chunks",
-        "file_path",
-        "language",
-        "commit_sha",
-        "author_name",
-        "author_email",
-        "commit_date",
-        "commit_message",
-        "is_head",
-        "is_merge",
-        "embedding_model",
-        "indexed_at",
-    ]
-    for field in expected_fields:
-        assert field in first, f"Missing field: {field}"
+    # Verify all SearchResult fields present (dataclass, not dict)
+    assert hasattr(first, "chunk_content")
+    assert hasattr(first, "file_path")
+    assert hasattr(first, "distance")
+    assert hasattr(first, "commit_sha")
+    assert hasattr(first, "token_count")
+    assert hasattr(first, "blob_sha")
+    assert hasattr(first, "chunk_index")
+    assert hasattr(first, "start_line")
+    assert hasattr(first, "end_line")
+    assert hasattr(first, "total_chunks")
+    assert hasattr(first, "language")
+    assert hasattr(first, "author_name")
+    assert hasattr(first, "author_email")
+    assert hasattr(first, "commit_date")
+    assert hasattr(first, "commit_message")
+    assert hasattr(first, "is_head")
+    assert hasattr(first, "is_merge")
+    # Score fields (hybrid search)
+    assert hasattr(first, "bm25_score")
+    assert hasattr(first, "vector_score")
+    assert hasattr(first, "hybrid_score")
 
 
 def test_search_filter_head_only(tmp_path: Path, isolated_env, mock_embedding, mock_blob_location):
@@ -538,14 +541,16 @@ def test_search_filter_head_only(tmp_path: Path, isolated_env, mock_embedding, m
         )
 
     store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()  # Create INVERTED index for hybrid search
 
-    # Search with filter_head_only
+    # Search with filter_head_only (hybrid search requires query_text)
     query_vector = [0.1] * 3072
-    results = store.search(query_vector, limit=10, filter_head_only=True)
+    query_text = "test"
+    results = store.search(query_vector, query_text, limit=10, filter_head_only=True)
 
-    # All results should have is_head=True
+    # All results should have is_head=True (SearchResult objects, not dicts)
     assert len(results) > 0
-    assert all(r["is_head"] for r in results), "Some results have is_head=False"
+    assert all(r.is_head for r in results), "Some results have is_head=False"
 
 
 def test_get_statistics_accuracy(tmp_path: Path, isolated_env, mock_embedding, mock_blob_location):
@@ -741,23 +746,26 @@ def test_query_returns_complete_blob_location_context(
         )
 
     store.add_chunks_batch(embeddings, blob_locations)
+    store.optimize()  # Create INVERTED index for hybrid search
 
+    # Search with hybrid query (requires query_text)
     query_vector = [0.1] * 3072
-    results = store.search(query_vector, limit=5)
+    query_text = "test"
+    results = store.search(query_vector, query_text, limit=5)
 
-    # Verify complete BlobLocation context (11 fields from BlobLocation + chunk fields)
+    # Verify complete BlobLocation context (SearchResult object, not dict)
     first = results[0]
-    assert "blob_sha" in first
-    assert "file_path" in first
-    assert "start_line" in first
-    assert "end_line" in first
-    assert "commit_sha" in first
-    assert "author_name" in first
-    assert "author_email" in first
-    assert "commit_date" in first
-    assert "commit_message" in first
-    assert "is_head" in first
-    assert "is_merge" in first
+    assert hasattr(first, "blob_sha")
+    assert hasattr(first, "file_path")
+    assert hasattr(first, "start_line")
+    assert hasattr(first, "end_line")
+    assert hasattr(first, "commit_sha")
+    assert hasattr(first, "author_name")
+    assert hasattr(first, "author_email")
+    assert hasattr(first, "commit_date")
+    assert hasattr(first, "commit_message")
+    assert hasattr(first, "is_head")
+    assert hasattr(first, "is_merge")
 
 
 def test_statistics_language_breakdown(
@@ -862,10 +870,12 @@ def test_performance_search_latency(
     store.add_chunks_batch(embeddings, blob_locations)
     store.optimize()  # Create IVF-PQ index
 
+    # Search with hybrid query (requires query_text)
     query_vector = [0.1] * 3072
+    query_text = "test"
 
     start = time.time()
-    results = store.search(query_vector, limit=10)
+    results = store.search(query_vector, query_text, limit=10)
     elapsed = time.time() - start
 
     # Verify results returned

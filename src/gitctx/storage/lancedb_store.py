@@ -15,7 +15,7 @@ import pyarrow as pa
 from numpy.typing import NDArray
 
 from gitctx.git.types import BlobLocation
-from gitctx.indexing.types import Embedding
+from gitctx.indexing.types import Embedding, SearchResult
 from gitctx.models.errors import DimensionMismatchError
 from gitctx.storage.schema import CHUNK_SCHEMA
 
@@ -281,39 +281,58 @@ class LanceDBStore:
             )
 
     def optimize(self) -> None:
-        """Create IVF-PQ index for fast vector search.
+        """Create indexes for fast hybrid search (vector + BM25).
 
-        Only creates index if we have enough vectors (>=256).
-        Index params are adaptive based on row count and dimensions.
+        Creates two indexes:
+        1. INVERTED index for BM25 full-text search (required for hybrid search)
+        2. IVF-PQ index for vector search (only if row_count >= 256)
+
+        The INVERTED index is always created because hybrid search requires it
+        for BM25 keyword matching. The IVF-PQ index is only created for larger
+        datasets where it provides performance benefits.
         """
-        MIN_VECTORS_FOR_INDEX = 256  # Minimum rows required for IVF-PQ indexing
         row_count = self.count()
-
-        if row_count < MIN_VECTORS_FOR_INDEX:
-            logger.info(
-                f"Not enough vectors ({row_count}) for indexing (minimum: {MIN_VECTORS_FOR_INDEX})"
-            )
-            return
-
-        logger.info(f"Creating IVF-PQ index for {row_count} vectors...")
-
         assert self.chunks_table is not None
-        self.chunks_table.create_index(
-            metric="cosine",
-            num_partitions=min(row_count // 256, 256),
-            num_sub_vectors=min(self.embedding_dimensions // 16, 96),
-        )
 
-        logger.info("IVF-PQ vector index created successfully")
+        # Always create INVERTED index for BM25 (hybrid search requirement)
+        logger.info(f"Creating INVERTED index for BM25 search ({row_count} vectors)...")
+        self.chunks_table.create_fts_index("chunk_content")
+        logger.info("INVERTED index created successfully")
+
+        # Create IVF-PQ index for vector search only if enough vectors
+        MIN_VECTORS_FOR_INDEX = 256  # Minimum rows required for IVF-PQ indexing
+        if row_count >= MIN_VECTORS_FOR_INDEX:
+            logger.info(f"Creating IVF-PQ vector index for {row_count} vectors...")
+            self.chunks_table.create_index(
+                metric="cosine",
+                num_partitions=min(row_count // 256, 256),
+                num_sub_vectors=min(self.embedding_dimensions // 16, 96),
+            )
+            logger.info("IVF-PQ vector index created successfully")
+        else:
+            logger.info(
+                f"Skipping IVF-PQ index ({row_count} vectors < {MIN_VECTORS_FOR_INDEX} minimum)"
+            )
 
     def search(
         self,
         query_vector: list[float],
+        query_text: str,
         limit: int = 10,
         filter_head_only: bool = False,
         max_distance: float = 2.0,
-    ) -> list[dict[str, Any]]:
-        """Search for similar chunks using cosine distance metric.
+    ) -> list[SearchResult]:
+        """Hybrid search using BM25 + vector search with RRF (Reciprocal Rank Fusion).
+
+        Combines keyword matching (BM25) and semantic similarity (vector search) to find
+        both exact matches and conceptually related code. Uses RRF at K=60 (LanceDB default)
+        to merge rankings from both approaches.
+
+        **Hybrid Search Benefits**:
+
+        - Keyword matches: Finds exact class names, function names, variable names
+        - Semantic matches: Finds conceptually similar code even with different terminology
+        - RRF fusion: Balances both signals without manual weight tuning
 
         **Similarity Scoring**:
 
@@ -331,30 +350,45 @@ class LanceDBStore:
         - distance 1.0 = unrelated (similarity 0.0)
         - distance 2.0 = opposite meaning (similarity -1.0)
 
+        **Score Breakdown**:
+
+        Each SearchResult includes three score fields for analysis/debugging:
+        - bm25_score: BM25 keyword score (_score field, higher = better match)
+        - vector_score: Cosine similarity (1.0 - _distance, 0-1 range)
+            For BM25-only matches without vector component, vector_score = -inf
+        - hybrid_score: RRF combined score (_relevance_score, 0-1 range, higher = more relevant)
+
+        Note: For rare BM25-only matches (no vector match), distance = inf and vector_score = -inf
+
         **Post-Filtering**:
 
         LanceDB does not support WHERE clauses on the _distance field returned by
         vector search (this is a current limitation). Therefore, we apply distance
         filtering after retrieving results using Python filtering:
 
-        1. LanceDB returns top-N results sorted by distance
+        1. LanceDB returns top-N results sorted by hybrid relevance
         2. Python filters: keep only results where _distance <= max_distance
         3. Return filtered results (may be fewer than limit if many exceed threshold)
 
         This pattern is recommended by LanceDB maintainers for distance-based filtering.
         Reference: https://github.com/lancedb/lancedb/issues/745
 
-        We use abs(_distance) to handle rare numerical precision issues where
-        distances may be slightly negative due to floating-point arithmetic.
+        **RRF (Reciprocal Rank Fusion)**:
+
+        Uses K=60 constant (LanceDB research-backed default, no tuning needed).
+        RRF score formula: sum(1 / (k + rank_i)) for each ranker
+        Higher RRF score = more relevant result across both BM25 and vector rankings.
 
         **Technical References**:
 
-        - LanceDB vector search: https://lancedb.com/docs/search/vector-search/
+        - LanceDB hybrid search: https://lancedb.github.io/lancedb/hybrid_search/
         - Cosine distance metric: https://lancedb.com/docs/search/vector-search/#distance-metrics
         - Post-filtering pattern: https://github.com/lancedb/lancedb/issues/745
+        - RRF reranking: https://lancedb.github.io/lancedb/reranking/
 
         Args:
             query_vector: Query embedding vector (must match table dimensions)
+            query_text: Query text for BM25 keyword search (required, cannot be empty)
             limit: Maximum results to return BEFORE filtering (LanceDB retrieves top-N)
             filter_head_only: Only return chunks from HEAD commit (WHERE clause)
             max_distance: Maximum cosine distance threshold (0.0-2.0).
@@ -363,42 +397,106 @@ class LanceDBStore:
                          Example: 0.3 keeps only highly similar results (similarity >= 0.7)
 
         Returns:
-            List of chunk records with all denormalized metadata, filtered by distance.
-            Each record includes:
-            - _distance: Cosine distance from query (float, 0.0-2.0)
+            List of SearchResult objects with score breakdown, ranked by hybrid relevance.
+            Each SearchResult includes:
             - All chunk fields: chunk_content, file_path, language, etc.
-            - All commit metadata: commit_sha, author_name, commit_date, etc.
+            - All git metadata: commit_sha, author_name, commit_date, etc.
+            - Score breakdown: bm25_score, vector_score, hybrid_score
 
         Example:
-            >>> # Get top 10 results
-            >>> results = store.search(query_vector, limit=10)
+            >>> # Hybrid search (keyword + semantic)
+            >>> results = store.search(
+            ...     query_vector=embedding,
+            ...     query_text="authentication middleware",
+            ...     limit=10
+            ... )
             >>> # Get highly relevant results only (similarity >= 0.7)
-            >>> results = store.search(query_vector, limit=10, max_distance=0.3)
+            >>> results = store.search(
+            ...     query_vector=embedding,
+            ...     query_text="JWT auth",
+            ...     limit=10,
+            ...     max_distance=0.3
+            ... )
         """
+        # Validate query_text is not empty (required for BM25 keyword matching)
+        if not query_text or not query_text.strip():
+            msg = "Hybrid search requires non-empty query_text for BM25 keyword matching"
+            raise ValueError(msg)
+
+        from lancedb import rerankers
+
         assert self.chunks_table is not None
-        query = self.chunks_table.search(query_vector).limit(limit)
+
+        # Create RRF reranker (K=60 is research-backed default, no tuning needed)
+        # return_score='all' returns _distance, _score, and _relevance_score fields
+        rrf = rerankers.RRFReranker(K=60, return_score="all")
+
+        # Build hybrid search query
+        query = (
+            self.chunks_table.search(query_type="hybrid")
+            .vector(query_vector)  # Vector component
+            .text(query_text)  # Text component (required for BM25)
+            .limit(limit)
+            .rerank(rrf)  # Apply RRF fusion
+        )
 
         if filter_head_only:
             query = query.where("is_head = true")
 
-        # Use native LanceDB to_list() for direct dict conversion (no pandas needed)
+        # Execute query and get results
         results = query.to_list()
 
         # Post-filter by distance (LanceDB doesn't support WHERE on _distance)
         # Use abs() to handle rare floating-point precision issues
+        # Note: _distance can be None for BM25-only matches in hybrid search - keep those
         # Reference: https://github.com/lancedb/lancedb/issues/745
-        #
-        # Performance: This post-filtering approach is acceptable because:
-        # - limit is capped at 100 (SearchSettings validation), so max 100 results
-        # - In-memory filtering on small lists is negligible (<1ms)
-        # - Alternative would require fetching limit*2 results (wasteful network/disk I/O)
-        #
-        # Future optimization: When LanceDB adds WHERE support for _distance:
-        # - Use: query.where(f"_distance <= {max_distance}").limit(limit)
-        # - Track: https://github.com/lancedb/lancedb/issues/745
-        filtered_results = [r for r in results if abs(r["_distance"]) <= max_distance]
+        filtered_results = [
+            r for r in results if r.get("_distance") is None or abs(r["_distance"]) <= max_distance
+        ]
 
-        return filtered_results
+        # Convert to SearchResult objects with score breakdown
+        search_results = []
+        for result in filtered_results:
+            # Extract score breakdown from LanceDB response
+            # LanceDB returns internal fields (_distance, _score, _relevance_score)
+            # We map these to public SearchResult fields (distance, bm25_score, hybrid_score)
+            # Note: In hybrid search, _distance can theoretically be None for BM25-only matches
+            # Use float('inf') to represent "no vector similarity" (infinite distance)
+            raw_distance = result.get("_distance")
+            distance = raw_distance if raw_distance is not None else float("inf")
+            # -inf for no vector match (BM25-only results)
+            vector_score = 1.0 - distance if distance != float("inf") else -float("inf")
+            bm25_score = result.get("_score")  # BM25 score (may be None)
+            hybrid_score = result.get("_relevance_score")  # RRF combined score
+
+            search_result = SearchResult(
+                # Core chunk fields (mapped from LanceDB schema)
+                chunk_content=result["chunk_content"],
+                file_path=result["file_path"],
+                distance=distance,  # Mapped from _distance (underscore removed for public API)
+                commit_sha=result["commit_sha"],
+                token_count=result["token_count"],
+                blob_sha=result["blob_sha"],
+                chunk_index=result["chunk_index"],
+                start_line=result["start_line"],
+                end_line=result["end_line"],
+                total_chunks=result["total_chunks"],
+                language=result["language"],
+                # Git metadata fields
+                author_name=result["author_name"],
+                author_email=result["author_email"],
+                commit_date=result["commit_date"],
+                commit_message=result["commit_message"],
+                is_head=result["is_head"],
+                is_merge=result["is_merge"],
+                # Score breakdown fields (mapped from LanceDB internal fields)
+                bm25_score=bm25_score,  # Mapped from _score
+                vector_score=vector_score,  # Computed from _distance
+                hybrid_score=hybrid_score,  # Mapped from _relevance_score
+            )
+            search_results.append(search_result)
+
+        return search_results
 
     def save_index_state(
         self, last_commit: str, indexed_blobs: list[str], embedding_model: str

@@ -29,7 +29,7 @@ def test_mcp_formatter_starts_with_yaml_delimiter() -> None:
             "file_path": "test.py",
             "start_line": 1,
             "end_line": 5,
-            "_distance": 0.85,
+            "distance": 0.85,
             "commit_sha": "abc1234",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -54,7 +54,7 @@ def test_mcp_formatter_yaml_has_results_key() -> None:
             "file_path": "test.py",
             "start_line": 1,
             "end_line": 5,
-            "_distance": 0.85,
+            "distance": 0.85,
             "commit_sha": "abc1234",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -79,7 +79,7 @@ def test_mcp_formatter_yaml_array_structure() -> None:
             "file_path": "test.py",
             "start_line": 1,
             "end_line": 5,
-            "_distance": 0.85,
+            "distance": 0.85,
             "commit_sha": "abc1234",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -105,7 +105,7 @@ def test_mcp_formatter_yaml_has_file_path() -> None:
             "file_path": "src/auth.py",
             "start_line": 10,
             "end_line": 20,
-            "_distance": 0.92,
+            "distance": 0.92,
             "commit_sha": "def456",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -130,7 +130,7 @@ def test_mcp_formatter_yaml_has_line_numbers() -> None:
             "file_path": "test.py",
             "start_line": 45,
             "end_line": 52,
-            "_distance": 0.85,
+            "distance": 0.85,
             "commit_sha": "abc1234",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -155,7 +155,7 @@ def test_mcp_formatter_yaml_has_score_three_decimals() -> None:
             "file_path": "test.py",
             "start_line": 1,
             "end_line": 5,
-            "_distance": 0.85432,
+            "distance": 0.85432,
             "commit_sha": "abc1234",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -181,7 +181,7 @@ def test_mcp_formatter_yaml_has_commit_sha() -> None:
             "file_path": "test.py",
             "start_line": 1,
             "end_line": 5,
-            "_distance": 0.85,
+            "distance": 0.85,
             "commit_sha": "f9e8d7c1234567890abcdef",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -206,7 +206,7 @@ def test_mcp_formatter_yaml_parses_successfully() -> None:
             "file_path": "test.py",
             "start_line": 10,
             "end_line": 20,
-            "_distance": 0.920,
+            "distance": 0.920,
             "commit_sha": "abc123",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -242,7 +242,7 @@ def test_mcp_formatter_markdown_headers() -> None:
             "file_path": "src/auth.py",
             "start_line": 45,
             "end_line": 52,
-            "_distance": 0.92,
+            "distance": 0.92,
             "commit_sha": "def456",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -267,7 +267,7 @@ def test_mcp_formatter_metadata_line() -> None:
             "file_path": "test.py",
             "start_line": 10,
             "end_line": 20,
-            "_distance": 0.875,
+            "distance": 0.875,
             "commit_sha": "f9e8d7c1234567",  # pragma: allowlist secret
             "chunk_content": "code",
             "language": "python",
@@ -293,7 +293,7 @@ def test_mcp_formatter_code_blocks_with_language() -> None:
             "file_path": "test.js",
             "start_line": 1,
             "end_line": 5,
-            "_distance": 0.85,
+            "distance": 0.85,
             "commit_sha": "abc1234",  # pragma: allowlist secret
             "chunk_content": "function test() { return 42; }",
             "language": "javascript",
@@ -320,7 +320,7 @@ def test_mcp_formatter_language_fallback_markdown() -> None:
             "file_path": "unknown.xyz",
             "start_line": 1,
             "end_line": 5,
-            "_distance": 0.75,
+            "distance": 0.75,
             "commit_sha": "ghi789",  # pragma: allowlist secret
             "chunk_content": "some content",
             # No language field
@@ -348,7 +348,7 @@ def test_mcp_formatter_escapes_yaml_special_chars() -> None:
             "file_path": 'src/auth.py: "password"',  # Colon + quotes
             "start_line": 10,
             "end_line": 20,
-            "_distance": 0.85,
+            "distance": 0.85,
             "commit_sha": "abc123def456",  # pragma: allowlist secret
             "chunk_content": "def test(): pass",
             "language": "python",
@@ -357,7 +357,7 @@ def test_mcp_formatter_escapes_yaml_special_chars() -> None:
             "file_path": "C:\\Users\\file.py",  # Windows path (backslashes)
             "start_line": 30,
             "end_line": 40,
-            "_distance": 0.75,
+            "distance": 0.75,
             "commit_sha": "def456ghi789",  # pragma: allowlist secret
             "chunk_content": "# Windows path",
             "language": "python",

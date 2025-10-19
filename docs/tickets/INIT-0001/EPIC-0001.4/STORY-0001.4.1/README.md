@@ -1,9 +1,9 @@
 # STORY-0001.4.1: Hybrid Search with Protocol Design
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Story Points**: 3
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: █████░░░░░ 50%
 
 ## User Story
 
@@ -238,9 +238,9 @@ From LanceDB docs (https://lancedb.github.io/lancedb/hybrid_search/hybrid_search
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.4.1.1](TASK-0001.4.1.1.md) | Write BDD Scenarios for Hybrid Search | 🔵 Not Started | 2-3 | 0/3 (stubbed) |
-| [TASK-0001.4.1.2](TASK-0001.4.1.2.md) | SearchStrategy Protocol and SearchResult Extension | 🔵 Not Started | 3-4 | 0/3 → 1/3 |
-| [TASK-0001.4.1.3](TASK-0001.4.1.3.md) | Hybrid Search Implementation in LanceDBStore | 🔵 Not Started | 4-5 | 1/3 → 3/3 |
+| [TASK-0001.4.1.1](TASK-0001.4.1.1.md) | Write BDD Scenarios for Hybrid Search | ✅ Complete | 1 | 0/3 (stubbed) |
+| [TASK-0001.4.1.2](TASK-0001.4.1.2.md) | SearchStrategy Protocol and SearchResult Extension | ✅ Complete | 3 | 0/3 (steps ready) |
+| [TASK-0001.4.1.3](TASK-0001.4.1.3.md) | Hybrid Search Implementation in LanceDBStore | 🔵 Not Started | 4-5 | 0/3 → 3/3 |
 | [TASK-0001.4.1.4](TASK-0001.4.1.4.md) | Integration Testing and Regression Verification | 🔵 Not Started | 2-3 | 3/3 maintained |
 
 **Total Hours**: 11-15 hours (story: 3 points × 4h/point = 12h ✓)
