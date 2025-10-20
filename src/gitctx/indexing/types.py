@@ -3,6 +3,9 @@
 from dataclasses import dataclass
 from typing import Any
 
+# Constants for search result scoring
+DISTANCE_NO_VECTOR_MATCH = float("inf")  # BM25-only matches have no vector distance
+
 
 @dataclass
 class CodeChunk:
@@ -97,7 +100,7 @@ class SearchResult:
         chunk_content: Chunk text content
         file_path: File path relative to repository root
         distance: Cosine distance from query vector (0-∞, lower = more similar)
-            For BM25-only matches without vector component: inf (infinite distance)
+            For BM25-only matches without vector component: DISTANCE_NO_VECTOR_MATCH
         commit_sha: Git commit SHA (40-character hex string)
         token_count: Exact token count for this chunk
         blob_sha: Git blob SHA (40-character hex string)

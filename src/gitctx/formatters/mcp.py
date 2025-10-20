@@ -46,6 +46,7 @@ import yaml
 from rich.console import Console
 
 from gitctx.formatters.base import format_distance_score
+from gitctx.indexing.types import DISTANCE_NO_VECTOR_MATCH
 
 
 class MCPFormatter:
@@ -94,7 +95,7 @@ class MCPFormatter:
                     "line_numbers": f"{r['start_line']}-{r['end_line']}",
                     "score": (
                         "BM25"
-                        if r["distance"] == float("inf")
+                        if r["distance"] == DISTANCE_NO_VECTOR_MATCH
                         else float(format_distance_score(r["distance"], precision=3))
                     ),
                     "commit_sha": r["commit_sha"],

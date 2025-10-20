@@ -15,7 +15,7 @@ import pyarrow as pa
 from numpy.typing import NDArray
 
 from gitctx.git.types import BlobLocation
-from gitctx.indexing.types import Embedding, SearchResult
+from gitctx.indexing.types import DISTANCE_NO_VECTOR_MATCH, Embedding, SearchResult
 from gitctx.models.errors import DimensionMismatchError
 from gitctx.search.git_head_booster import GitHeadBooster
 from gitctx.storage.schema import CHUNK_SCHEMA
@@ -364,15 +364,26 @@ class LanceDBStore:
 
         Note: For rare BM25-only matches (no vector match), distance = inf and vector_score = -inf
 
+        **Search Pipeline**:
+
+        To ensure HEAD boosting works correctly, the search pipeline operates in stages:
+
+        1. LanceDB hybrid search (up to 1000 results for safety)
+        2. Convert to SearchResult objects
+        3. Apply HEAD boost (1.5x multiplier to is_head=True chunks)
+        4. Filter by distance (max_distance threshold)
+        5. Re-rank by boosted hybrid_score (descending)
+        6. Apply final limit
+
+        The 1000-result safety limit prevents pathological queries from fetching the entire
+        database, while max_distance provides natural limiting for most queries. This ensures
+        HEAD files with lower pre-boost scores can still rank in the top K after boosting.
+
         **Post-Filtering**:
 
         LanceDB does not support WHERE clauses on the _distance field returned by
         vector search (this is a current limitation). Therefore, we apply distance
-        filtering after retrieving results using Python filtering:
-
-        1. LanceDB returns top-N results sorted by hybrid relevance
-        2. Python filters: keep only results where _distance <= max_distance
-        3. Return filtered results (may be fewer than limit if many exceed threshold)
+        filtering after retrieving results using Python filtering.
 
         This pattern is recommended by LanceDB maintainers for distance-based filtering.
         Reference: https://github.com/lancedb/lancedb/issues/745
@@ -435,12 +446,16 @@ class LanceDBStore:
         # return_score='all' returns _distance, _score, and _relevance_score fields
         rrf = rerankers.RRFReranker(K=60, return_score="all")
 
-        # Build hybrid search query
+        # Build hybrid search query without limit - we need to boost and re-rank before limiting.
+        # The final limit is applied after boosting (line ~509).
+        # Safety limit prevents pathological cases (very broad queries).
+        # max_distance filter provides natural limiting for vector/hybrid search.
+        SAFETY_LIMIT = 1000  # Prevent fetching entire database for pathological queries
         query = (
             self.chunks_table.search(query_type="hybrid")
             .vector(query_vector)  # Vector component
             .text(query_text)  # Text component (required for BM25)
-            .limit(limit)
+            .limit(SAFETY_LIMIT)
             .rerank(rrf)  # Apply RRF fusion
         )
 
@@ -457,11 +472,11 @@ class LanceDBStore:
             # LanceDB returns internal fields (_distance, _score, _relevance_score)
             # We map these to public SearchResult fields (distance, bm25_score, hybrid_score)
             # Note: In hybrid search, _distance can theoretically be None for BM25-only matches
-            # Use float('inf') to represent "no vector similarity" (infinite distance)
+            # Use DISTANCE_NO_VECTOR_MATCH to represent "no vector similarity" (infinite distance)
             raw_distance = result.get("_distance")
-            distance = raw_distance if raw_distance is not None else float("inf")
+            distance = raw_distance if raw_distance is not None else DISTANCE_NO_VECTOR_MATCH
             # -inf for no vector match (BM25-only results)
-            vector_score = 1.0 - distance if distance != float("inf") else -float("inf")
+            vector_score = 1.0 - distance if distance != DISTANCE_NO_VECTOR_MATCH else -float("inf")
             bm25_score = result.get("_score")  # BM25 score (may be None)
             hybrid_score = result.get("_relevance_score")  # RRF combined score
 
@@ -500,7 +515,8 @@ class LanceDBStore:
         # Note: _distance can be None for BM25-only matches in hybrid search - keep those
         # Reference: https://github.com/lancedb/lancedb/issues/745
         filtered_results = [
-            r for r in boosted_results if r.distance == float("inf") or r.distance <= max_distance
+            r for r in boosted_results
+            if r.distance == DISTANCE_NO_VECTOR_MATCH or r.distance <= max_distance
         ]
 
         # Re-rank by boosted hybrid_score (descending)
