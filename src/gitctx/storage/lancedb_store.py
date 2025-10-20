@@ -515,7 +515,8 @@ class LanceDBStore:
         # Note: _distance can be None for BM25-only matches in hybrid search - keep those
         # Reference: https://github.com/lancedb/lancedb/issues/745
         filtered_results = [
-            r for r in boosted_results
+            r
+            for r in boosted_results
             if r.distance == DISTANCE_NO_VECTOR_MATCH or r.distance <= max_distance
         ]
 
