@@ -228,9 +228,16 @@ def head_results_have_boost(context: dict[str, Any]) -> None:
     assert len(boosted_results) > 0, "No boosted results found"
     assert len(original_results) > 0, "No original results found"
 
+    # Build map of boosted results by file_path for correct matching
+    # (boosted_results are re-sorted, so zip() would compare mismatched records)
+    boosted_map = {r.file_path: r for r in boosted_results}
+
     # Verify HEAD results have 1.5x boost
-    for original, boosted in zip(original_results, boosted_results, strict=False):
-        if original.is_head:
+    for original in original_results:
+        boosted = boosted_map.get(original.file_path)
+        assert boosted is not None, f"Result for {original.file_path} missing after boost"
+
+        if original.is_head and original.hybrid_score is not None:
             expected_score = original.hybrid_score * 1.5
             assert boosted.hybrid_score == expected_score, (
                 f"HEAD result {boosted.file_path}: "
@@ -238,8 +245,8 @@ def head_results_have_boost(context: dict[str, Any]) -> None:
             )
             # Verify immutability: original unchanged
             assert original.hybrid_score == 0.8, "Original result was modified!"
-        else:
-            # Historical results should be unchanged
+        # Historical results should be unchanged (guard against None scores)
+        elif original.hybrid_score is not None:
             assert boosted.hybrid_score == original.hybrid_score, (
                 f"Historical result {boosted.file_path} should not be boosted"
             )
