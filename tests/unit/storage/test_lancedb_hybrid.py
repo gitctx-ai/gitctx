@@ -189,15 +189,16 @@ def test_vector_score_populated_from_distance(store_with_hybrid, mock_lancedb_ta
 
 
 def test_hybrid_score_populated_from_relevance_score(store_with_hybrid, mock_lancedb_table):
-    """Test hybrid_score populated from _relevance_score field."""
+    """Test hybrid_score populated from _relevance_score field and boosted for HEAD."""
     query_vector = np.random.rand(3072).astype(np.float32)
     query_text = "middleware"
 
     # Execute search
     results = store_with_hybrid.search(query_vector=query_vector, query_text=query_text, limit=10)
 
-    # Verify hybrid score from _relevance_score
-    assert results[0].hybrid_score == pytest.approx(0.0328, rel=1e-6)
+    # Verify hybrid score from _relevance_score with HEAD boost applied
+    # Mock data has is_head=True, so score is boosted: 0.0328 * 1.5 = 0.0492
+    assert results[0].hybrid_score == pytest.approx(0.0492, rel=1e-6)
 
 
 def test_post_filtering_compatibility_with_max_distance(store_with_hybrid, mock_lancedb_table):
@@ -268,16 +269,22 @@ def test_post_filtering_compatibility_with_max_distance(store_with_hybrid, mock_
 
 
 def test_limit_parameter_respected_after_reranking(store_with_hybrid, mock_lancedb_table):
-    """Test limit parameter respected after RRF reranking."""
+    """Test SAFETY_LIMIT applied to LanceDB query (user limit applied post-boost).
+
+    With HEAD boosting, the limit must be applied AFTER boosting to ensure HEAD results
+    with lower pre-boost scores aren't excluded before boosting can surface them.
+    LanceDB query uses SAFETY_LIMIT=1000, final limit applied after boost+rerank+filter.
+    """
     query_vector = np.random.rand(3072).astype(np.float32)
     query_text = "auth"
 
     # Execute search with limit=5
     store_with_hybrid.search(query_vector=query_vector, query_text=query_text, limit=5)
 
-    # Verify limit() called on query builder
+    # Verify SAFETY_LIMIT (1000) called on query builder, not user's limit
+    # User's limit=5 is applied after boosting (see test_search_limit_applied_after_boosting)
     query_builder = mock_lancedb_table.search.return_value
-    query_builder.limit.assert_called_once_with(5)
+    query_builder.limit.assert_called_once_with(1000)
 
 
 def test_filter_head_only_works_with_hybrid_search(store_with_hybrid, mock_lancedb_table):
@@ -361,7 +368,8 @@ def test_score_breakdown_with_real_lancedb_response_structure(
     # Verify score fields
     assert result.vector_score == pytest.approx(1.0 - 0.18, rel=1e-6)  # 1.0 - distance
     assert result.bm25_score == pytest.approx(2.47, rel=1e-6)  # _score field
-    assert result.hybrid_score == pytest.approx(0.0615, rel=1e-6)  # _relevance_score
+    # _relevance_score is 0.0615, with HEAD boost (1.5x): 0.0615 * 1.5 = 0.09225
+    assert result.hybrid_score == pytest.approx(0.09225, rel=1e-6)  # Boosted score
 
     # Verify all other SearchResult fields populated correctly
     assert result.chunk_content == "class JWTAuthMiddleware"
