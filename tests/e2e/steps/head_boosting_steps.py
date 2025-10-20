@@ -185,8 +185,8 @@ def file_ranks_first_with_score(file: str, expected_score: float, context: dict[
         f"Expected {file} to rank first, got {first_result.file_path}"
     )
 
-    # Score should match expected
-    assert first_result.hybrid_score == expected_score, (
+    # Score should match expected (approximate equality for floating point)
+    assert math.isclose(first_result.hybrid_score, expected_score, rel_tol=1e-9), (
         f"Expected score {expected_score}, got {first_result.hybrid_score}"
     )
 
