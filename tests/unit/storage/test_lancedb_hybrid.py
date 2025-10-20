@@ -269,16 +269,22 @@ def test_post_filtering_compatibility_with_max_distance(store_with_hybrid, mock_
 
 
 def test_limit_parameter_respected_after_reranking(store_with_hybrid, mock_lancedb_table):
-    """Test limit parameter respected after RRF reranking."""
+    """Test SAFETY_LIMIT applied to LanceDB query (user limit applied post-boost).
+
+    With HEAD boosting, the limit must be applied AFTER boosting to ensure HEAD results
+    with lower pre-boost scores aren't excluded before boosting can surface them.
+    LanceDB query uses SAFETY_LIMIT=1000, final limit applied after boost+rerank+filter.
+    """
     query_vector = np.random.rand(3072).astype(np.float32)
     query_text = "auth"
 
     # Execute search with limit=5
     store_with_hybrid.search(query_vector=query_vector, query_text=query_text, limit=5)
 
-    # Verify limit() called on query builder
+    # Verify SAFETY_LIMIT (1000) called on query builder, not user's limit
+    # User's limit=5 is applied after boosting (see test_search_limit_applied_after_boosting)
     query_builder = mock_lancedb_table.search.return_value
-    query_builder.limit.assert_called_once_with(5)
+    query_builder.limit.assert_called_once_with(1000)
 
 
 def test_filter_head_only_works_with_hybrid_search(store_with_hybrid, mock_lancedb_table):
