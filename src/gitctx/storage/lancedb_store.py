@@ -448,7 +448,7 @@ class LanceDBStore:
         rrf = rerankers.RRFReranker(K=60, return_score="all")
 
         # Build hybrid search query without limit - we need to boost and re-rank before limiting.
-        # The final limit is applied after boosting (line ~509).
+        # The final limit is applied after boosting.
         # Safety limit prevents pathological cases (very broad queries).
         # max_distance filter provides natural limiting for vector/hybrid search.
         SAFETY_LIMIT = 1000  # Prevent fetching entire database for pathological queries
