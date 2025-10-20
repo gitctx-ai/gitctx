@@ -17,6 +17,7 @@ Future improvements (EPIC-0001.5):
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 
 from gitctx.indexing.types import SearchResult
@@ -75,7 +76,7 @@ class GitHeadBooster:
 
         self.head_multiplier = head_multiplier
 
-    def boost(self, results: list[SearchResult]) -> list[SearchResult]:
+    def boost(self, results: Sequence[SearchResult]) -> list[SearchResult]:
         """Apply HEAD boost to search results and return new list.
 
         This method boosts hybrid_score for results with is_head=True by the
