@@ -22,6 +22,12 @@ from gitctx.storage.schema import CHUNK_SCHEMA
 
 logger = logging.getLogger(__name__)
 
+# Search safety limit - prevents fetching entire database for pathological queries
+# This high limit allows HEAD boosting to work correctly (low-scoring HEAD files
+# can still rank in top-K after 1.5x boost), while preventing pathological cases
+# like very broad queries from fetching all rows.
+SEARCH_SAFETY_LIMIT = 1000
+
 
 class LanceDBStore:
     """LanceDB vector store with denormalized schema.
@@ -451,12 +457,11 @@ class LanceDBStore:
         # The final limit is applied after boosting.
         # Safety limit prevents pathological cases (very broad queries).
         # max_distance filter provides natural limiting for vector/hybrid search.
-        SAFETY_LIMIT = 1000  # Prevent fetching entire database for pathological queries
         query = (
             self.chunks_table.search(query_type="hybrid")
             .vector(query_vector)  # Vector component
             .text(query_text)  # Text component (required for BM25)
-            .limit(SAFETY_LIMIT)
+            .limit(SEARCH_SAFETY_LIMIT)
             .rerank(rrf)  # Apply RRF fusion
         )
 
