@@ -280,7 +280,9 @@ def test_boosted_scores_maintain_correct_ranking(
 
     # At least some HEAD results should have higher scores
     if head_scores and hist_scores:
-        assert max(head_scores) >= min(head_scores), "HEAD boost should improve some rankings"
+        assert any(h > max(hist_scores) for h in head_scores), (
+            "HEAD boost should improve rankings: some HEAD score must exceed max historical"
+        )
 
 
 def test_pipeline_with_max_distance_and_boost(
