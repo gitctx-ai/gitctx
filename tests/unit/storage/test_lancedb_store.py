@@ -1146,6 +1146,7 @@ def test_search_limit_applied_after_boosting(tmp_path, monkeypatch):
     - Request limit=5
     - Expected: Top 5 includes HEAD results (proves limit applied after boost)
     """
+    # ===== ARRANGE =====
     from unittest.mock import Mock
 
     from gitctx.storage.lancedb_store import LanceDBStore
@@ -1219,7 +1220,7 @@ def test_search_limit_applied_after_boosting(tmp_path, monkeypatch):
 
     store.chunks_table = mock_table
 
-    # Execute search with limit=5
+    # ===== ACT =====
     results = store.search(
         query_vector=[0.1] * 3072,
         query_text="test query",
@@ -1227,6 +1228,7 @@ def test_search_limit_applied_after_boosting(tmp_path, monkeypatch):
         max_distance=2.0,
     )
 
+    # ===== ASSERT =====
     # Verify we got exactly 5 results
     assert len(results) == 5, f"Expected 5 results, got {len(results)}"
 
