@@ -3,9 +3,7 @@
 This file tests HEAD code boosting over historical versions using pytest-bdd.
 Step definitions are in tests/e2e/steps/head_boosting_steps.py
 
-All scenarios are currently stubbed (NotImplementedError) - to be implemented in:
-- TASK-0001.4.2.2: Create GitHeadBooster class
-- TASK-0001.4.2.3: Integrate into LanceDBStore
+Scenarios for HEAD boosting are implemented and tested using pytest-bdd.
 """
 
 import pytest
