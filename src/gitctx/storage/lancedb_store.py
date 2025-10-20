@@ -362,7 +362,8 @@ class LanceDBStore:
             For BM25-only matches without vector component, vector_score = -inf
         - hybrid_score: RRF combined score (_relevance_score, 0-1 range, higher = more relevant)
 
-        Note: For rare BM25-only matches (no vector match), distance = inf and vector_score = -inf
+        Note: For rare BM25-only matches (no vector match),
+              distance = DISTANCE_NO_VECTOR_MATCH and vector_score = -inf
 
         **Search Pipeline**:
 
