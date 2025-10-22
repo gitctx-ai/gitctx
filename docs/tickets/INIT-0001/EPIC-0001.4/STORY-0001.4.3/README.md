@@ -1,9 +1,9 @@
 # STORY-0001.4.3: File-Grouped Result Presentation
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟡 In Progress
 **Story Points**: 4 (16 hours estimated = 4 points)
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: ████░░░░░░ 20%
 
 ## User Story
 
@@ -498,7 +498,7 @@ class AuthMiddleware:
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.4.3.1](TASK-0001.4.3.1.md) | Write 3 BDD Smoke Test Scenarios | 🔵 Not Started | 2 | 0/3 (all stubbed) |
+| [TASK-0001.4.3.1](TASK-0001.4.3.1.md) | Write 3 BDD Smoke Test Scenarios | ✅ Complete | 2 | 0/3 (all stubbed) |
 | [TASK-0001.4.3.2](TASK-0001.4.3.2.md) | Create FormatterBase with _filter_and_group() (TDD + BDD steps) | 🔵 Not Started | 4 | 2/3 passing |
 | [TASK-0001.4.3.3](TASK-0001.4.3.3.md) | Update TerseFormatter with Score Sorting (TDD - unit tests only) | 🔵 Not Started | 4 | 2/3 passing |
 | [TASK-0001.4.3.4](TASK-0001.4.3.4.md) | Update VerboseFormatter with Line Order + Best-Match Indicator (TDD - unit tests only) | 🔵 Not Started | 3 | 2/3 passing |
