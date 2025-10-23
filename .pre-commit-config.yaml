@@ -15,6 +15,16 @@ repos:
         name: Ruff formatter
         types_or: [python, pyi]
 
+  # Ensure uv environment is synced before type checking
+  - repo: local
+    hooks:
+      - id: check-uv-sync
+        name: Check uv virtual environment exists
+        entry: bash
+        language: system
+        args: [-c, "test -d .venv || (echo 'Error: .venv not found. Run: uv sync' && exit 1)"]
+        pass_filenames: false
+
   # Mypy - Static type checker (uses uv virtual environment)
   - repo: local
     hooks:
@@ -100,5 +110,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [pytest-check, mypy]  # These don't work in pre-commit.ci
+  skip: [pytest-check, mypy, check-uv-sync]  # These don't work in pre-commit.ci
   submodules: false

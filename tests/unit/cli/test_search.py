@@ -610,3 +610,218 @@ def test_search_filter_flag_accepts_all(mock_search_repo):
         mock_formatter.format.assert_called_once()
         call_kwargs = mock_formatter.format.call_args.kwargs
         assert call_kwargs.get("filter") == "all"
+
+
+# TDD tests for filter mode hints (code review feedback)
+def test_empty_results_history_filter_shows_hint(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+):
+    """Test that empty results with --filter=history shows hint to try head/all."""
+    # ARRANGE - Set up minimal git repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # Mock settings
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+    mock_settings.user = Mock()
+    mock_settings.user.theme = "monokai"
+
+    # Mock LanceDBStore with EMPTY results
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)
+    mock_store.search = Mock(return_value=[])  # Empty results!
+
+    # ACT - Search with --filter=history and empty results
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
+        patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
+    ):
+        mock_embedder = Mock()
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder.embed_query = Mock(return_value=test_embedding_vector())
+        mock_embedder_class.return_value = mock_embedder
+
+        result = isolated_cli_runner.invoke(app, ["search", "test", "--filter=history"])
+
+        # ASSERT
+        assert result.exit_code == 0
+        output = result.stdout + result.stderr
+        assert "0 results" in output
+        # Should suggest trying --filter=head or --filter=all
+        assert "No historical chunks found" in output
+        assert "--filter=head" in output or "--filter=all" in output
+
+
+def test_empty_results_head_filter_shows_similarity_hint(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+):
+    """Test empty results with --filter=head shows hint to lower threshold."""
+    # ARRANGE - Set up minimal git repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # Mock settings
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+    mock_settings.user = Mock()
+    mock_settings.user.theme = "monokai"
+
+    # Mock LanceDBStore with EMPTY results
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)
+    mock_store.search = Mock(return_value=[])  # Empty results!
+
+    # ACT - Search with --filter=head (default), high min_similarity, and empty results
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
+        patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
+    ):
+        mock_embedder = Mock()
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder.embed_query = Mock(return_value=test_embedding_vector())
+        mock_embedder_class.return_value = mock_embedder
+
+        result = isolated_cli_runner.invoke(
+            app, ["search", "test", "--filter=head", "--min-similarity", "0.8"]
+        )
+
+        # ASSERT
+        assert result.exit_code == 0
+        output = result.stdout + result.stderr
+        assert "0 results" in output
+        # Should suggest lowering similarity threshold or trying --filter=all
+        assert "No results above threshold" in output or "above similarity threshold" in output
+        assert "--min-similarity" in output or "--filter=all" in output
+
+
+def test_empty_results_all_filter_shows_generic_hint(
+    isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base, test_embedding_vector
+):
+    """Test that empty results with --filter=all shows generic hint (existing behavior)."""
+    # ARRANGE - Set up minimal git repo
+    repo = tmp_path / "test_repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+
+    # Initialize git with isolation
+    subprocess.run(
+        ["git", "init"], cwd=repo, env=git_isolation_base, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, env=git_isolation_base, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        env=git_isolation_base,
+        check=True,
+    )
+
+    # Add file and commit
+    (repo / "test.py").write_text('print("hello")')
+    subprocess.run(["git", "add", "."], cwd=repo, env=git_isolation_base, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo, env=git_isolation_base, check=True
+    )
+
+    # Create .gitctx directory structure
+    (repo / ".gitctx" / "db" / "lancedb").mkdir(parents=True)
+
+    # Mock settings
+    mock_settings = Mock()
+    mock_settings.repo = Mock()
+    mock_settings.repo.model = Mock()
+    mock_settings.repo.model.embedding = "text-embedding-3-large"
+    mock_settings.get = Mock(return_value="sk-test-key")
+    mock_settings.user = Mock()
+    mock_settings.user.theme = "monokai"
+
+    # Mock LanceDBStore with EMPTY results
+    mock_store = Mock()
+    mock_store.count = Mock(return_value=100)
+    mock_store.get_query_embedding = Mock(return_value=None)
+    mock_store.search = Mock(return_value=[])  # Empty results!
+
+    # ACT - Search with --filter=all and empty results
+    with (
+        patch("gitctx.cli.search.GitCtxSettings", return_value=mock_settings),
+        patch("gitctx.cli.search.LanceDBStore", return_value=mock_store),
+        patch("gitctx.cli.search.QueryEmbedder") as mock_embedder_class,
+    ):
+        mock_embedder = Mock()
+        mock_embedder.get_cache_key = Mock(return_value="test_cache_key")
+        mock_embedder.embed_query = Mock(return_value=test_embedding_vector())
+        mock_embedder_class.return_value = mock_embedder
+
+        result = isolated_cli_runner.invoke(
+            app, ["search", "test", "--filter=all", "--min-similarity", "0.5"]
+        )
+
+        # ASSERT
+        assert result.exit_code == 0
+        output = result.stdout + result.stderr
+        assert "0 results" in output
+        # Should show generic hint about similarity threshold (existing behavior)
+        assert "No results above" in output or "similarity threshold" in output
+        assert "--min-similarity 0.0" in output

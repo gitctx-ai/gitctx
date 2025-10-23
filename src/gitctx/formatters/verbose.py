@@ -50,7 +50,6 @@ Example:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from io import StringIO
 from typing import Any
 
@@ -58,7 +57,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 
 from gitctx.cli.symbols import SYMBOLS
-from gitctx.formatters.base import filter_and_group_results, format_distance_score
+from gitctx.formatters.base import _ResultWrapper, filter_and_group_results, format_distance_score
 
 
 class VerboseFormatter:
@@ -104,52 +103,9 @@ class VerboseFormatter:
         min_similarity = kwargs.get("min_similarity", 0.5)
         filter_mode = kwargs.get("filter", "head")
 
-        # Convert dict results to objects for easier access
-        @dataclass
-        class Result:
-            file_path: str
-            start_line: int
-            end_line: int
-            distance: float
-            is_head: bool
-            commit_sha: str
-            commit_message: str
-            chunk_content: str
-            language: str
-            hybrid_score: float | None = None
-            vector_score: float | None = None
-            bm25_score: float | None = None
-
-            @property
-            def score(self) -> float:
-                """Primary score for ranking (matches SearchResult.score logic)."""
-                if self.hybrid_score is not None:
-                    return self.hybrid_score
-                if self.vector_score is not None:
-                    return self.vector_score
-                # Fallback: compute from distance (1.0 - distance for cosine similarity)
-                if self.distance != float("inf"):
-                    return max(0.0, 1.0 - self.distance)
-                return 0.0
-
-        # Convert dicts to objects
-        result_objs = [
-            Result(
-                file_path=r["file_path"],
-                start_line=r["start_line"],
-                end_line=r["end_line"],
-                distance=r["distance"],
-                is_head=r["is_head"],
-                commit_sha=r["commit_sha"],
-                commit_message=r["commit_message"],
-                chunk_content=r["chunk_content"],
-                language=r.get("language", "markdown"),
-                hybrid_score=r.get("hybrid_score"),
-                vector_score=r.get("vector_score"),
-                bm25_score=r.get("bm25_score"),
-            )
-            for r in results
-        ]
+        # Convert dict results to wrapped objects
+        # _ResultWrapper provides .score property and attribute access
+        result_objs = [_ResultWrapper(r) for r in results]
 
         # Filter and group results (shared function handles filtering and file-level sorting)
         grouped = filter_and_group_results(result_objs, min_similarity, filter_mode)

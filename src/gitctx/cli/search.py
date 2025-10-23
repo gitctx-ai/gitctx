@@ -34,6 +34,10 @@ DEFAULT_SEARCH_LIMIT = 10
 # OpenAI embedding token limits
 MAX_QUERY_TOKENS = 8191  # text-embedding-3-* model limit
 
+# Filter mode constants
+FILTER_MODES = ["head", "history", "all"]
+DEFAULT_FILTER_MODE = "head"
+
 
 def _get_query_text(query: list[str] | None) -> str:
     """Extract query text from CLI args or stdin.
@@ -124,10 +128,10 @@ def search_command(
         str,
         typer.Option(
             "--filter",
-            click_type=click.Choice(["head", "history", "all"], case_sensitive=False),
+            click_type=click.Choice(FILTER_MODES, case_sensitive=False),
             help="Filter chunks by type: head (current), history (past), or all",
         ),
-    ] = "head",
+    ] = DEFAULT_FILTER_MODE,
     theme: str | None = None,
 ) -> None:
     """
@@ -338,9 +342,23 @@ def search_command(
     # Display results summary with helpful message for zero results
     console.print(f"\n{len(results)} results in {duration:.2f}s")
 
-    if len(results) == 0 and min_similarity > 0.0:
-        console.print(
-            f"\n[yellow]💡 Tip:[/yellow] No results above similarity threshold "
-            f"({min_similarity:.1f}).\n"
-            "   Try a broader query or use [cyan]--min-similarity 0.0[/cyan] to see all results."
-        )
+    # Provide context-aware hints based on filter mode and similarity threshold
+    if len(results) == 0:
+        if filter_mode == "history":
+            console.print(
+                "\n[yellow]💡 Tip:[/yellow] No historical chunks found.\n"
+                "   Try [cyan]--filter=head[/cyan] or [cyan]--filter=all[/cyan]"
+            )
+        elif filter_mode == "head" and min_similarity > 0.0:
+            console.print(
+                f"\n[yellow]💡 Tip:[/yellow] No results above threshold ({min_similarity:.1f}).\n"
+                "   Try [cyan]--min-similarity 0.0[/cyan] or [cyan]--filter=all[/cyan]"
+            )
+        elif min_similarity > 0.0:
+            # Generic hint for --filter=all or other cases
+            console.print(
+                f"\n[yellow]💡 Tip:[/yellow] No results above similarity threshold "
+                f"({min_similarity:.1f}).\n"
+                "   Try a broader query or use [cyan]--min-similarity 0.0[/cyan] "
+                "to see all results."
+            )
