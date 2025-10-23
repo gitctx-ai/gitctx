@@ -52,7 +52,7 @@ def test_symbols_modern_terminals():
         assert SYMBOLS["warning"] == "⚠"
         assert SYMBOLS["tip"] == "💡"
         assert SYMBOLS["arrow"] == "→"
-        assert SYMBOLS["head"] == "●"
+        assert SYMBOLS["head"] == "🟢"
 
 
 def test_symbols_legacy_windows_simulation():

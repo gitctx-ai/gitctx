@@ -16,6 +16,57 @@ from gitctx.indexing.types import DISTANCE_NO_VECTOR_MATCH
 MAX_PREVIEW_LENGTH = 80  # Maximum characters for single-line previews
 
 
+class _ResultWrapper:
+    """Minimal wrapper to adapt dict results to SearchResult-like interface.
+
+    This allows dict-based results (from CLI/search) to work with filter_and_group_results()
+    which expects objects with .score, .is_head, and .file_path properties.
+    """
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        """Initialize wrapper from dict.
+
+        Args:
+            data: Result dictionary with at minimum:
+                - file_path: str
+                - distance: float  (converted to score via 1.0 - distance)
+                - is_head: bool (optional, defaults to True)
+                - language: str (optional, defaults to "markdown")
+                Plus other fields passed through as attributes.
+        """
+        self._data = data
+        # Set defaults for optional fields
+        if "is_head" not in data:
+            data["is_head"] = True
+        if "language" not in data:
+            data["language"] = "markdown"
+
+    def __getattr__(self, name: str) -> Any:
+        """Forward attribute access to underlying dict."""
+        if name == "_data":
+            return object.__getattribute__(self, "_data")
+        return self._data[name]
+
+    @property
+    def score(self) -> float:
+        """Primary score for ranking (matches SearchResult.score logic).
+
+        Returns:
+            float: Score in 0-1 range (higher is better)
+        """
+        # Try hybrid_score first (from hybrid search)
+        if "hybrid_score" in self._data and self._data["hybrid_score"] is not None:
+            return float(self._data["hybrid_score"])
+        # Fall back to vector_score
+        if "vector_score" in self._data and self._data["vector_score"] is not None:
+            return float(self._data["vector_score"])
+        # Fall back to computing from distance (cosine similarity)
+        distance = self._data.get("distance", float("inf"))
+        if distance != float("inf"):
+            return max(0.0, 1.0 - float(distance))
+        return 0.0
+
+
 @runtime_checkable
 class ResultFormatter(Protocol):
     """Protocol for search result formatters.

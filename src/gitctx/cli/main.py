@@ -118,6 +118,12 @@ def search_command_wrapper(
         max=1.0,
         rich_help_panel="Result Filtering",
     ),
+    filter_mode: str = typer.Option(
+        "head",
+        "--filter",
+        help="Filter chunks by type: head (current), history (past), or all",
+        rich_help_panel="Result Filtering",
+    ),
     output_format: str | None = typer.Option(
         None,
         "--format",
@@ -151,6 +157,7 @@ def search_command_wrapper(
         query=query,
         limit=limit,
         min_similarity=min_similarity,
+        filter_mode=filter_mode,
         output_format=output_format,
         verbose=verbose,
         mcp=mcp,

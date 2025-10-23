@@ -33,7 +33,7 @@ else:
         "warning": "⚠",
         "tip": "💡",
         "arrow": "→",
-        "head": "●",
+        "head": "🟢",
         "best_match": "⭐",
         "spinner_frames": "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏",
     }

@@ -1,40 +1,47 @@
 """MCP formatter with structured markdown for AI consumption.
 
 This formatter provides machine-readable output optimized for LLM tools:
-- YAML frontmatter with structured metadata
-- Markdown body with headers
-- Code blocks with language tags
+- YAML frontmatter with file-grouped metadata
+- Markdown body with file-grouped code blocks
 - Never uses plain text (always markdown fallback)
 
-Format:
+Format (file-grouped):
     ---
-    results:
+    files:
       - file_path: {path}
-        line_numbers: {start}-{end}
-        score: {score:.3f}
-        commit_sha: {sha}
+        language: {lang}
+        chunks: {count}
+        best_score: {score:.3f}
     ---
 
-    ## {file_path}:{start}-{end}
-    **Score:** {score:.3f} | **Commit:** {sha[:7]}
+    ## {file_path} ({N} chunks)
+
+    **Lines {start}-{end}** | **Score:** {score:.3f} | **Commit:** {head_marker}{sha[:7]}
     ```{language}
     {content}
     ```
 
 Example:
     ---
-    results:
+    files:
       - file_path: src/auth.py
-        line_numbers: 45-52
-        score: 0.920
-        commit_sha: f9e8d7c1234567890
+        language: python
+        chunks: 2
+        best_score: 0.920
     ---
 
-    ## src/auth.py:45-52
-    **Score:** 0.920 | **Commit:** f9e8d7c
+    ## src/auth.py (2 chunks)
+
+    **Lines 45-52** | **Score:** 0.920 | **Commit:** 🟢f9e8d7c
     ```python
     def authenticate(user, password):
         '''Authenticate a user.'''
+    ```
+
+    **Lines 67-75** | **Score:** 0.850 | **Commit:**  abc1234
+    ```python
+    def validate_token(token):
+        return token.is_valid()
     ```
 """
 
@@ -45,15 +52,15 @@ from typing import Any
 import yaml
 from rich.console import Console
 
-from gitctx.formatters.base import format_distance_score
-from gitctx.indexing.types import DISTANCE_NO_VECTOR_MATCH
+from gitctx.cli.symbols import SYMBOLS
+from gitctx.formatters.base import _ResultWrapper, filter_and_group_results, format_distance_score
 
 
 class MCPFormatter:
-    """Structured markdown for AI tools.
+    """Structured markdown for AI tools with file grouping.
 
-    Outputs YAML frontmatter with result metadata followed by Markdown
-    body with code blocks. Optimized for MCP (Model Context Protocol)
+    Outputs YAML frontmatter with file-grouped metadata followed by Markdown
+    body with file-grouped code blocks. Optimized for MCP (Model Context Protocol)
     and LLM consumption.
 
     Attributes:
@@ -68,9 +75,9 @@ class MCPFormatter:
         self,
         results: list[dict[str, Any]],
         console: Console,
-        **kwargs: Any,  # noqa: ARG002
+        **kwargs: Any,
     ) -> None:
-        """Format and output search results to console.
+        """Format and output search results to console with file grouping.
 
         Args:
             results: List of search result dictionaries with keys:
@@ -81,26 +88,37 @@ class MCPFormatter:
                 - commit_sha: Full commit SHA
                 - chunk_content: Code content
                 - language: Language for syntax highlighting (optional)
+                - is_head: True if chunk is in HEAD (optional, default True)
             console: Rich Console instance for formatted output
-            theme: Syntax highlighting theme (unused in MCP format)
+            min_similarity: Minimum score threshold (default 0.5)
+            filter: Which chunks to include (head/history/all, default head)
 
         Returns:
             None - Results are written directly to console
         """
-        # Build YAML frontmatter structure
+        # Wrap dicts in _ResultWrapper for .score property support
+        # This allows dict-based results to work with filter_and_group_results()
+        search_results = [_ResultWrapper(r) if isinstance(r, dict) else r for r in results]
+
+        # Extract filtering parameters
+        min_similarity = kwargs.get("min_similarity", 0.5)
+        filter_mode = kwargs.get("filter", "head")
+
+        # Filter and group using shared function
+        grouped = filter_and_group_results(search_results, min_similarity, filter_mode)
+
+        # Build YAML frontmatter with file-grouped structure
         frontmatter = {
-            "results": [
+            "files": [
                 {
-                    "file_path": r["file_path"],
-                    "line_numbers": f"{r['start_line']}-{r['end_line']}",
-                    "score": (
-                        "BM25"
-                        if r["distance"] == DISTANCE_NO_VECTOR_MATCH
-                        else float(format_distance_score(r["distance"], precision=3))
+                    "file_path": file_path,
+                    "language": chunks[0].language,  # First chunk's language
+                    "chunks": len(chunks),  # Count after filtering
+                    "best_score": float(
+                        format_distance_score(max(c.score for c in chunks), precision=3)
                     ),
-                    "commit_sha": r["commit_sha"],
                 }
-                for r in results
+                for file_path, chunks in grouped.items()
             ]
         }
 
@@ -109,26 +127,27 @@ class MCPFormatter:
         console.print(yaml.safe_dump(frontmatter, default_flow_style=False).rstrip())
         console.print("---\n")
 
-        # Print Markdown body
-        for result in results:
-            file_path = result["file_path"]
-            start_line = result["start_line"]
-            end_line = result["end_line"]
-            score = result["distance"]
-            commit_sha = result["commit_sha"]
-            chunk_content = result["chunk_content"]
-            language = result.get("language", "markdown")
+        # Print Markdown body with file grouping
+        for file_path, chunks in grouped.items():
+            # Sort chunks by score descending (best first)
+            # Tie-breaking: score desc → line asc → content lex
+            chunks.sort(key=lambda c: (-c.score, c.start_line, c.chunk_content))
 
-            # Print header
-            console.print(f"## {file_path}:{start_line}-{end_line}")
+            # File header with chunk count
+            chunk_word = "chunk" if len(chunks) == 1 else "chunks"
+            console.print(f"\n## {file_path} ({len(chunks)} {chunk_word})")
 
-            # Format score (handle inf for BM25-only matches)
-            score_str = format_distance_score(score, precision=3)
+            # Print each chunk with metadata + code block
+            for chunk in chunks:
+                score_str = format_distance_score(chunk.score, precision=3)
 
-            # Print metadata line
-            console.print(f"**Score:** {score_str} | **Commit:** {commit_sha[:7]}")
+                # Format HEAD marker (● or [HEAD] for current commit, space for history)
+                head_marker = SYMBOLS["head"] if chunk.is_head else " "
 
-            # Print code block with language tag
-            console.print(f"```{language}")
-            console.print(chunk_content)
-            console.print("```\n")
+                console.print(
+                    f"**Lines {chunk.start_line}-{chunk.end_line}** | **Score:** {score_str} | "
+                    f"**Commit:** {head_marker}{chunk.commit_sha[:7]}"
+                )
+                console.print(f"```{chunk.language}")
+                console.print(chunk.chunk_content)
+                console.print("```\n")

@@ -104,10 +104,11 @@ def test_terse_chunk_line_format(mock_search_result_factory) -> None:
     formatter.format(results, console, min_similarity=0.5, filter="all")
 
     result = strip_ansi(output.getvalue())
-    # Should match format: :LINE_NUM  SCORE  PREVIEW
+    # Should match format: :LINE_NUM  SCORE  HEAD_MARKER+SHA  PREVIEW
     assert re.search(r":\d+\s+\d+\.\d+\s+.+", result)
-    # Specific check
-    assert ":45  0.95  class AuthMiddleware:" in result
+    # Specific check - now includes commit SHA
+    assert ":45  0.95" in result
+    assert "class AuthMiddleware:" in result
 
 
 def test_terse_filters_by_score_threshold(mock_search_result_factory) -> None:
@@ -313,13 +314,16 @@ def test_terse_strips_leading_whitespace_from_preview(
     formatter.format(results, console, min_similarity=0.5, filter="all")
 
     result = strip_ansi(output.getvalue())
-    # Should show "def foo():" not "    def foo():"
-    assert "  def foo():" in result
+    # Should show "def foo():" not "    def foo():" (leading whitespace stripped)
+    assert "def foo():" in result
     # Should not have 4 leading spaces in preview
     lines = [line for line in result.split("\n") if ":42" in line]
     assert len(lines) == 1
-    # Extract preview part (after score)
-    preview = lines[0].split("0.90")[-1].strip()
+    # Extract preview part (after commit SHA) - format is :LINE  SCORE  HEAD_MARKER+SHA  PREVIEW
+    # Split by multiple spaces to find the preview after the SHA
+    parts = re.split(r"\s{2,}", lines[0].strip())  # Split on 2+ spaces
+    assert len(parts) >= 4  # :LINE, SCORE, SHA, PREVIEW
+    preview = parts[-1]  # Last part is preview
     assert preview == "def foo():"
 
 

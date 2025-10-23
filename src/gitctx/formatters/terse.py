@@ -5,16 +5,16 @@ first for quick scanning). Results are grouped by file with chunk counts.
 
 Format:
     {file_path} ({N} chunks):
-      :{line_num}  {score:.2f}  {preview}
+      :{line_num}  {score:.2f}  {head_marker}{sha[:7]}  {preview}
 
 Example:
     src/auth/middleware.py (3 chunks):
-      :15   0.95  class AuthMiddleware:
-      :42   0.87  def process_request(self, request):
-      :103  0.75  def validate_token(self, token):
+      :15   0.95  🟢f9e8d7c  class AuthMiddleware:
+      :42   0.87  🟢abc1234  def process_request(self, request):
+      :103  0.75   def5678  def validate_token(self, token):
 
     src/auth/handlers.py (1 chunk):
-      :42   0.87  def authenticate_user(username, password):
+      :42   0.87  🟢ghi9012  def authenticate_user(username, password):
 """
 
 from __future__ import annotations
@@ -23,7 +23,8 @@ from typing import Any
 
 from rich.console import Console
 
-from gitctx.formatters.base import MAX_PREVIEW_LENGTH, filter_and_group_results
+from gitctx.cli.symbols import SYMBOLS
+from gitctx.formatters.base import MAX_PREVIEW_LENGTH, _ResultWrapper, filter_and_group_results
 
 
 class TerseFormatter:
@@ -59,12 +60,16 @@ class TerseFormatter:
         Returns:
             None - Results are written directly to console
         """
+        # Wrap dicts in _ResultWrapper for .score property support
+        # This allows dict-based results to work with filter_and_group_results()
+        search_results = [_ResultWrapper(r) if isinstance(r, dict) else r for r in results]
+
         # Extract parameters
         min_similarity = kwargs.get("min_similarity", 0.5)
         filter_mode = kwargs.get("filter", "head")
 
         # Filter and group results (shared function handles filtering and file-level sorting)
-        grouped = filter_and_group_results(results, min_similarity, filter_mode)
+        grouped = filter_and_group_results(search_results, min_similarity, filter_mode)
 
         # Format each file's chunks
         for file_path, chunks in grouped.items():
@@ -76,14 +81,20 @@ class TerseFormatter:
             chunk_word = "chunk" if len(chunks) == 1 else "chunks"
             console.print(f"\n{file_path} ({len(chunks)} {chunk_word}):")
 
-            # One line per chunk: :LINE_NUM  SCORE  PREVIEW
+            # One line per chunk: :LINE_NUM  SCORE  HEAD_MARKER+SHA  PREVIEW
             for chunk in chunks:
                 # Extract preview (first line, max 80 chars)
                 preview = self._format_preview(chunk.chunk_content)
 
+                # Format HEAD marker (● or [HEAD] for current commit, space for history)
+                head_marker = SYMBOLS["head"] if chunk.is_head else " "
+
                 # Print chunk line (escape=False allows preview content with special chars)
+                sha_short = chunk.commit_sha[:7]
+                line_prefix = f"  :{chunk.start_line}  {chunk.score:.2f}"
+                line_output = f"{line_prefix}  {head_marker}{sha_short}  {preview}"
                 console.print(
-                    f"  :{chunk.start_line}  {chunk.score:.2f}  {preview}",
+                    line_output,
                     markup=False,  # Disable Rich markup to preserve [brackets]
                 )
 

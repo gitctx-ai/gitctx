@@ -120,12 +120,14 @@ def test_search_requires_query(cli_runner):
 
 
 def test_search_default_output(mock_search_repo):
-    """Verify default mode is terse (file:line:score format)."""
+    """Verify default mode is terse (file-grouped format)."""
     result = mock_search_repo.invoke(app, ["search", "authentication", "--min-similarity", "-1.0"])
     assert result.exit_code == 0
-    # Check TUI_GUIDE.md format: file:line:score ● commit
-    assert ".py:" in result.stdout or ".md:" in result.stdout
-    assert "●" in result.stdout or "[HEAD]" in result.stdout  # Platform-aware
+    # Check file-grouped format: "file.py (N chunks):" header
+    assert ".py" in result.stdout or ".md" in result.stdout
+    assert " chunk" in result.stdout  # File header with chunk count
+    # Platform-aware (green circle or [HEAD])
+    assert "🟢" in result.stdout or "[HEAD]" in result.stdout
     assert "results in" in result.stdout  # Summary line
 
 
@@ -173,47 +175,46 @@ def test_search_shows_history_and_head(mock_search_repo):
     """Verify search demonstrates both historical and HEAD results."""
     result = mock_search_repo.invoke(app, ["search", "test", "--min-similarity", "-1.0"])
     assert result.exit_code == 0
-    # Should have HEAD indicator on some results
-    has_head = "●" in result.stdout or "[HEAD]" in result.stdout or "HEAD" in result.stdout
-    # Should have results with file paths
-    lines_with_results = [
-        line for line in result.stdout.split("\n") if ".py:" in line or ".md:" in line
-    ]
-    assert len(lines_with_results) >= 1  # At least 1 result (mock returns 1 result)
+    # Should have HEAD indicator on some results (green circle or [HEAD])
+    has_head = "🟢" in result.stdout or "[HEAD]" in result.stdout or "HEAD" in result.stdout
+    # Should have results with file paths (check for .py or .md in output)
+    has_results = ".py" in result.stdout or ".md" in result.stdout
+    assert has_results  # At least 1 result (mock returns 1 result)
     assert has_head  # At least one HEAD result
 
 
 def test_search_mcp_flag(mock_search_repo):
-    """Verify --mcp flag outputs structured markdown."""
+    """Verify --mcp flag outputs structured markdown with file grouping."""
     result = mock_search_repo.invoke(app, ["search", "test", "--mcp", "--min-similarity", "-1.0"])
     assert result.exit_code == 0
-    # Check for YAML frontmatter with results array
+    # Check for YAML frontmatter with file-grouped structure
     assert "---" in result.stdout
-    assert "results:" in result.stdout
+    assert "files:" in result.stdout
     assert "file_path:" in result.stdout
-    assert "line_numbers:" in result.stdout
-    assert "score:" in result.stdout
-    assert "commit_sha:" in result.stdout
+    assert "chunks:" in result.stdout  # Count of chunks per file
+    assert "best_score:" in result.stdout  # Best score per file in YAML
+    assert "language:" in result.stdout
     # Check for markdown structure with file headers
-    assert "## test.py:" in result.stdout
-    # Check for metadata and code blocks
+    assert "## test.py (" in result.stdout  # File header with chunk count
+    # Check for metadata and code blocks (score/commit in Markdown body)
     assert "**Score:**" in result.stdout
     assert "**Commit:**" in result.stdout
+    assert "**Lines" in result.stdout  # Line numbers in Markdown
     assert "```python" in result.stdout
 
 
 def test_search_mcp_has_yaml_frontmatter(mock_search_repo):
-    """Verify MCP mode includes valid YAML frontmatter."""
+    """Verify MCP mode includes valid YAML frontmatter with file grouping."""
     result = mock_search_repo.invoke(app, ["search", "auth", "--mcp", "--min-similarity", "-1.0"])
     assert result.exit_code == 0
-    # Check for YAML frontmatter with results array
+    # Check for YAML frontmatter with file-grouped structure
     assert "---" in result.stdout
-    assert "results:" in result.stdout
+    assert "files:" in result.stdout
     # Verify frontmatter structure has required fields
     assert "file_path:" in result.stdout
-    assert "line_numbers:" in result.stdout
-    assert "score:" in result.stdout
-    assert "commit_sha:" in result.stdout
+    assert "chunks:" in result.stdout  # Chunk count per file
+    assert "best_score:" in result.stdout  # Best score per file
+    assert "language:" in result.stdout
 
 
 def test_search_mcp_with_limit(mock_search_repo):
@@ -226,7 +227,7 @@ def test_search_mcp_with_limit(mock_search_repo):
     assert result.exit_code == 0
     # Should have YAML frontmatter and markdown body
     assert "---" in result.stdout
-    assert "results:" in result.stdout
+    assert "files:" in result.stdout
     # Count result blocks by ## headers (should have at least 1 from our mock)
     result_headers = [line for line in result.stdout.split("\n") if line.startswith("## ")]
     assert len(result_headers) >= 1  # At least 1 result block from our mock data

@@ -34,7 +34,7 @@ Example:
           12     ...
 
       # ⭐ Lines 45-52 (score: 0.95, best match)
-      ● f9e8d7c - Add OAuth support
+      🟢 f9e8d7c - Add OAuth support
 
           45 def authenticate(user, password):
           46     '''Authenticate a user against the database.'''

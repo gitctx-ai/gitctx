@@ -66,7 +66,7 @@ def mock_formatter_search(
                 file_path="test.py",
                 start_line=1,
                 end_line=5,
-                distance=0.92,
+                distance=0.15,  # Score will be 0.85 (above 0.5 threshold)
                 commit_sha="abc1234",  # pragma: allowlist secret
                 commit_message="Test commit",
                 commit_date=1760501897,  # Unix timestamp for 2025-10-14
@@ -90,13 +90,14 @@ def mock_formatter_search(
 
 
 def test_search_default_format_terse(mock_formatter_search):
-    """Test that default format is terse."""
+    """Test that default format is terse (file-grouped)."""
     runner = mock_formatter_search["runner"]
     result = runner.invoke(app, ["search", "test"])
 
     assert result.exit_code == 0
-    # Terse format: one line per result
-    assert "test.py:1:" in result.stdout
+    # Terse format: file header + one line per chunk
+    assert "test.py" in result.stdout
+    assert " chunk" in result.stdout  # File header with chunk count
 
 
 def test_search_format_verbose_flag(mock_formatter_search):
@@ -105,8 +106,9 @@ def test_search_format_verbose_flag(mock_formatter_search):
     result = runner.invoke(app, ["search", "test", "--verbose"])
 
     assert result.exit_code == 0
-    # Verbose format: multi-line with code blocks
-    assert "test.py:1-5" in result.stdout
+    # Verbose format: file header + Lines header + code blocks
+    assert "test.py" in result.stdout
+    assert "Lines 1-5" in result.stdout
     assert "def test(): pass" in result.stdout
 
 
@@ -118,7 +120,7 @@ def test_search_format_mcp_flag(mock_formatter_search):
     assert result.exit_code == 0
     # MCP format: YAML frontmatter + markdown
     assert "---" in result.stdout
-    assert "results:" in result.stdout
+    assert "files:" in result.stdout
     assert "file_path: test.py" in result.stdout
 
 
@@ -128,8 +130,8 @@ def test_search_verbose_short_flag_sets_format(mock_formatter_search):
     result = runner.invoke(app, ["search", "test", "-v"])
 
     assert result.exit_code == 0
-    # Verbose format
-    assert "test.py:1-5" in result.stdout
+    # Verbose format: should have Lines header
+    assert "Lines 1-5" in result.stdout
 
 
 def test_search_mcp_and_verbose_mutually_exclusive(mock_formatter_search):
@@ -173,8 +175,8 @@ def test_search_format_flag_verbose(mock_formatter_search):
     result = runner.invoke(app, ["search", "test", "--format", "verbose"])
 
     assert result.exit_code == 0
-    # Verbose format
-    assert "test.py:1-5" in result.stdout
+    # Verbose format: should have Lines header
+    assert "Lines 1-5" in result.stdout
 
 
 def test_search_format_flag_mcp(mock_formatter_search):
@@ -185,7 +187,7 @@ def test_search_format_flag_mcp(mock_formatter_search):
     assert result.exit_code == 0
     # MCP format
     assert "---" in result.stdout
-    assert "results:" in result.stdout
+    assert "files:" in result.stdout
 
 
 def test_search_format_flag_terse(mock_formatter_search):
@@ -194,8 +196,9 @@ def test_search_format_flag_terse(mock_formatter_search):
     result = runner.invoke(app, ["search", "test", "--format", "terse"])
 
     assert result.exit_code == 0
-    # Terse format
-    assert "test.py:1:" in result.stdout
+    # Terse format: file-grouped
+    assert "test.py" in result.stdout
+    assert " chunk" in result.stdout
 
 
 def test_search_unknown_formatter_error(mock_formatter_search):
