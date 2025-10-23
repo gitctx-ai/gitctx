@@ -348,3 +348,192 @@ def check_exit_code(code: int, context: dict[str, Any]) -> None:
     """
     exit_code = context["exit_code"]
     assert exit_code == code, f"Expected exit code {code}, got {exit_code}"
+
+
+# ============================================================================
+# New Step Definitions for STORY-0001.4.5 (TUI Progress Enhancement)
+# ============================================================================
+# All steps below are STUBBED - they raise NotImplementedError
+# Implementation will be added incrementally in TASK-0001.4.5.2 through TASK-0001.4.5.4
+
+
+@then(parsers.parse('I should see "{marker}" marker'))
+def check_phase_marker(marker: str, context: dict[str, Any]) -> None:
+    """Verify specific phase marker appears in output.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("I should see progress bars with counts and percentages")
+def check_progress_bars_with_counts(context: dict[str, Any]) -> None:
+    """Verify progress bars show counts (N/M) and percentages.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("I should NOT see progress bars or phase markers")
+def check_no_progress_bars(context: dict[str, Any]) -> None:
+    """Verify quiet mode shows no progress indicators.
+
+    STUBBED: Implement in TASK-0001.4.5.4
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.4")
+
+
+@given("I have previously indexed a repository")
+def setup_previously_indexed_repo(e2e_git_repo_factory, context: dict[str, Any]) -> None:
+    """Create and index a repository for cache testing.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@when(parsers.parse('I run "{command}" again with {percent:d}% cached blobs'))
+def run_command_with_cache(
+    command: str, percent: int, e2e_cli_runner, context: dict[str, Any], monkeypatch
+) -> None:
+    """Re-run indexing with partial cache hits.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then(parsers.parse('embedding phase should show "{pattern}"'))
+def check_embedding_phase_output(pattern: str, context: dict[str, Any]) -> None:
+    """Verify embedding phase displays expected output pattern.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("saved cost should equal sum of cached embedding costs")
+def check_cache_savings_correct(context: dict[str, Any]) -> None:
+    """Verify cache savings calculation is accurate.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@given("I am indexing a large repository")
+def setup_large_repo(e2e_git_repo_factory, context: dict[str, Any]) -> None:
+    """Create large repository for throughput/ETA testing.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@when("embedding phase starts")
+def wait_for_embedding_phase(context: dict[str, Any]) -> None:
+    """Wait for embedding phase to begin.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("ETA should update every second based on current throughput")
+def check_eta_updates(context: dict[str, Any]) -> None:
+    """Verify ETA updates dynamically based on throughput.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then(parsers.parse("throughput should be calculated from last {n:d} blobs processed"))
+def check_throughput_window(n: int, context: dict[str, Any]) -> None:
+    """Verify throughput uses rolling window of N blobs.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then(parsers.parse("embedding phase should calculate throughput over min(100, {n:d}) blobs"))
+def check_throughput_min_window(n: int, context: dict[str, Any]) -> None:
+    """Verify throughput handles small repos correctly.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then(parsers.parse('throughput should show "{metric}" metric'))
+def check_throughput_metric(metric: str, context: dict[str, Any]) -> None:
+    """Verify throughput displays correct metric unit.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("progress bar should complete without division-by-zero errors")
+def check_no_division_errors(context: dict[str, Any]) -> None:
+    """Verify small repos don't cause division-by-zero errors.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("I should see progress bars for walking, embedding, and saving phases")
+def check_all_phase_progress_bars(context: dict[str, Any]) -> None:
+    """Verify all three phases show progress bars.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("each progress bar should overwrite the previous line (no scrolling)")
+def check_progress_bar_no_scroll(context: dict[str, Any]) -> None:
+    """Verify progress bars overwrite instead of scrolling.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("the final statistics should display after completion")
+def check_final_statistics_display(context: dict[str, Any]) -> None:
+    """Verify statistics display after all phases complete.
+
+    STUBBED: Implement in TASK-0001.4.5.3
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.3")
+
+
+@then("indexing should complete successfully")
+def check_indexing_success(context: dict[str, Any]) -> None:
+    """Verify indexing completed without errors.
+
+    STUBBED: Implement in TASK-0001.4.5.4
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.4")
+
+
+@then("output file should contain phase markers without ANSI codes")
+def check_output_file_no_ansi(context: dict[str, Any]) -> None:
+    """Verify redirected output has no ANSI escape codes.
+
+    STUBBED: Implement in TASK-0001.4.5.4
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.4")
+
+
+@then("no progress bars should be written")
+def check_no_progress_bars_written(context: dict[str, Any]) -> None:
+    """Verify no progress bars in non-TTY output.
+
+    STUBBED: Implement in TASK-0001.4.5.4
+    """
+    raise NotImplementedError("Step not implemented - TASK-0001.4.5.4")
