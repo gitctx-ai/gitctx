@@ -11,10 +11,16 @@ BDD tests validate complete user workflow (index → search → format → outpu
 from __future__ import annotations
 
 import re
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
+import pytest
 import yaml
 from pytest_bdd import given, parsers, then, when
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 # ============================================================================
 # Given Steps - Test Data Setup
@@ -24,10 +30,10 @@ from pytest_bdd import given, parsers, then, when
 @given(parsers.parse('an indexed repository with files containing "{keyword}" keyword'))
 def indexed_repo_with_keyword(
     keyword: str,
-    e2e_indexed_repo_factory,
-    e2e_session_api_key,
+    e2e_indexed_repo_factory: Callable[..., Path],
+    e2e_session_api_key: str,
     context: dict[str, Any],
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Create and index a repository with files containing the specified keyword.
 
@@ -103,10 +109,10 @@ class {keyword.capitalize()}Helper:
 
 @given("an indexed repository with multiple files")
 def indexed_repo_with_multiple_files(
-    e2e_indexed_repo_factory,
-    e2e_session_api_key,
+    e2e_indexed_repo_factory: Any,
+    e2e_session_api_key: str,
     context: dict[str, Any],
-    monkeypatch,
+    monkeypatch: Any,
 ) -> None:
     """Create and index a repository with multiple files for filtering tests.
 
@@ -181,7 +187,9 @@ def validate_email(email):
 
 
 @when(parsers.parse('I search for "{query}"'))
-def search_for_query(query: str, e2e_cli_runner, context: dict[str, Any], monkeypatch) -> None:
+def search_for_query(
+    query: str, e2e_cli_runner: Any, context: dict[str, Any], monkeypatch: Any
+) -> None:
     """Execute a search command with the specified query.
 
     This is a generic search step that runs with default settings.
@@ -195,21 +203,24 @@ def search_for_query(query: str, e2e_cli_runner, context: dict[str, Any], monkey
         monkeypatch.chdir(repo_path)
 
     # Run search with default settings
-    # Use --min-similarity=0.0 to ensure we get results (BDD smoke test)
+    # Use --min-similarity=-1.0 to ensure we get ALL results (BDD smoke test)
+    # Note: 0.0 excludes results due to >= threshold check, -1.0 gets everything
     # Environment (API key) is automatically merged from context["custom_env"]
-    result = e2e_cli_runner.invoke(app, ["search", query, "--min-similarity=0.0"])
+    result = e2e_cli_runner.invoke(app, ["search", query, "--min-similarity=-1.0"])
 
     # DON'T clear custom_env - we need it for subsequent searches in the scenario
 
     # Store result for later steps
     context["result"] = result
     context["stdout"] = result.stdout
+    context["terse_output"] = result.stdout  # Also store as terse_output for format comparison
+    context["query"] = query  # Store query for multi-format testing
     context["exit_code"] = result.exit_code
 
 
 @when(parsers.parse('I search for "{query}" with default format (terse)'))
 def search_with_default_format(
-    query: str, e2e_cli_runner, context: dict[str, Any], monkeypatch
+    query: str, e2e_cli_runner: Any, context: dict[str, Any], monkeypatch: Any
 ) -> None:
     """Execute a search command using the default terse format.
 
@@ -223,9 +234,10 @@ def search_with_default_format(
         monkeypatch.chdir(repo_path)
 
     # Run search with default format (terse)
-    # Use --min-similarity=0.0 to ensure we get results (BDD smoke test)
+    # Use --min-similarity=-1.0 to ensure we get ALL results (BDD smoke test)
+    # Note: 0.0 excludes results due to >= threshold check, -1.0 gets everything
     # Environment (API key) is automatically merged from context["custom_env"]
-    result = e2e_cli_runner.invoke(app, ["search", query, "--min-similarity=0.0"])
+    result = e2e_cli_runner.invoke(app, ["search", query, "--min-similarity=-1.0"])
 
     # DON'T clear custom_env - we need it for subsequent searches in the scenario
 
@@ -237,7 +249,7 @@ def search_with_default_format(
 
 @when(parsers.parse('I search for "{query}" with --format={format}'))
 def search_with_format(
-    query: str, format: str, e2e_cli_runner, context: dict[str, Any], monkeypatch
+    query: str, format: str, e2e_cli_runner: Any, context: dict[str, Any], monkeypatch: Any
 ) -> None:
     """Execute a search command with a specific output format.
 
@@ -251,10 +263,11 @@ def search_with_format(
         monkeypatch.chdir(repo_path)
 
     # Run search with specified format
-    # Use --min-similarity=0.0 to ensure we get results (BDD smoke test)
+    # Use --min-similarity=-1.0 to ensure we get ALL results (BDD smoke test)
+    # Note: 0.0 excludes results due to >= threshold check, -1.0 gets everything
     # Environment (API key) is automatically merged from context["custom_env"]
     result = e2e_cli_runner.invoke(
-        app, ["search", query, f"--format={format}", "--min-similarity=0.0"]
+        app, ["search", query, f"--format={format}", "--min-similarity=-1.0"]
     )
 
     # DON'T clear custom_env - we might need it for subsequent searches in the scenario
@@ -268,7 +281,7 @@ def search_with_format(
 
 @when(parsers.parse("I search with --min-similarity={threshold:f}"))
 def search_with_similarity_threshold(
-    threshold: float, e2e_cli_runner, context: dict[str, Any], monkeypatch
+    threshold: float, e2e_cli_runner: Any, context: dict[str, Any], monkeypatch: Any
 ) -> None:
     """Execute a search command with a similarity threshold filter.
 
@@ -371,18 +384,41 @@ def chunks_under_file_headers(context: dict[str, Any]) -> None:
 
 
 @then("this behavior should be consistent across terse, verbose, and MCP formats")
-def consistent_across_formats(context: dict[str, Any]) -> None:
+def consistent_across_formats(
+    context: dict[str, Any], e2e_cli_runner: Any, monkeypatch: Any
+) -> None:
     """Verify that file grouping works in all three output formats.
 
-    Smoke test: Checks all formats show file grouping, not exact output strings.
+    Smoke test: Runs search in all 3 formats, verifies all show file grouping.
     """
-    # All three outputs should be available in context
+    from gitctx.cli.main import app  # noqa: PLC0415
+
+    # Terse output should already exist from the "When I search for X" step
     terse_output = context.get("terse_output", "")
-    verbose_output = context.get("verbose_output", "")
-    mcp_output = context.get("mcp_output", "")
+    assert terse_output, "Terse format should produce output (from previous step)"
+
+    # Run verbose and MCP searches to verify they also work
+    repo_path = context.get("repo_path")
+    if repo_path:
+        monkeypatch.chdir(repo_path)
+
+    # Get the original query from context (stored by previous steps)
+    # Use "auth" as fallback if not found
+    query = context.get("query", "auth")
+
+    # Run verbose search
+    verbose_result = e2e_cli_runner.invoke(
+        app, ["search", query, "--format=verbose", "--min-similarity=-1.0"]
+    )
+    verbose_output = verbose_result.stdout
+
+    # Run MCP search
+    mcp_result = e2e_cli_runner.invoke(
+        app, ["search", query, "--format=mcp", "--min-similarity=-1.0"]
+    )
+    mcp_output = mcp_result.stdout
 
     # Verify all formats produced output
-    assert terse_output, "Terse format should produce output"
     assert verbose_output, "Verbose format should produce output"
     assert mcp_output, "MCP format should produce output"
 
@@ -391,15 +427,7 @@ def consistent_across_formats(context: dict[str, Any]) -> None:
     assert terse_output != mcp_output, "Terse and MCP should differ"
     assert verbose_output != mcp_output, "Verbose and MCP should differ"
 
-    # Each format should show file grouping in its own way:
-    # - Terse: file headers followed by single-line chunks
-    # - Verbose: file headers (bold) followed by multi-line code blocks
-    # - MCP: YAML frontmatter with files array + Markdown body with file headers
-
-    # All formats should reference files (smoke test for grouping)
-    # We don't check exact file names, just that files are mentioned
-    assert len(terse_output) > 0, "Terse should have content"
-    assert len(verbose_output) > 0, "Verbose should have content"
+    # Each format should show file grouping in its own way
     assert "files:" in mcp_output, "MCP should have 'files:' in YAML frontmatter"
 
 
