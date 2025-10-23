@@ -1,4 +1,4 @@
-"""Unit tests for FormatterBase class.
+"""Unit tests for filter_and_group_results function.
 
 Tests validate shared filtering and grouping logic:
 - Chunks filtered by similarity threshold (min_similarity parameter, default 0.5)
@@ -10,14 +10,8 @@ Tests validate shared filtering and grouping logic:
 
 import pytest
 
-from gitctx.formatters.base import FormatterBase
+from gitctx.formatters.base import filter_and_group_results
 from gitctx.indexing.types import SearchResult
-
-
-@pytest.fixture
-def formatter_base():
-    """Create FormatterBase instance for testing."""
-    return FormatterBase()
 
 
 @pytest.fixture
@@ -87,9 +81,9 @@ def mock_results():
     ]
 
 
-def test_filter_and_group_groups_chunks_by_path(formatter_base, mock_results):
+def test_filter_and_group_groups_chunks_by_path(mock_results):
     """Test that chunks are grouped by file_path."""
-    grouped = formatter_base._filter_and_group(mock_results)
+    grouped = filter_and_group_results(mock_results)
 
     assert "file_a.py" in grouped
     assert "file_b.py" in grouped
@@ -97,7 +91,7 @@ def test_filter_and_group_groups_chunks_by_path(formatter_base, mock_results):
     assert len(grouped["file_b.py"]) == 1
 
 
-def test_filter_and_group_does_not_sort_chunks_within_file(formatter_base):
+def test_filter_and_group_does_not_sort_chunks_within_file():
     """Test that chunks within a file remain in original order (NOT sorted)."""
     results = [
         SearchResult(
@@ -162,7 +156,7 @@ def test_filter_and_group_does_not_sort_chunks_within_file(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results)
+    grouped = filter_and_group_results(results)
 
     # Chunks should remain in original order: low (0.5), high (0.9), medium (0.7)
     chunks = grouped["test.py"]
@@ -171,7 +165,7 @@ def test_filter_and_group_does_not_sort_chunks_within_file(formatter_base):
     assert chunks[2].hybrid_score == 0.7
 
 
-def test_filter_and_group_sorts_files_by_best_chunk_score(formatter_base):
+def test_filter_and_group_sorts_files_by_best_chunk_score():
     """Test that files are sorted by their best chunk score (descending)."""
     results = [
         SearchResult(
@@ -216,7 +210,7 @@ def test_filter_and_group_sorts_files_by_best_chunk_score(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results)
+    grouped = filter_and_group_results(results)
 
     # Files should be sorted: file_a.py (0.95) before file_b.py (0.85)
     file_paths = list(grouped.keys())
@@ -224,7 +218,7 @@ def test_filter_and_group_sorts_files_by_best_chunk_score(formatter_base):
     assert file_paths[1] == "file_b.py"
 
 
-def test_filter_and_group_filters_by_min_similarity(formatter_base):
+def test_filter_and_group_filters_by_min_similarity():
     """Test that chunks below min_similarity threshold are filtered out."""
     results = [
         SearchResult(
@@ -289,7 +283,7 @@ def test_filter_and_group_filters_by_min_similarity(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results, min_similarity=0.5)
+    grouped = filter_and_group_results(results, min_similarity=0.5)
 
     # Only 2 chunks should pass: 0.95 and 0.60 (>= 0.5)
     chunks = grouped["test.py"]
@@ -298,7 +292,7 @@ def test_filter_and_group_filters_by_min_similarity(formatter_base):
     assert chunks[1].hybrid_score == 0.60
 
 
-def test_filter_and_group_removes_empty_files_after_filtering(formatter_base):
+def test_filter_and_group_removes_empty_files_after_filtering():
     """Test that files with no chunks after filtering are omitted entirely."""
     results = [
         SearchResult(
@@ -363,7 +357,7 @@ def test_filter_and_group_removes_empty_files_after_filtering(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results, min_similarity=0.5)
+    grouped = filter_and_group_results(results, min_similarity=0.5)
 
     # file_a.py should be completely removed (all chunks < 0.5)
     # file_b.py should remain (has 1 chunk >= 0.5)
@@ -372,7 +366,7 @@ def test_filter_and_group_removes_empty_files_after_filtering(formatter_base):
     assert len(grouped["file_b.py"]) == 1
 
 
-def test_filter_and_group_default_min_similarity_is_0_5(formatter_base):
+def test_filter_and_group_default_min_similarity_is_0_5():
     """Test that default min_similarity is 0.5."""
     results = [
         SearchResult(
@@ -418,7 +412,7 @@ def test_filter_and_group_default_min_similarity_is_0_5(formatter_base):
     ]
 
     # Call without min_similarity parameter (should default to 0.5)
-    grouped = formatter_base._filter_and_group(results)
+    grouped = filter_and_group_results(results)
 
     # Only chunk with score >= 0.5 should remain
     chunks = grouped["test.py"]
@@ -426,7 +420,7 @@ def test_filter_and_group_default_min_similarity_is_0_5(formatter_base):
     assert chunks[0].hybrid_score == 0.6
 
 
-def test_filter_and_group_negative_similarity_allowed(formatter_base):
+def test_filter_and_group_negative_similarity_allowed():
     """Test that negative similarity values are allowed (range -1.0 to 1.0)."""
     results = [
         SearchResult(
@@ -492,7 +486,7 @@ def test_filter_and_group_negative_similarity_allowed(formatter_base):
     ]
 
     # Use min_similarity=-1.0 to allow all scores including negative
-    grouped = formatter_base._filter_and_group(results, min_similarity=-1.0)
+    grouped = filter_and_group_results(results, min_similarity=-1.0)
 
     # All 3 chunks should be included (including negative score)
     chunks = grouped["test.py"]
@@ -502,7 +496,7 @@ def test_filter_and_group_negative_similarity_allowed(formatter_base):
     assert chunks[2].hybrid_score == -0.3
 
 
-def test_filter_and_group_filter_mode_head(formatter_base):
+def test_filter_and_group_filter_mode_head():
     """Test filter_mode='head' only returns is_head=True chunks."""
     results = [
         SearchResult(
@@ -547,7 +541,7 @@ def test_filter_and_group_filter_mode_head(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results, filter_mode="head")
+    grouped = filter_and_group_results(results, filter_mode="head")
 
     # Only is_head=True chunk should be included
     chunks = grouped["test.py"]
@@ -556,7 +550,7 @@ def test_filter_and_group_filter_mode_head(formatter_base):
     assert chunks[0].chunk_content == "head chunk"
 
 
-def test_filter_and_group_filter_mode_history(formatter_base):
+def test_filter_and_group_filter_mode_history():
     """Test filter_mode='history' only returns is_head=False chunks."""
     results = [
         SearchResult(
@@ -601,7 +595,7 @@ def test_filter_and_group_filter_mode_history(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results, filter_mode="history")
+    grouped = filter_and_group_results(results, filter_mode="history")
 
     # Only is_head=False chunk should be included
     chunks = grouped["test.py"]
@@ -610,7 +604,7 @@ def test_filter_and_group_filter_mode_history(formatter_base):
     assert chunks[0].chunk_content == "history chunk"
 
 
-def test_filter_and_group_filter_mode_all(formatter_base):
+def test_filter_and_group_filter_mode_all():
     """Test filter_mode='all' returns both is_head=True and is_head=False chunks."""
     results = [
         SearchResult(
@@ -655,7 +649,7 @@ def test_filter_and_group_filter_mode_all(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results, filter_mode="all")
+    grouped = filter_and_group_results(results, filter_mode="all")
 
     # Both chunks should be included
     chunks = grouped["test.py"]
@@ -664,14 +658,14 @@ def test_filter_and_group_filter_mode_all(formatter_base):
     assert chunks[1].is_head is False
 
 
-def test_filter_and_group_empty_results(formatter_base):
+def test_filter_and_group_empty_results():
     """Test that empty results list returns empty dict."""
-    grouped = formatter_base._filter_and_group([])
+    grouped = filter_and_group_results([])
 
     assert grouped == {}
 
 
-def test_filter_and_group_single_chunk_per_file(formatter_base):
+def test_filter_and_group_single_chunk_per_file():
     """Test correct grouping when each file has exactly 1 chunk."""
     results = [
         SearchResult(
@@ -716,7 +710,7 @@ def test_filter_and_group_single_chunk_per_file(formatter_base):
         ),
     ]
 
-    grouped = formatter_base._filter_and_group(results)
+    grouped = filter_and_group_results(results)
 
     # 2 files, each with 1 chunk
     assert len(grouped) == 2
