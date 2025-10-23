@@ -1,9 +1,9 @@
 # STORY-0001.4.3: File-Grouped Result Presentation
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🟡 In Progress
+**Status**: 🟢 Complete
 **Story Points**: 4 (16 hours estimated = 4 points)
-**Progress**: ████████░░ 88% (14/16 hours, 4/5 tasks)
+**Progress**: ████████████████████ 100% (19.5/16 hours, 5/5 tasks)
 
 ## User Story
 
@@ -15,36 +15,36 @@ So that I understand the current file context and can see matching chunks organi
 
 ### File Grouping (All Formats)
 
-- [ ] Search results grouped by `file_path` before display
-- [ ] **NEW --filter flag** added to search command (default: head):
+- [x] Search results grouped by `file_path` before display
+- [x] **NEW --filter flag** added to search command (default: head):
   - CLI implementation: `src/gitctx/cli/search.py` (added in TASK-0001.4.3.2)
   - `--filter=head`: Show only HEAD chunks (is_head == true) [DEFAULT]
   - `--filter=history`: Show only historical chunks (is_head == false)
   - `--filter=all`: Show both HEAD and historical chunks
   - Passed to formatters via kwargs: `format(results, console, filter='head', min_similarity=0.5, ...)`
   - FormatterBase._filter_and_group() receives filter_mode parameter
-- [ ] All formatters filter chunks by minimum similarity threshold (default: 0.5, configurable via --min-similarity flag, existing in CLI)
-- [ ] **Files with zero chunks after filtering are completely omitted** (no header, no empty section)
-- [ ] Chunk count uses proper singular/plural: `(1 chunk)` vs `(2 chunks)`
-- [ ] **SearchResult.score property** added to simplify formatter code:
+- [x] All formatters filter chunks by minimum similarity threshold (default: 0.5, configurable via --min-similarity flag, existing in CLI)
+- [x] **Files with zero chunks after filtering are completely omitted** (no header, no empty section)
+- [x] Chunk count uses proper singular/plural: `(1 chunk)` vs `(2 chunks)`
+- [x] **SearchResult.score property** added to simplify formatter code:
   - Returns `hybrid_score` (if available) or `vector_score` (fallback) or 0.0
   - Formatters use `chunk.score` instead of explicit field selection
   - Property added in TASK-0001.4.3.2 alongside FormatterBase
-- [ ] --min-similarity flag validation (in CLI layer, src/gitctx/cli/search.py):
+- [x] --min-similarity flag validation (in CLI layer, src/gitctx/cli/search.py):
   - Accept float values -1.0 to 1.0 (inclusive)
   - Reject values < -1.0 or > 1.0 with error: "Error: --min-similarity must be between -1.0 and 1.0 (got: {value})" and exit code 2
   - Reject non-numeric values with error: "Error: --min-similarity must be a number (got: {value})" and exit code 2
   - Convert to max_distance for LanceDB: max_distance = 1.0 - min_similarity
   - FormatterBase._filter_and_group() receives min_similarity value, filters on SearchResult.score property
-- [ ] Edge cases: similarity=-1.0 shows all chunks (including opposite meaning), similarity=1.0 shows only perfect matches (similarity = 1.0)
-- [ ] Files sorted by best chunk's boosted score (highest scoring chunk determines file rank)
+- [x] Edge cases: similarity=-1.0 shows all chunks (including opposite meaning), similarity=1.0 shows only perfect matches (similarity = 1.0)
+- [x] Files sorted by best chunk's boosted score (highest scoring chunk determines file rank)
 
 ### Terse Format (Score-Focused)
 
-- [ ] Chunks sorted by score descending within each file (best matches first for quick scanning)
+- [x] Chunks sorted by score descending within each file (best matches first for quick scanning)
   - Tie-breaking: score descending → line number ascending → content lexicographically
   - Handles edge case: identical scores at same line number (e.g., duplicate chunks)
-- [ ] One line per chunk format: `:LINE_NUM  SCORE  PREVIEW`
+- [x] One line per chunk format: `:LINE_NUM  SCORE  PREVIEW`
   - File header: `src/auth.py (3 chunks):`
   - Preview: first line only, max 80 chars, add '...' if truncated
   - Score shown prominently for relevance scanning
@@ -61,14 +61,14 @@ So that I understand the current file context and can see matching chunks organi
 
 ### Verbose Format (Code-Reading)
 
-- [ ] Chunks sorted by line order ascending within each file (natural reading order)
+- [x] Chunks sorted by line order ascending within each file (natural reading order)
   - Tie-breaking: line number ascending → score descending → content lexicographically
   - Ensures stable sort even with duplicate metadata (e.g., multiple chunks at line 0)
-- [ ] Best-scoring chunk marked with comment-style indicator (copy-pasteable):
+- [x] Best-scoring chunk marked with comment-style indicator (copy-pasteable):
   - Best chunk: `# {SYMBOLS["best_match"]} Lines 45-60 (score: 0.95, best match)` (⭐ on modern terminals, * on legacy)
   - Other chunks: `# Lines 10-20 (score: 0.75)`
   - Uses `SYMBOLS["best_match"]` from `gitctx.cli.symbols` for platform-aware rendering
-- [ ] All chunks shown with full syntax highlighting
+- [x] All chunks shown with full syntax highlighting
   - File header: `src/auth.py (3 chunks)` (bold, no colon)
 
 ### MCP Format (LLM-Optimized YAML + Markdown)
@@ -81,16 +81,16 @@ So that I understand the current file context and can see matching chunks organi
 - MCP spec emphasizes "format for LLM consumption" - YAML/Markdown excels here
 
 **Format Structure**:
-- [ ] YAML frontmatter with file-grouped metadata (between `---` markers)
+- [x] YAML frontmatter with file-grouped metadata (between `---` markers)
   - `files` array with one entry per file (not per chunk)
   - Each file entry: `file_path`, `language`, `chunks` (count), `best_score`
   - Files sorted by `best_score` descending (most relevant first)
-- [ ] Markdown body with file-grouped code blocks
+- [x] Markdown body with file-grouped code blocks
   - File headers: `## {file_path} ({N} chunks)`
   - Chunk headers: `**Lines X-Y** | **Score:** Z.ZZZ`
   - Code blocks with language tags for syntax highlighting
   - Chunks sorted by score descending within each file (best first)
-- [ ] All chunks filtered by `min_similarity` and `filter_mode` (head/history/all)
+- [x] All chunks filtered by `min_similarity` and `filter_mode` (head/history/all)
 
 **Design Rationale**:
 - **YAML frontmatter**: Provides parseable metadata for programmatic consumers
@@ -101,12 +101,12 @@ So that I understand the current file context and can see matching chunks organi
 
 ### Test Coverage
 
-- [ ] Test coverage complete:
-  - [ ] 55+ unit tests passing (18+ base, 15+ terse, 12+ verbose, 10+ MCP)
-  - [ ] 3/3 BDD scenarios passing (file grouping, format selection, filtering)
-  - [ ] >90% code coverage on all formatters
-  - [ ] 100% coverage on SearchResult.score property
-  - [ ] 100% coverage on CLI --filter flag
+- [x] Test coverage complete:
+  - [x] 55+ unit tests passing (18+ base, 15+ terse, 12+ verbose, 10+ MCP)
+  - [x] 3/3 BDD scenarios passing (file grouping, format selection, filtering)
+  - [x] >90% code coverage on all formatters
+  - [x] 100% coverage on SearchResult.score property
+  - [x] 100% coverage on CLI --filter flag
 
 ## BDD Scenarios
 
@@ -555,10 +555,10 @@ def authenticate_user(username, password):
 | [TASK-0001.4.3.1](TASK-0001.4.3.1.md) | Write 3 BDD Smoke Test Scenarios | ✅ Complete | 2 | 0/3 (all stubbed) |
 | [TASK-0001.4.3.2](TASK-0001.4.3.2.md) | Create FormatterBase with _filter_and_group() (TDD + BDD steps) | ✅ Complete | 4 | 0/3 (BDD deferred) |
 | [TASK-0001.4.3.3](TASK-0001.4.3.3.md) | Update TerseFormatter with Score Sorting (TDD - unit tests only) | ✅ Complete | 4 | 0/3 (BDD deferred) |
-| [TASK-0001.4.3.4](TASK-0001.4.3.4.md) | Update VerboseFormatter with Line Order + Best-Match Indicator (TDD - unit tests only) | 🔵 Not Started | 3 | 0/3 (BDD deferred) |
-| [TASK-0001.4.3.5](TASK-0001.4.3.5.md) | Enhance MCPFormatter with File Grouping (YAML+Markdown, TDD + final BDD integration) | 🔵 Not Started | 3 | 3/3 passing ✅ |
+| [TASK-0001.4.3.4](TASK-0001.4.3.4.md) | Update VerboseFormatter with Line Order + Best-Match Indicator (TDD - unit tests only) | ✅ Complete | 4.5 | 0/3 (BDD deferred) |
+| [TASK-0001.4.3.5](TASK-0001.4.3.5.md) | Enhance MCPFormatter with File Grouping (YAML+Markdown, TDD + final BDD integration) | ✅ Complete | 5 | 3/3 passing ✅ |
 
-**Total Hours**: 16 (4 story points at 4h/point) - **24% faster than BDD-heavy approach**
+**Total Hours**: 19.5 (4 story points at 4h/point) - actual 19.5h vs estimated 16h
 
 **Testing Strategy:**
 - **Unit tests** (20+ tests): Fast, deterministic validation of format strings, sorting, edge cases
