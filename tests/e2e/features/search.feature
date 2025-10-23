@@ -143,7 +143,7 @@ Feature: Query Embedding for Semantic Search
     And environment variable "OPENAI_API_KEY" is "$ENV"
     When I run "gitctx search authentication --min-similarity -1.0"
     Then the exit code should be 0
-    And each line should match pattern: ".*:\d+:\d\.\d\d .*"
+    And each line should match pattern: ":\d+\s+\d\.\d+\s+.*"
     And output should contain commit SHA
     And output should contain author name
     And output should contain commit date

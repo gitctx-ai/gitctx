@@ -10,6 +10,59 @@ from pytest_bdd import given, parsers, then, when
 
 from gitctx.cli.main import app
 
+# ===== Helper Functions =====
+
+
+def parse_file_paths_from_terse_output(stdout: str) -> list[str]:
+    """Parse file paths from terse output (handles both old and new file-grouped format).
+
+    NEW file-grouped format (TASK-0001.4.3):
+        File headers: "src/auth.py (N chunk):"
+        Chunk lines: "  :1  0.05  🟢sha  content"
+
+    OLD terse format (legacy):
+        "file_path:line:score marker sha (date, author) message"
+        Example: "src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) \"Add OAuth\""
+
+    Args:
+        stdout: CLI output from search command
+
+    Returns:
+        List of file paths in order of appearance
+    """
+    lines = stdout.split("\n")
+    file_paths = []
+
+    for line in lines:
+        original_line = line
+        line = line.strip()  # noqa: PLW2901
+
+        # Skip empty lines and summary/tip lines
+        if not line or "results in" in line or line.startswith("💡"):
+            continue
+
+        # NEW format: File headers end with "(N chunk):" or "(N chunks):"
+        # Example: "src/auth/middleware.py (1 chunk):"
+        if re.search(r"\(\d+\s+chunks?\):$", line):
+            # Extract file path (everything before " (N chunk):")
+            file_path = re.sub(r"\s+\(\d+\s+chunks?\):$", "", line)
+            if file_path:
+                file_paths.append(file_path)
+            continue
+
+        # Skip indented chunk lines from NEW format (start with whitespace in original)
+        if original_line.startswith((" ", "\t")):
+            continue
+
+        # OLD format: Extract file path (everything before first colon)
+        if ":" in line:
+            file_path = line.split(":")[0]
+            if file_path:  # Non-empty path
+                file_paths.append(file_path)
+
+    return file_paths
+
+
 # ===== Background Steps =====
 
 
@@ -134,21 +187,8 @@ def check_first_result(expected_file: str, context: dict[str, Any]) -> None:
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
-    # Parse search output for file paths
-    # Terse format: "file_path:line:score marker sha (date, author) message"
-    # Example: "src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) \"Add OAuth\""
-    lines = stdout.split("\n")
-    file_paths = []
-    for line in lines:
-        line = line.strip()  # noqa: PLW2901
-        # Skip empty lines and summary line
-        if not line or "results in" in line or line.startswith("💡"):
-            continue
-        # Extract file path (everything before first colon)
-        if ":" in line:
-            file_path = line.split(":")[0]
-            if file_path:  # Non-empty path
-                file_paths.append(file_path)
+    # Parse file paths from output (handles both old and new file-grouped format)
+    file_paths = parse_file_paths_from_terse_output(stdout)
 
     # Verify at least one result
     assert len(file_paths) > 0, f"No search results found in output:\n{stdout}"
@@ -218,21 +258,8 @@ def check_results_include_both(file1: str, file2: str, context) -> None:
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
-    # Parse search output for file paths
-    # Terse format: "file_path:line:score marker sha (date, author) message"
-    # Example: "src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) \"Add OAuth\""
-    lines = stdout.split("\n")
-    file_paths = []
-    for line in lines:
-        line = line.strip()  # noqa: PLW2901
-        # Skip empty lines and summary line
-        if not line or "results in" in line or line.startswith("💡"):
-            continue
-        # Extract file path (everything before first colon)
-        if ":" in line:
-            file_path = line.split(":")[0]
-            if file_path:  # Non-empty path
-                file_paths.append(file_path)
+    # Parse file paths from output (handles both old and new file-grouped format)
+    file_paths = parse_file_paths_from_terse_output(stdout)
 
     # Verify both files are present
     assert file1 in file_paths, (
@@ -266,20 +293,8 @@ def check_results_include_file(file_path: str, context) -> None:
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
-    # Parse search output for file paths
-    # Terse format: "file_path:line:score marker sha (date, author) message"
-    lines = stdout.split("\n")
-    file_paths = []
-    for line in lines:
-        line = line.strip()  # noqa: PLW2901
-        # Skip empty lines and summary line
-        if not line or "results in" in line or line.startswith("💡"):
-            continue
-        # Extract file path (everything before first colon)
-        if ":" in line:
-            path = line.split(":")[0]
-            if path:  # Non-empty path
-                file_paths.append(path)
+    # Parse file paths from output (handles both old and new file-grouped format)
+    file_paths = parse_file_paths_from_terse_output(stdout)
 
     # Verify file is present
     assert file_path in file_paths, (
@@ -341,21 +356,8 @@ def check_rank_first(expected_file: str, context) -> None:
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
-    # Parse search output for file paths
-    # Terse format: "file_path:line:score marker sha (date, author) message"
-    # Example: "src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) \"Add OAuth\""
-    lines = stdout.split("\n")
-    file_paths = []
-    for line in lines:
-        line = line.strip()  # noqa: PLW2901
-        # Skip empty lines and summary line
-        if not line or "results in" in line or line.startswith("💡"):
-            continue
-        # Extract file path (everything before first colon)
-        if ":" in line:
-            file_path = line.split(":")[0]
-            if file_path:  # Non-empty path
-                file_paths.append(file_path)
+    # Parse file paths from output (handles both old and new file-grouped format)
+    file_paths = parse_file_paths_from_terse_output(stdout)
 
     # Verify at least one result
     assert len(file_paths) > 0, f"No search results found in output:\n{stdout}"
@@ -393,21 +395,8 @@ def check_rank_second(expected_file: str, context) -> None:
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
-    # Parse search output for file paths
-    # Terse format: "file_path:line:score marker sha (date, author) message"
-    # Example: "src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) \"Add OAuth\""
-    lines = stdout.split("\n")
-    file_paths = []
-    for line in lines:
-        line = line.strip()  # noqa: PLW2901
-        # Skip empty lines and summary line
-        if not line or "results in" in line or line.startswith("💡"):
-            continue
-        # Extract file path (everything before first colon)
-        if ":" in line:
-            file_path = line.split(":")[0]
-            if file_path:  # Non-empty path
-                file_paths.append(file_path)
+    # Parse file paths from output (handles both old and new file-grouped format)
+    file_paths = parse_file_paths_from_terse_output(stdout)
 
     # Verify at least two results
     assert len(file_paths) >= 2, (
@@ -448,21 +437,8 @@ def check_rank_lower(file1: str, file2: str, context) -> None:
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
-    # Parse search output for file paths
-    # Terse format: "file_path:line:score marker sha (date, author) message"
-    # Example: "src/auth.py:45:0.92 ● f9e8d7c (2025-10-02, Alice) \"Add OAuth\""
-    lines = stdout.split("\n")
-    file_paths = []
-    for line in lines:
-        line = line.strip()  # noqa: PLW2901
-        # Skip empty lines and summary line
-        if not line or "results in" in line or line.startswith("💡"):
-            continue
-        # Extract file path (everything before first colon)
-        if ":" in line:
-            file_path = line.split(":")[0]
-            if file_path:  # Non-empty path
-                file_paths.append(file_path)
+    # Parse file paths from output (handles both old and new file-grouped format)
+    file_paths = parse_file_paths_from_terse_output(stdout)
 
     # Verify both files are in results
     assert file1 in file_paths, f"File '{file1}' not found in results: {file_paths}"
@@ -507,20 +483,8 @@ def check_jwt_ranks_higher_than_docs(context) -> None:
         f"Search failed with exit code {result.exit_code}:\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}{exception_info}"  # noqa: E501
     )
 
-    # Parse search output for file paths
-    # Terse format: "file_path:line:score marker sha (date, author) message"
-    lines = stdout.split("\n")
-    file_paths = []
-    for line in lines:
-        line = line.strip()  # noqa: PLW2901
-        # Skip empty lines and summary line
-        if not line or "results in" in line or line.startswith("💡"):
-            continue
-        # Extract file path (everything before first colon)
-        if ":" in line:
-            file_path = line.split(":")[0]
-            if file_path:  # Non-empty path
-                file_paths.append(file_path)
+    # Parse file paths from output (handles both old and new file-grouped format)
+    file_paths = parse_file_paths_from_terse_output(stdout)
 
     # Verify we have results
     assert len(file_paths) > 0, f"No search results found in output:\n{stdout}"

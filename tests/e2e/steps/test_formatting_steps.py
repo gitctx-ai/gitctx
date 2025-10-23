@@ -67,6 +67,10 @@ def each_line_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
     Args:
         pattern: Regular expression pattern to match
         context: Shared step context
+
+    Note:
+        Updated for file-grouped terse format (TASK-0001.4.3).
+        Now validates both file headers and indented chunk lines.
     """
 
     stdout = context.get("stdout", "")
@@ -78,8 +82,18 @@ def each_line_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
     # Exclude results summary line (e.g., "2 results in 0.01s")
     result_lines = [line for line in lines if not re.match(r"\d+ results in \d+\.\d+s", line)]
 
+    # File-grouped format has file headers that don't match chunk pattern
+    # Skip file headers like "path (N chunk):" when validating chunk pattern
     for line in result_lines:
-        assert re.match(pattern, line), f"Line '{line}' does not match pattern '{pattern}'"
+        # Skip file headers (they don't match chunk pattern by design)
+        if re.search(r"\(\d+\s+chunks?\):$", line):
+            continue
+
+        # Validate chunk lines (indented with :LINE pattern)
+        # Pattern like ".*:\d+:\d\.\d\d .*" matches chunk lines
+        assert re.match(pattern, line.strip()), (
+            f"Line '{line.strip()}' does not match pattern '{pattern}'"
+        )
 
 
 @then("output should contain commit SHA")
@@ -252,13 +266,18 @@ def output_starts_with_yaml_delimiter(context: dict[str, Any]) -> None:
 
 @then('output should contain "results:"')
 def output_contains_results_key(context: dict[str, Any]) -> None:
-    """Verify output contains 'results:' YAML key.
+    """Verify output contains file grouping metadata in YAML frontmatter.
 
     Args:
         context: Shared step context
+
+    Note:
+        Updated for file-grouped MCP format (TASK-0001.4.3).
+        Now expects "files:" key instead of "results:" key.
     """
     stdout = context.get("stdout", "")
-    assert "results:" in stdout, f"Expected 'results:' in output, got: {stdout[:200]}"
+    # File-grouped format uses "files:" instead of "results:"
+    assert "files:" in stdout, f"Expected 'files:' in YAML frontmatter, got: {stdout[:200]}"
 
 
 @then("YAML frontmatter should parse successfully")

@@ -26,7 +26,8 @@ Feature: File-Grouped Result Presentation
     Then I see full code blocks with ANSI color codes
     And output contains escape sequences for syntax highlighting
     When I search for "login" with --format=mcp
-    Then I get valid JSON with chunks array
+    Then I get valid YAML frontmatter with file metadata
+    And I see Markdown code blocks grouped by file
 
   # Scenario 3: Score filtering removes low-scoring chunks (Smoke Test)
   # Tests that the --min-similarity threshold correctly filters out low-scoring chunks
