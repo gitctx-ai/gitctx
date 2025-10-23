@@ -2,8 +2,8 @@
 
 **Parent Initiative**: [INIT-0001](../README.md)
 **Status**: 🟡 In Progress
-**Estimated**: 18 story points
-**Progress**: ░░░░░░░░░░ 0% (0/18 points complete)
+**Estimated**: 17 story points
+**Progress**: ████████████░ 71% (12/17 points complete)
 
 ## Overview
 
@@ -28,11 +28,11 @@ This epic delivers 5 focused stories, each addressing a specific MVP viability g
 |---|-------------|--------|---------------------|--------------|
 | 1 | Hybrid Search with Protocol Design | 3 | Enable BM25 + vector search | None (start immediately) |
 | 2 | Recency & Relevance Boosting | 3 | Boost HEAD code 2x | Story 1 (extends hybrid) |
-| 3 | File-Grouped Result Presentation | 5 | Present results as files | Story 2 (uses boosted scores) |
+| 3 | File-Grouped Result Presentation | 4 | Present results as files | Story 2 (uses boosted scores) |
 | 4 | Safetensors Compression with zstd | 2 | Compress cache 2-3x | None (parallel with Story 1) |
 | 5 | TUI Performance & Usability | 5 | Improve indexing UX | None (independent) |
 
-**Total**: 18 points
+**Total**: 17 points
 
 **Implementation Strategy**:
 - **Week 1**: Stories 1 + 4 in parallel (independent, no blocking)
@@ -43,13 +43,13 @@ This epic delivers 5 focused stories, each addressing a specific MVP viability g
 
 | ID | Title | Status | Points | Priority |
 |----|-------|--------|--------|----------|
-| [STORY-0001.4.1](STORY-0001.4.1/README.md) | Hybrid Search with Protocol Design | 🔵 Not Started | 3 | **CRITICAL** |
-| [STORY-0001.4.2](STORY-0001.4.2/README.md) | Recency & Relevance Boosting | 🔵 Not Started | 3 | **HIGH** |
-| [STORY-0001.4.3](STORY-0001.4.3/README.md) | File-Grouped Result Presentation | 🔵 Not Started | 5 | **HIGH** |
-| [STORY-0001.4.4](STORY-0001.4.4/README.md) | Safetensors Compression with zstd | 🔵 Not Started | 2 | **MEDIUM** |
+| [STORY-0001.4.1](STORY-0001.4.1/README.md) | Hybrid Search with Protocol Design | ✅ Complete | 3 | **CRITICAL** |
+| [STORY-0001.4.2](STORY-0001.4.2/README.md) | Recency & Relevance Boosting | ✅ Complete | 3 | **HIGH** |
+| [STORY-0001.4.3](STORY-0001.4.3/README.md) | File-Grouped Result Presentation | ✅ Complete | 4 | **HIGH** |
+| [STORY-0001.4.4](STORY-0001.4.4/README.md) | Safetensors Compression with zstd | ✅ Complete | 2 | **MEDIUM** |
 | [STORY-0001.4.5](STORY-0001.4.5/README.md) | TUI Performance & Usability | 🔵 Not Started | 5 | **MEDIUM** |
 
-**Total**: 18 story points
+**Total**: 17 story points
 
 ## BDD Specifications
 

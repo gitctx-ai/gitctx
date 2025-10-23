@@ -52,7 +52,7 @@ def test_symbols_modern_terminals():
         assert SYMBOLS["warning"] == "⚠"
         assert SYMBOLS["tip"] == "💡"
         assert SYMBOLS["arrow"] == "→"
-        assert SYMBOLS["head"] == "●"
+        assert SYMBOLS["head"] == "🟢"
 
 
 def test_symbols_legacy_windows_simulation():
@@ -119,7 +119,16 @@ def test_symbols_used_in_cli_commands():
     """Verify symbols module is importable and usable by CLI commands."""
 
     # Symbols should be a dict with all required keys
-    required_keys = {"success", "error", "warning", "tip", "arrow", "head", "spinner_frames"}
+    required_keys = {
+        "success",
+        "error",
+        "warning",
+        "tip",
+        "arrow",
+        "head",
+        "best_match",
+        "spinner_frames",
+    }
     assert set(SYMBOLS.keys()) == required_keys
 
     # All values should be non-empty strings

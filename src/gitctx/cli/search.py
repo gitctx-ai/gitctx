@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Annotated
 
+import click
 import pyarrow as pa
 import typer
 from rich.console import Console
@@ -32,6 +33,10 @@ DEFAULT_SEARCH_LIMIT = 10
 
 # OpenAI embedding token limits
 MAX_QUERY_TOKENS = 8191  # text-embedding-3-* model limit
+
+# Filter mode constants
+FILTER_MODES = ["head", "history", "all"]
+DEFAULT_FILTER_MODE = "head"
 
 
 def _get_query_text(query: list[str] | None) -> str:
@@ -119,6 +124,14 @@ def search_command(
         "--mcp",
         help="Output structured markdown for AI consumption",
     ),
+    filter_mode: Annotated[
+        str,
+        typer.Option(
+            "--filter",
+            click_type=click.Choice(FILTER_MODES, case_sensitive=False),
+            help="Filter chunks by type: head (current), history (past), or all",
+        ),
+    ] = DEFAULT_FILTER_MODE,
     theme: str | None = None,
 ) -> None:
     """
@@ -314,7 +327,13 @@ def search_command(
         results_dicts = [asdict(result) for result in results]
 
         formatter = get_formatter(resolved_format)
-        formatter.format(results_dicts, console, theme=resolved_theme)
+        formatter.format(
+            results_dicts,
+            console,
+            theme=resolved_theme,
+            filter=filter_mode,
+            min_similarity=min_similarity,
+        )
     except ValueError as err:
         # Unknown formatter name
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")
@@ -323,9 +342,23 @@ def search_command(
     # Display results summary with helpful message for zero results
     console.print(f"\n{len(results)} results in {duration:.2f}s")
 
-    if len(results) == 0 and min_similarity > 0.0:
-        console.print(
-            f"\n[yellow]💡 Tip:[/yellow] No results above similarity threshold "
-            f"({min_similarity:.1f}).\n"
-            "   Try a broader query or use [cyan]--min-similarity 0.0[/cyan] to see all results."
-        )
+    # Provide context-aware hints based on filter mode and similarity threshold
+    if len(results) == 0:
+        if filter_mode == "history":
+            console.print(
+                "\n[yellow]💡 Tip:[/yellow] No historical chunks found.\n"
+                "   Try [cyan]--filter=head[/cyan] or [cyan]--filter=all[/cyan]"
+            )
+        elif filter_mode == "head" and min_similarity > 0.0:
+            console.print(
+                f"\n[yellow]💡 Tip:[/yellow] No results above threshold ({min_similarity:.1f}).\n"
+                "   Try [cyan]--min-similarity 0.0[/cyan] or [cyan]--filter=all[/cyan]"
+            )
+        elif min_similarity > 0.0:
+            # Generic hint for --filter=all or other cases
+            console.print(
+                f"\n[yellow]💡 Tip:[/yellow] No results above similarity threshold "
+                f"({min_similarity:.1f}).\n"
+                "   Try a broader query or use [cyan]--min-similarity 0.0[/cyan] "
+                "to see all results."
+            )

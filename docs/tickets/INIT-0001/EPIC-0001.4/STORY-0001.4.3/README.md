@@ -1,9 +1,9 @@
 # STORY-0001.4.3: File-Grouped Result Presentation
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🔵 Not Started
+**Status**: 🟢 Complete
 **Story Points**: 4 (16 hours estimated = 4 points)
-**Progress**: ░░░░░░░░░░ 0%
+**Progress**: ████████████████████ 100% (19.5/16 hours, 5/5 tasks)
 
 ## User Story
 
@@ -15,36 +15,36 @@ So that I understand the current file context and can see matching chunks organi
 
 ### File Grouping (All Formats)
 
-- [ ] Search results grouped by `file_path` before display
-- [ ] **NEW --filter flag** added to search command (default: head):
+- [x] Search results grouped by `file_path` before display
+- [x] **NEW --filter flag** added to search command (default: head):
   - CLI implementation: `src/gitctx/cli/search.py` (added in TASK-0001.4.3.2)
   - `--filter=head`: Show only HEAD chunks (is_head == true) [DEFAULT]
   - `--filter=history`: Show only historical chunks (is_head == false)
   - `--filter=all`: Show both HEAD and historical chunks
   - Passed to formatters via kwargs: `format(results, console, filter='head', min_similarity=0.5, ...)`
   - FormatterBase._filter_and_group() receives filter_mode parameter
-- [ ] All formatters filter chunks by minimum similarity threshold (default: 0.5, configurable via --min-similarity flag, existing in CLI)
-- [ ] **Files with zero chunks after filtering are completely omitted** (no header, no empty section)
-- [ ] Chunk count uses proper singular/plural: `(1 chunk)` vs `(2 chunks)`
-- [ ] **SearchResult.score property** added to simplify formatter code:
+- [x] All formatters filter chunks by minimum similarity threshold (default: 0.5, configurable via --min-similarity flag, existing in CLI)
+- [x] **Files with zero chunks after filtering are completely omitted** (no header, no empty section)
+- [x] Chunk count uses proper singular/plural: `(1 chunk)` vs `(2 chunks)`
+- [x] **SearchResult.score property** added to simplify formatter code:
   - Returns `hybrid_score` (if available) or `vector_score` (fallback) or 0.0
   - Formatters use `chunk.score` instead of explicit field selection
   - Property added in TASK-0001.4.3.2 alongside FormatterBase
-- [ ] --min-similarity flag validation (in CLI layer, src/gitctx/cli/search.py):
+- [x] --min-similarity flag validation (in CLI layer, src/gitctx/cli/search.py):
   - Accept float values -1.0 to 1.0 (inclusive)
   - Reject values < -1.0 or > 1.0 with error: "Error: --min-similarity must be between -1.0 and 1.0 (got: {value})" and exit code 2
   - Reject non-numeric values with error: "Error: --min-similarity must be a number (got: {value})" and exit code 2
   - Convert to max_distance for LanceDB: max_distance = 1.0 - min_similarity
   - FormatterBase._filter_and_group() receives min_similarity value, filters on SearchResult.score property
-- [ ] Edge cases: similarity=-1.0 shows all chunks (including opposite meaning), similarity=1.0 shows only perfect matches (similarity = 1.0)
-- [ ] Files sorted by best chunk's boosted score (highest scoring chunk determines file rank)
+- [x] Edge cases: similarity=-1.0 shows all chunks (including opposite meaning), similarity=1.0 shows only perfect matches (similarity = 1.0)
+- [x] Files sorted by best chunk's boosted score (highest scoring chunk determines file rank)
 
 ### Terse Format (Score-Focused)
 
-- [ ] Chunks sorted by score descending within each file (best matches first for quick scanning)
+- [x] Chunks sorted by score descending within each file (best matches first for quick scanning)
   - Tie-breaking: score descending → line number ascending → content lexicographically
   - Handles edge case: identical scores at same line number (e.g., duplicate chunks)
-- [ ] One line per chunk format: `:LINE_NUM  SCORE  PREVIEW`
+- [x] One line per chunk format: `:LINE_NUM  SCORE  PREVIEW`
   - File header: `src/auth.py (3 chunks):`
   - Preview: first line only, max 80 chars, add '...' if truncated
   - Score shown prominently for relevance scanning
@@ -61,39 +61,52 @@ So that I understand the current file context and can see matching chunks organi
 
 ### Verbose Format (Code-Reading)
 
-- [ ] Chunks sorted by line order ascending within each file (natural reading order)
+- [x] Chunks sorted by line order ascending within each file (natural reading order)
   - Tie-breaking: line number ascending → score descending → content lexicographically
   - Ensures stable sort even with duplicate metadata (e.g., multiple chunks at line 0)
-- [ ] Best-scoring chunk marked with comment-style indicator (copy-pasteable):
+- [x] Best-scoring chunk marked with comment-style indicator (copy-pasteable):
   - Best chunk: `# {SYMBOLS["best_match"]} Lines 45-60 (score: 0.95, best match)` (⭐ on modern terminals, * on legacy)
   - Other chunks: `# Lines 10-20 (score: 0.75)`
   - Uses `SYMBOLS["best_match"]` from `gitctx.cli.symbols` for platform-aware rendering
-- [ ] All chunks shown with full syntax highlighting
+- [x] All chunks shown with full syntax highlighting
   - File header: `src/auth.py (3 chunks)` (bold, no colon)
 
-### MCP Format (Programmatic)
+### MCP Format (LLM-Optimized YAML + Markdown)
 
-- [ ] Chunks sorted by score descending (default for relevance ranking; consumers can re-sort by line_range)
-- [ ] All chunks in JSON structure with file metadata (filtered by threshold)
-  - Each file entry: `file_path`, `language`, `best_score`, `total_chunks`
-  - Each chunk: `content`, `line_range`, `score`, `is_head`
+**Architectural Decision**: YAML + Markdown format chosen over JSON for MCP because:
+- MCP protocol is format-agnostic (any text format allowed in `content[].text` field)
+- YAML saves ~30% tokens vs JSON (no quotes/braces) → lower latency, lower cost
+- Markdown code blocks provide syntax highlighting for LLM comprehension
+- More human-readable for debugging while remaining machine-parseable
+- MCP spec emphasizes "format for LLM consumption" - YAML/Markdown excels here
+
+**Format Structure**:
+- [x] YAML frontmatter with file-grouped metadata (between `---` markers)
+  - `files` array with one entry per file (not per chunk)
+  - Each file entry: `file_path`, `language`, `chunks` (count), `best_score`
+  - Files sorted by `best_score` descending (most relevant first)
+- [x] Markdown body with file-grouped code blocks
+  - File headers: `## {file_path} ({N} chunks)`
+  - Chunk headers: `**Lines X-Y** | **Score:** Z.ZZZ`
+  - Code blocks with language tags for syntax highlighting
+  - Chunks sorted by score descending within each file (best first)
+- [x] All chunks filtered by `min_similarity` and `filter_mode` (head/history/all)
 
 **Design Rationale**:
-- **Default order (score)**: MCP consumers typically want to process best matches first for:
-  - LLM context prioritization (send highest-scoring chunks to model)
-  - Relevance filtering (discard low-scoring chunks programmatically)
-  - Search result ranking (display most relevant first in tools)
-- **Re-sorting option**: Consumers needing code reading order can re-sort: `chunks.sort(key=lambda c: c['line_range'][0])`
-- **Trade-off**: Score order optimizes for relevance, line order optimizes for comprehension
+- **YAML frontmatter**: Provides parseable metadata for programmatic consumers
+- **Markdown body**: Provides readable, highlighted code for LLM comprehension
+- **Score order**: Prioritizes relevance (highest-scoring chunks first)
+- **File grouping**: Reduces redundancy, clearer structure than per-chunk listings
+- **Token efficiency**: YAML + Markdown uses fewer tokens than equivalent JSON
 
 ### Test Coverage
 
-- [ ] Test coverage complete:
-  - [ ] 55+ unit tests passing (18+ base, 15+ terse, 12+ verbose, 10+ MCP)
-  - [ ] 3/3 BDD scenarios passing (file grouping, format selection, filtering)
-  - [ ] >90% code coverage on all formatters
-  - [ ] 100% coverage on SearchResult.score property
-  - [ ] 100% coverage on CLI --filter flag
+- [x] Test coverage complete:
+  - [x] 55+ unit tests passing (18+ base, 15+ terse, 12+ verbose, 10+ MCP)
+  - [x] 3/3 BDD scenarios passing (file grouping, format selection, filtering)
+  - [x] >90% code coverage on all formatters
+  - [x] 100% coverage on SearchResult.score property
+  - [x] 100% coverage on CLI --filter flag
 
 ## BDD Scenarios
 
@@ -129,7 +142,8 @@ Then I see compact output with one line per chunk
 When I search for "login" with --format=verbose
 Then I see full code blocks with syntax highlighting
 When I search for "login" with --format=mcp
-Then I get valid JSON with chunks array
+Then I get valid YAML frontmatter with file metadata
+And I see Markdown code blocks grouped by file
 ```
 
 **Purpose**: Verifies that format selection actually produces visibly different output styles.
@@ -244,44 +258,57 @@ def format(self, results: list[SearchResult], console: Console, **kwargs) -> Non
             console.print(highlighted)
 ```
 
-**3. `src/gitctx/formatters/mcp.py`** (Programmatic format with score sorting)
+**3. `src/gitctx/formatters/mcp.py`** (LLM-optimized YAML + Markdown with file grouping)
 
-Include all chunks in JSON structure, sorted by score:
+Group results by file, output YAML frontmatter + Markdown body:
 
 ```python
 def format(self, results: list[SearchResult], console: Console, **kwargs) -> None:
-    """Format grouped results in MCP mode."""
+    """Format grouped results in MCP mode (YAML + Markdown for LLM consumption)."""
 
-    # Filter and group (base class does NOT sort chunks)
+    # Convert dicts to SearchResult objects for .score property support
+    from gitctx.indexing.types import Result
+    results = [Result(**r) if isinstance(r, dict) else r for r in results]
+
+    # Filter and group using shared function
     min_similarity = kwargs.get('min_similarity', 0.5)
     filter_mode = kwargs.get('filter', 'head')
-    grouped = self._filter_and_group(results, min_similarity, filter_mode)
+    grouped = filter_and_group_results(results, min_similarity, filter_mode)
 
-    output = []
+    # Build YAML frontmatter with file-grouped metadata
+    frontmatter = {
+        "files": [
+            {
+                "file_path": file_path,
+                "language": chunks[0].language,  # First chunk's language
+                "chunks": len(chunks),  # Count after filtering
+                "best_score": max(c.score for c in chunks),  # Highest score
+            }
+            for file_path, chunks in grouped.items()
+        ]
+    }
+
+    # Print YAML frontmatter
+    console.print("---")
+    console.print(yaml.safe_dump(frontmatter, default_flow_style=False).rstrip())
+    console.print("---\n")
+
+    # Print Markdown body with file grouping
     for file_path, chunks in grouped.items():
-        # Sort by score for relevance ranking (consumers can re-sort by line_range)
-        # Tie-breaking: score desc → line asc → content lex
+        # Sort chunks by score descending (best first)
         chunks.sort(key=lambda c: (-c.score, c.start_line, c.content))
 
-        best_chunk = chunks[0]  # Highest score after sorting
+        # File header with chunk count
+        chunk_word = "chunk" if len(chunks) == 1 else "chunks"
+        console.print(f"\n## {file_path} ({len(chunks)} {chunk_word})")
 
-        output.append({
-            "file_path": file_path,
-            "language": best_chunk.language,
-            "best_score": best_chunk.score,
-            "total_chunks": len(chunks),  # Count after filtering
-            "chunks": [
-                {
-                    "content": chunk.content,
-                    "line_range": [chunk.start_line, chunk.end_line],
-                    "score": chunk.score,
-                    "is_head": chunk.is_head,
-                }
-                for chunk in chunks  # Already sorted by score
-            ],
-        })
-
-    console.print_json(data=output)
+        # Print each chunk with metadata + code block
+        for chunk in chunks:
+            score_str = format_distance_score(chunk.score, precision=3)
+            console.print(f"**Lines {chunk.start_line}-{chunk.end_line}** | **Score:** {score_str}")
+            console.print(f"```{chunk.language}")
+            console.print(chunk.content)
+            console.print("```\n")
 ```
 
 **4. `src/gitctx/formatters/base.py`** (NEW - pure data transformation)
@@ -368,9 +395,12 @@ class FormatterBase:
    - Mark best chunk with `# ⭐ ... (best match)`
    - Preserve syntax highlighting and existing output format
 
-4. **Update MCPFormatter**
-   - Sort chunks by score descending (relevance ranking)
-   - Add file metadata: total_chunks, best_score
+4. **Enhance MCPFormatter with File Grouping**
+   - Group results by file in YAML frontmatter (`files` array)
+   - Add file metadata: chunks (count), best_score, language
+   - Group Markdown body by file with headers
+   - Sort chunks by score descending within each file
+   - Maintain YAML + Markdown format (LLM-optimized for MCP)
 
 5. **Run BDD scenarios**
    - Verify grouping behavior across all formats
@@ -419,25 +449,49 @@ class AuthMiddleware:
 
 *Note: Best-match indicator (⭐) from `SYMBOLS["best_match"]` in symbols.py*
 
-**MCP Format:**
-```json
-[
-  {
-    "file_path": "src/auth/middleware.py",
-    "language": "python",
-    "best_score": 0.95,
-    "total_chunks": 3,
-    "chunks": [
-      {
-        "content": "class AuthMiddleware:\n    def __init__(self):\n        ...",
-        "line_range": [15, 25],
-        "score": 0.95,
-        "is_head": true
-      },
-      ...
-    ]
-  }
-]
+**MCP Format (YAML + Markdown):**
+```yaml
+---
+files:
+  - file_path: src/auth/middleware.py
+    language: python
+    chunks: 3
+    best_score: 0.95
+  - file_path: src/auth/handlers.py
+    language: python
+    chunks: 1
+    best_score: 0.87
+---
+
+## src/auth/middleware.py (3 chunks)
+
+**Lines 15-25** | **Score:** 0.950
+```python
+class AuthMiddleware:
+    def __init__(self):
+        self.config = load_config()
+        self.validators = []
+```
+
+**Lines 42-58** | **Score:** 0.820
+```python
+def process_request(self, request):
+    return self.validate(request)
+```
+
+**Lines 103-115** | **Score:** 0.750
+```python
+def validate_token(self, token):
+    return token in self.valid_tokens
+```
+
+## src/auth/handlers.py (1 chunk)
+
+**Lines 42-58** | **Score:** 0.870
+```python
+def authenticate_user(username, password):
+    # Authentication logic
+```
 ```
 
 ## Pattern Reuse
@@ -498,13 +552,13 @@ class AuthMiddleware:
 
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
-| [TASK-0001.4.3.1](TASK-0001.4.3.1.md) | Write 3 BDD Smoke Test Scenarios | 🔵 Not Started | 2 | 0/3 (all stubbed) |
-| [TASK-0001.4.3.2](TASK-0001.4.3.2.md) | Create FormatterBase with _filter_and_group() (TDD + BDD steps) | 🔵 Not Started | 4 | 2/3 passing |
-| [TASK-0001.4.3.3](TASK-0001.4.3.3.md) | Update TerseFormatter with Score Sorting (TDD - unit tests only) | 🔵 Not Started | 4 | 2/3 passing |
-| [TASK-0001.4.3.4](TASK-0001.4.3.4.md) | Update VerboseFormatter with Line Order + Best-Match Indicator (TDD - unit tests only) | 🔵 Not Started | 3 | 2/3 passing |
-| [TASK-0001.4.3.5](TASK-0001.4.3.5.md) | Update MCPFormatter with Score Sorting (TDD + final BDD integration) | 🔵 Not Started | 3 | 3/3 passing ✅ |
+| [TASK-0001.4.3.1](TASK-0001.4.3.1.md) | Write 3 BDD Smoke Test Scenarios | ✅ Complete | 2 | 0/3 (all stubbed) |
+| [TASK-0001.4.3.2](TASK-0001.4.3.2.md) | Create FormatterBase with _filter_and_group() (TDD + BDD steps) | ✅ Complete | 4 | 0/3 (BDD deferred) |
+| [TASK-0001.4.3.3](TASK-0001.4.3.3.md) | Update TerseFormatter with Score Sorting (TDD - unit tests only) | ✅ Complete | 4 | 0/3 (BDD deferred) |
+| [TASK-0001.4.3.4](TASK-0001.4.3.4.md) | Update VerboseFormatter with Line Order + Best-Match Indicator (TDD - unit tests only) | ✅ Complete | 4.5 | 0/3 (BDD deferred) |
+| [TASK-0001.4.3.5](TASK-0001.4.3.5.md) | Enhance MCPFormatter with File Grouping (YAML+Markdown, TDD + final BDD integration) | ✅ Complete | 5 | 3/3 passing ✅ |
 
-**Total Hours**: 16 (4 story points at 4h/point) - **24% faster than BDD-heavy approach**
+**Total Hours**: 19.5 (4 story points at 4h/point) - actual 19.5h vs estimated 16h
 
 **Testing Strategy:**
 - **Unit tests** (20+ tests): Fast, deterministic validation of format strings, sorting, edge cases
@@ -512,12 +566,12 @@ class AuthMiddleware:
 
 **BDD Progress Tracking:**
 - TASK-1: 0/3 scenarios (smoke tests stubbed)
-- TASK-2: 2/3 scenarios (file grouping + filtering smoke tests passing)
-- TASK-3: 2/3 scenarios (unit tests added, BDD unchanged)
-- TASK-4: 2/3 scenarios (unit tests added, BDD unchanged)
-- TASK-5: 3/3 scenarios ✅ (format selection smoke test passing, ALL COMPLETE)
+- TASK-2: 0/3 scenarios (foundation complete, BDD deferred to TASK-5)
+- TASK-3: 0/3 scenarios (unit tests added, BDD deferred to TASK-5)
+- TASK-4: 0/3 scenarios (unit tests added, BDD deferred to TASK-5)
+- TASK-5: 3/3 scenarios ✅ (implement all BDD steps, ALL COMPLETE)
 
 ---
 
 **Created**: 2025-10-16
-**Last Updated**: 2025-10-16
+**Last Updated**: 2025-10-22

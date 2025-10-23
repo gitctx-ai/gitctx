@@ -21,8 +21,11 @@ from typer.testing import CliRunner
 
 from tests.conftest import (
     StrippedResult,
-    strip_ansi,  # noqa: F401 - Re-exported for E2E tests
+    strip_ansi,
 )
+
+# Export strip_ansi for mypy to recognize re-export
+__all__ = ["StrippedResult", "strip_ansi"]
 
 # === PHASE 1: Core E2E Fixtures (Current) ===
 

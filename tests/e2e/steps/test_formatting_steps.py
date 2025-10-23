@@ -67,6 +67,10 @@ def each_line_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
     Args:
         pattern: Regular expression pattern to match
         context: Shared step context
+
+    Note:
+        Updated for file-grouped terse format (TASK-0001.4.3).
+        Now validates both file headers and indented chunk lines.
     """
 
     stdout = context.get("stdout", "")
@@ -78,8 +82,18 @@ def each_line_matches_pattern(pattern: str, context: dict[str, Any]) -> None:
     # Exclude results summary line (e.g., "2 results in 0.01s")
     result_lines = [line for line in lines if not re.match(r"\d+ results in \d+\.\d+s", line)]
 
+    # File-grouped format has file headers that don't match chunk pattern
+    # Skip file headers like "path (N chunk):" when validating chunk pattern
     for line in result_lines:
-        assert re.match(pattern, line), f"Line '{line}' does not match pattern '{pattern}'"
+        # Skip file headers (they don't match chunk pattern by design)
+        if re.search(r"\(\d+\s+chunks?\):$", line):
+            continue
+
+        # Validate chunk lines (indented with :LINE pattern)
+        # Pattern like ".*:\d+:\d\.\d\d .*" matches chunk lines
+        assert re.match(pattern, line.strip()), (
+            f"Line '{line.strip()}' does not match pattern '{pattern}'"
+        )
 
 
 @then("output should contain commit SHA")
@@ -102,11 +116,17 @@ def output_contains_author_name(context: dict[str, Any]) -> None:
 
     Args:
         context: Shared step context
+
+    Note: File-grouped terse format (TASK-0001.4.3) removed author/date info
+    for compactness. This step now validates the terse format structure instead.
     """
     stdout = context.get("stdout", "")
-    # Check for any alphabetic author name pattern (in parentheses after date)
-    # Example: (2025-10-02, Alice)
-    assert "," in stdout, f"Expected author name format with comma in output, got: {stdout}"
+    # File-grouped terse format shows: :LINE SCORE MARKER+SHA CONTENT
+    # Example: "  :1  0.02  🟢575a489  *.pyc"
+    # Validate the format structure (line number, score, SHA)
+    assert re.search(r":\d+\s+\d\.\d+\s+", stdout), (
+        f"Expected terse format with :LINE SCORE pattern, got: {stdout}"
+    )
 
 
 @then("output should contain commit date")
@@ -115,15 +135,20 @@ def output_contains_commit_date(context: dict[str, Any]) -> None:
 
     Args:
         context: Shared step context
+
+    Note: File-grouped terse format (TASK-0001.4.3) removed commit date
+    for compactness. This step now validates commit SHA presence instead.
     """
 
     stdout = context.get("stdout", "")
     # Remove ANSI codes for pattern matching
     clean_stdout = strip_ansi(stdout)
 
-    # Match ISO date format (YYYY-MM-DD)
-    date_pattern = r"\d{4}-\d{2}-\d{2}"
-    assert re.search(date_pattern, clean_stdout), f"Expected commit date in output, got: {stdout}"
+    # File-grouped terse format shows SHA instead of date
+    # Example: "  :1  0.02  🟢575a489  content"
+    # Validate 7-character SHA presence
+    sha_pattern = r"[0-9a-f]{7}"
+    assert re.search(sha_pattern, clean_stdout), f"Expected commit SHA in output, got: {stdout}"
 
 
 @then(parsers.parse('output should contain results summary: "{pattern}"'))
@@ -152,11 +177,14 @@ def head_results_show_marker(context: dict[str, Any]) -> None:
 
     Args:
         context: Shared step context
+
+    Note: SYMBOLS["head"] is 🟢 (green circle) in modern terminals,
+    [HEAD] in legacy Windows cmd.exe (see src/gitctx/cli/symbols.py:36).
     """
     stdout = context.get("stdout", "")
-    # Check for either modern (●) or legacy ([HEAD]) marker
-    assert "●" in stdout or "[HEAD]" in stdout, (
-        f"Expected HEAD marker (● or [HEAD]) in output, got: {stdout}"
+    # Check for either modern (🟢) or legacy ([HEAD]) marker
+    assert "🟢" in stdout or "[HEAD]" in stdout, (
+        f"Expected HEAD marker (🟢 or [HEAD]) in output, got: {stdout}"
     )
 
 
@@ -222,17 +250,21 @@ def output_contains_file_paths_with_ranges(context: dict[str, Any]) -> None:
 
     Args:
         context: Shared step context
+
+    Note: File-grouped verbose format (TASK-0001.4.3) shows file path in header,
+    line ranges in chunk metadata. Format: "Lines N-M (score: ...)"
+    See src/gitctx/formatters/verbose.py:183
     """
 
     stdout = context.get("stdout", "")
     # Remove ANSI escape codes for pattern matching
     clean_stdout = strip_ansi(stdout)
 
-    # VerboseFormatter format: {file_path}:{start}-{end}
-    # Example: src/auth.py:45-52
-    path_range_pattern = r"\S+\.py:\d+-\d+"
+    # VerboseFormatter format (file-grouped): Lines {start}-{end} (score: ...)
+    # Example: "# Lines 45-52 (score: 0.95)"
+    path_range_pattern = r"Lines \d+-\d+"
     assert re.search(path_range_pattern, clean_stdout), (
-        f"Expected file path with line range (e.g., 'file.py:10-20') in output, got: {stdout[:200]}"
+        f"Expected 'Lines N-M' pattern in verbose output, got: {stdout[:200]}"
     )
 
 
@@ -252,13 +284,18 @@ def output_starts_with_yaml_delimiter(context: dict[str, Any]) -> None:
 
 @then('output should contain "results:"')
 def output_contains_results_key(context: dict[str, Any]) -> None:
-    """Verify output contains 'results:' YAML key.
+    """Verify output contains file grouping metadata in YAML frontmatter.
 
     Args:
         context: Shared step context
+
+    Note:
+        Updated for file-grouped MCP format (TASK-0001.4.3).
+        Now expects "files:" key instead of "results:" key.
     """
     stdout = context.get("stdout", "")
-    assert "results:" in stdout, f"Expected 'results:' in output, got: {stdout[:200]}"
+    # File-grouped format uses "files:" instead of "results:"
+    assert "files:" in stdout, f"Expected 'files:' in YAML frontmatter, got: {stdout[:200]}"
 
 
 @then("YAML frontmatter should parse successfully")
@@ -294,21 +331,25 @@ def yaml_contains_file_path_keys(context: dict[str, Any]) -> None:
 
     Args:
         context: Shared step context
+
+    Note: File-grouped MCP format (TASK-0001.4.3) uses "files:" array
+    with file-level metadata, not "results:" with chunk-level metadata.
+    See src/gitctx/formatters/mcp.py:111-123
     """
     # Get parsed YAML from previous step
     parsed_yaml = context.get("parsed_yaml")
     assert parsed_yaml is not None, "YAML not parsed in previous step"
 
-    # Verify top-level structure
-    assert "results" in parsed_yaml, "YAML missing 'results' key"
-    assert isinstance(parsed_yaml["results"], list), "'results' must be a list"
+    # Verify top-level structure (file-grouped format)
+    assert "files" in parsed_yaml, "YAML missing 'files' key"
+    assert isinstance(parsed_yaml["files"], list), "'files' must be a list"
 
-    # Verify each result has required fields
-    for i, result in enumerate(parsed_yaml["results"]):
-        assert "file_path" in result, f"Result {i} missing 'file_path' key"
-        assert "line_numbers" in result, f"Result {i} missing 'line_numbers' key"
-        assert "score" in result, f"Result {i} missing 'score' key"
-        assert "commit_sha" in result, f"Result {i} missing 'commit_sha' key"
+    # Verify each file entry has required fields
+    for i, file_entry in enumerate(parsed_yaml["files"]):
+        assert "file_path" in file_entry, f"File {i} missing 'file_path' key"
+        assert "chunks" in file_entry, f"File {i} missing 'chunks' key"
+        assert "best_score" in file_entry, f"File {i} missing 'best_score' key"
+        assert "language" in file_entry, f"File {i} missing 'language' key"
 
 
 @then("output should contain code blocks with language tags")

@@ -22,6 +22,7 @@ if _console.legacy_windows:
         "tip": "[i]",
         "arrow": "->",
         "head": "[HEAD]",
+        "best_match": "*",
         "spinner_frames": "|/-\\",
     }
 else:
@@ -32,6 +33,7 @@ else:
         "warning": "⚠",
         "tip": "💡",
         "arrow": "→",
-        "head": "●",
+        "head": "🟢",
+        "best_match": "⭐",
         "spinner_frames": "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏",
     }

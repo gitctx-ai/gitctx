@@ -15,18 +15,25 @@ repos:
         name: Ruff formatter
         types_or: [python, pyi]
 
-  # Mypy - Static type checker
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+  # Ensure uv environment is synced before type checking
+  - repo: local
+    hooks:
+      - id: check-uv-sync
+        name: Check uv virtual environment exists
+        entry: bash
+        language: system
+        args: [-c, "test -d .venv || (echo 'Error: .venv not found. Run: uv sync' && exit 1)"]
+        pass_filenames: false
+
+  # Mypy - Static type checker (uses uv virtual environment)
+  - repo: local
     hooks:
       - id: mypy
         name: Type check with mypy
+        entry: uv run mypy
+        language: system
         args: [--config-file=pyproject.toml, src]
-        additional_dependencies:
-          - types-pyyaml
-          - typer>=0.12.0
-          - pydantic>=2.11.0
-          - pydantic-settings>=2.11.0
+        types: [python]
         files: ^src/
         pass_filenames: false
 
@@ -103,5 +110,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [pytest-check, mypy]  # These don't work in pre-commit.ci
+  skip: [pytest-check, mypy, check-uv-sync]  # These don't work in pre-commit.ci
   submodules: false
