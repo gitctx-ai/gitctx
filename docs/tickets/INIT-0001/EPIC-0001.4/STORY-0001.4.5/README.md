@@ -3,7 +3,7 @@
 **Parent Epic**: [EPIC-0001.4](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 5
-**Progress**: ██░░░░░░░░ 25%
+**Progress**: █████░░░░░ 50%
 
 ## User Story
 
@@ -574,7 +574,7 @@ Tokens: 450K | Cost: $0.00045
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
 | [TASK-0001.4.5.1](TASK-0001.4.5.1.md) | Write BDD Scenarios for TUI Progress | ✅ Complete | 2 | 0/7 (all failing) |
-| [TASK-0001.4.5.2](TASK-0001.4.5.2.md) | Add cents_per_million_tokens to ModelSpec Registry | 🔵 Not Started | 2 | 1/7 passing |
+| [TASK-0001.4.5.2](TASK-0001.4.5.2.md) | Add cents_per_million_tokens to ModelSpec Registry | ✅ Complete | 1.5 | 0/7 (foundation ready) |
 | [TASK-0001.4.5.3](TASK-0001.4.5.3.md) | Refactor ProgressReporter with Rich.Progress | 🔵 Not Started | 10 | 5/7 passing |
 | [TASK-0001.4.5.4](TASK-0001.4.5.4.md) | Update CLI Flags and Pipeline Integration | 🔵 Not Started | 4 | 7/7 passing ✅ |
 

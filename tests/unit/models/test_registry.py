@@ -58,4 +58,50 @@ def test_model_spec_type() -> None:
 
     # TypedDict validation (structural)
     assert isinstance(spec, dict)
-    assert set(spec.keys()) == {"dimensions", "max_tokens", "provider"}
+    assert set(spec.keys()) == {"dimensions", "max_tokens", "provider", "cents_per_million_tokens"}
+
+
+# ============================================================================
+# Pricing Tests (TASK-0001.4.5.2)
+# ============================================================================
+
+
+def test_get_model_spec_includes_pricing() -> None:
+    """Test that model specs include cents_per_million_tokens field."""
+    spec_large = get_model_spec("text-embedding-3-large")
+    spec_small = get_model_spec("text-embedding-3-small")
+
+    # Both models should have pricing field
+    assert "cents_per_million_tokens" in spec_large
+    assert "cents_per_million_tokens" in spec_small
+
+
+def test_pricing_is_integer_cents() -> None:
+    """Test that pricing is stored as integer cents, not float dollars."""
+    spec_large = get_model_spec("text-embedding-3-large")
+    spec_small = get_model_spec("text-embedding-3-small")
+
+    # Pricing should be int (cents), not float (dollars)
+    assert isinstance(spec_large["cents_per_million_tokens"], int)
+    assert isinstance(spec_small["cents_per_million_tokens"], int)
+
+
+def test_all_models_have_pricing() -> None:
+    """Test that all models in registry have pricing information."""
+    for model_name, spec in MODELS.items():
+        assert "cents_per_million_tokens" in spec, f"Model {model_name} missing pricing field"
+        assert isinstance(spec["cents_per_million_tokens"], int), (
+            f"Model {model_name} pricing must be int (cents)"
+        )
+
+
+def test_pricing_matches_expected_values() -> None:
+    """Test that pricing matches verified OpenAI values."""
+    spec_large = get_model_spec("text-embedding-3-large")
+    spec_small = get_model_spec("text-embedding-3-small")
+
+    # Verified pricing from OpenAI (as of 2025-10-23)
+    # text-embedding-3-large: $0.13/1M tokens = 13 cents
+    # text-embedding-3-small: $0.02/1M tokens = 2 cents
+    assert spec_large["cents_per_million_tokens"] == 13
+    assert spec_small["cents_per_million_tokens"] == 2

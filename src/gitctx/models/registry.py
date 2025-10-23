@@ -10,23 +10,31 @@ class ModelSpec(TypedDict):
         dimensions: Embedding vector dimensions
         max_tokens: Maximum tokens per embedding request
         provider: Provider name (e.g., "openai", "ollama")
+        cents_per_million_tokens: API cost in cents per 1M tokens
     """
 
     dimensions: int
     max_tokens: int
     provider: str
+    cents_per_million_tokens: int
 
+
+# Pricing Maintenance: Values verified against https://openai.com/api/pricing/
+# Each entry includes "verified: YYYY-MM-DD" date.
+# Update pricing when API costs change (check quarterly or when OpenAI announces changes).
 
 MODELS: dict[str, ModelSpec] = {
     "text-embedding-3-large": {
         "dimensions": 3072,
         "max_tokens": 8191,
         "provider": "openai",
+        "cents_per_million_tokens": 13,  # $0.13/1M tokens (verified: 2025-10-23)
     },
     "text-embedding-3-small": {
         "dimensions": 1536,
         "max_tokens": 8191,
         "provider": "openai",
+        "cents_per_million_tokens": 2,  # $0.02/1M tokens (verified: 2025-10-23)
     },
 }
 
