@@ -1,9 +1,9 @@
 # STORY-0001.4.1: Hybrid Search with Protocol Design
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 3
-**Progress**: █████░░░░░ 50%
+**Progress**: ██████████ 100%
 
 ## User Story
 
@@ -13,13 +13,13 @@ So that I can find exact matches (class names, functions) AND conceptually relat
 
 ## Acceptance Criteria
 
-- [ ] LanceDB hybrid search enabled with RRF (Reciprocal Rank Fusion) combining BM25 + vector scores
-- [ ] SearchStrategy protocol created for storage-agnostic search interface
-- [ ] LanceDBStore implements SearchStrategy protocol with hybrid search
-- [ ] Search results include both keyword matches (BM25) and semantic matches (vector)
-- [ ] RRF normalization constant k=60 (LanceDB default, proven effective)
-- [ ] Existing vector-only search replaced with hybrid search (no feature flag needed)
-- [ ] All existing search BDD scenarios pass with hybrid search
+- [x] LanceDB hybrid search enabled with RRF (Reciprocal Rank Fusion) combining BM25 + vector scores ✅
+- [x] SearchStrategy protocol created for storage-agnostic search interface ✅
+- [x] LanceDBStore implements SearchStrategy protocol with hybrid search ✅
+- [x] Search results include both keyword matches (BM25) and semantic matches (vector) ✅
+- [x] RRF normalization constant k=60 (LanceDB default, proven effective) ✅
+- [x] Existing vector-only search replaced with hybrid search (no feature flag needed) ✅
+- [x] All existing search BDD scenarios pass with hybrid search ✅ (11/11 regression tests passing)
 
 ## BDD Scenarios
 
@@ -240,10 +240,10 @@ From LanceDB docs (https://lancedb.github.io/lancedb/hybrid_search/hybrid_search
 |----|-------|--------|-------|--------------|
 | [TASK-0001.4.1.1](TASK-0001.4.1.1.md) | Write BDD Scenarios for Hybrid Search | ✅ Complete | 1 | 0/3 (stubbed) |
 | [TASK-0001.4.1.2](TASK-0001.4.1.2.md) | SearchStrategy Protocol and SearchResult Extension | ✅ Complete | 3 | 0/3 (steps ready) |
-| [TASK-0001.4.1.3](TASK-0001.4.1.3.md) | Hybrid Search Implementation in LanceDBStore | 🔵 Not Started | 4-5 | 0/3 → 3/3 |
-| [TASK-0001.4.1.4](TASK-0001.4.1.4.md) | Integration Testing and Regression Verification | 🔵 Not Started | 2-3 | 3/3 maintained |
+| [TASK-0001.4.1.3](TASK-0001.4.1.3.md) | Hybrid Search Implementation in LanceDBStore | ✅ Complete | 5 | 3/3 (complete) |
+| [TASK-0001.4.1.4](TASK-0001.4.1.4.md) | Integration Testing and Regression Verification | ✅ Complete | 2 | 3/3 (maintained) |
 
-**Total Hours**: 11-15 hours (story: 3 points × 4h/point = 12h ✓)
+**Total Hours**: 11 hours actual (story: 3 points × 4h/point = 12h ✓)
 
 **Incremental BDD Tracking:**
 - TASK-1: 0/3 scenarios (all stubbed, all failing 🔴)

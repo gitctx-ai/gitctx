@@ -68,7 +68,7 @@ class MCPFormatter:
         self,
         results: list[dict[str, Any]],
         console: Console,
-        theme: str = "monokai",  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Format and output search results to console.
 

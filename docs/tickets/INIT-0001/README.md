@@ -3,7 +3,7 @@
 **Timeline**: Q4 2025
 **Status**: 🚧 In Progress
 **Owner**: Core Team
-**Progress**: ████████░░ ~72% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 34/34 points, EPIC-0001.3 in progress - 10/13 points, EPIC-0001.4 not started - 0/18 points, EPIC-0001.5 not started - 0/21 points, 54/96 total points)
+**Progress**: ███████░░░ 69% (EPIC-0001.1 complete - 10/10 points, EPIC-0001.2 complete - 34/34 points, EPIC-0001.3 in progress - 10/13 points, EPIC-0001.4 in progress - 11.52/17 points, EPIC-0001.5 not started - 0/21 points, 65.52/95 total points)
 
 ## Objective
 
@@ -23,7 +23,7 @@ Build the core functionality users need to search their codebase intelligently. 
 | [EPIC-0001.1](EPIC-0001.1/README.md) | CLI Foundation | ✅ Complete | ██████████ 100% | Core Team |
 | [EPIC-0001.2](EPIC-0001.2/README.md) | Real Indexing Implementation | ✅ Complete | ██████████ 100% | Core Team |
 | [EPIC-0001.3](EPIC-0001.3/README.md) | Vector Search Implementation | 🟡 In Progress | ████████░░ 77% | Core Team |
-| [EPIC-0001.4](EPIC-0001.4/README.md) | Search Quality & Usability | 🔵 Not Started | ░░░░░░░░░░ 0% | Core Team |
+| [EPIC-0001.4](EPIC-0001.4/README.md) | Search Quality & Usability | 🟡 In Progress | ███████░░░ 68% | Core Team |
 | [EPIC-0001.5](EPIC-0001.5/README.md) | Performance & Observability | 🔵 Not Started | ░░░░░░░░░░ 0% | Core Team |
 
 ## Success Metrics
@@ -110,13 +110,13 @@ Build the core functionality users need to search their codebase intelligently. 
 
 ### Search Quality & Usability (EPIC-0001.4)
 
-- 🔵 Hybrid search (BM25 + vector) (not started)
-- 🔵 Recency & relevance boosting (not started)
-- 🔵 File-grouped result presentation (not started)
-- 🔵 Safetensors compression with zstd (not started)
+- ✅ Hybrid search (BM25 + vector) (complete)
+- ✅ Recency & relevance boosting (complete)
+- 🟡 File-grouped result presentation (in progress - 88%)
+- ✅ Safetensors compression with zstd (complete)
 - 🔵 TUI performance & usability (not started)
 
-**Progress**: 0/18 story points complete (0%)
+**Progress**: 11.52/17 story points complete (68%)
 
 **Note**: MVP viability epic focusing on search quality first, speed second. Key insight: "The core problem isn't search performance (speed) - it's search relevance (quality)."
 

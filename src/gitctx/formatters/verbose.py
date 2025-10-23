@@ -48,13 +48,13 @@ class VerboseFormatter:
     name = "verbose"
     description = "Verbose output with code context"
 
-    def format(
-        self, results: list[dict[str, Any]], console: Console, theme: str = "monokai"
-    ) -> None:
+    def format(self, results: list[dict[str, Any]], console: Console, **kwargs: Any) -> None:
         """Format and output search results to console.
 
         Args:
             results: List of search result dictionaries with keys:
+            console: Rich Console instance
+            **kwargs: Additional options (theme: syntax highlighting theme)
                 - file_path: Path to file
                 - start_line: Starting line number
                 - end_line: Ending line number
@@ -65,11 +65,13 @@ class VerboseFormatter:
                 - chunk_content: Code content
                 - language: Language for syntax highlighting (optional)
             console: Rich Console instance for formatted output
-            theme: Syntax highlighting theme (default: "monokai")
 
         Returns:
             None - Results are written directly to console
         """
+        # Extract theme from kwargs with default
+        theme = kwargs.get("theme", "monokai")
+
         for i, result in enumerate(results):
             # Extract values
             file_path = result["file_path"]

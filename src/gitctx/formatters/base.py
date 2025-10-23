@@ -12,6 +12,9 @@ from rich.console import Console
 
 from gitctx.indexing.types import DISTANCE_NO_VECTOR_MATCH
 
+# UI/UX constants for terminal display
+MAX_PREVIEW_LENGTH = 80  # Maximum characters for single-line previews
+
 
 @runtime_checkable
 class ResultFormatter(Protocol):
@@ -67,57 +70,52 @@ def format_distance_score(distance: float, precision: int = 2) -> str:
     return "BM25" if distance == DISTANCE_NO_VECTOR_MATCH else f"{distance:.{precision}f}"
 
 
-class FormatterBase:
-    """Base formatter with shared filtering and grouping logic.
+def filter_and_group_results(
+    results: list[Any],
+    min_similarity: float = 0.5,
+    filter_mode: str = "head",
+) -> dict[str, list[Any]]:
+    """Filter and group results by file_path.
 
-    Design: Pure data transformation (filter + group). Does NOT sort chunks
-    within files - each formatter decides its own presentation order.
+    Shared utility for formatters. Pure data transformation (filter + group).
+    Does NOT sort chunks within files - each formatter decides presentation order.
+
+    Args:
+        results: Flat list of search results (SearchResult objects)
+        min_similarity: Minimum similarity threshold (default 0.5, range -1.0 to 1.0)
+        filter_mode: Which chunks to include (head/history/all, default head)
+
+    Returns:
+        Dict mapping file_path -> list of chunks (filtered, UNSORTED within each file)
+        Files sorted by best chunk score (highest scoring file first)
+
+    Note:
+        Assumes valid inputs (validated at CLI layer). Invalid filter_mode will fail
+        naturally on list comprehension.
     """
+    # Filter by filter_mode (head/history/all)
+    if filter_mode == "head":
+        results = [r for r in results if r.is_head]
+    elif filter_mode == "history":
+        results = [r for r in results if not r.is_head]
+    # "all" = no filtering
 
-    def _filter_and_group(
-        self,
-        results: list[Any],
-        min_similarity: float = 0.5,
-        filter_mode: str = "head",
-    ) -> dict[str, list[Any]]:
-        """Filter and group results by file_path.
+    grouped = defaultdict(list)
 
-        Args:
-            results: Flat list of search results (SearchResult objects)
-            min_similarity: Minimum similarity threshold (default 0.5, range -1.0 to 1.0)
-            filter_mode: Which chunks to include (head/history/all, default head)
+    # Group by file_path and filter by similarity
+    # Use SearchResult.score property (returns hybrid_score or vector_score)
+    for result in results:
+        if result.score >= min_similarity:
+            grouped[result.file_path].append(result)
 
-        Returns:
-            Dict mapping file_path -> list of chunks (filtered, UNSORTED within each file)
-            Files sorted by best chunk score (highest scoring file first)
+    # Remove files with no chunks after filtering
+    filtered_grouped: dict[str, list[Any]] = {k: v for k, v in grouped.items() if v}
 
-        Note:
-            Assumes valid inputs (validated at CLI layer). Invalid filter_mode will fail
-            naturally on list comprehension.
-        """
-        # Filter by filter_mode (head/history/all)
-        if filter_mode == "head":
-            results = [r for r in results if r.is_head]
-        elif filter_mode == "history":
-            results = [r for r in results if not r.is_head]
-        # "all" = no filtering
-
-        grouped = defaultdict(list)
-
-        # Group by file_path and filter by similarity
-        # Use SearchResult.score property (returns hybrid_score or vector_score)
-        for result in results:
-            if result.score >= min_similarity:
-                grouped[result.file_path].append(result)
-
-        # Remove files with no chunks after filtering
-        filtered_grouped: dict[str, list[Any]] = {k: v for k, v in grouped.items() if v}
-
-        # Sort FILES by best chunk score (file-level ordering only)
-        return dict(
-            sorted(
-                filtered_grouped.items(),
-                key=lambda item: max(c.score for c in item[1]),
-                reverse=True,
-            )
+    # Sort FILES by best chunk score (file-level ordering only)
+    return dict(
+        sorted(
+            filtered_grouped.items(),
+            key=lambda item: max(c.score for c in item[1]),
+            reverse=True,
         )
+    )
