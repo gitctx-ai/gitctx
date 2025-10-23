@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Annotated
 
+import click
 import pyarrow as pa
 import typer
 from rich.console import Console
@@ -119,6 +120,14 @@ def search_command(
         "--mcp",
         help="Output structured markdown for AI consumption",
     ),
+    filter_mode: Annotated[
+        str,
+        typer.Option(
+            "--filter",
+            click_type=click.Choice(["head", "history", "all"], case_sensitive=False),
+            help="Filter chunks by type: head (current), history (past), or all",
+        ),
+    ] = "head",
     theme: str | None = None,
 ) -> None:
     """
@@ -314,7 +323,13 @@ def search_command(
         results_dicts = [asdict(result) for result in results]
 
         formatter = get_formatter(resolved_format)
-        formatter.format(results_dicts, console, theme=resolved_theme)
+        formatter.format(
+            results_dicts,
+            console,
+            theme=resolved_theme,
+            filter=filter_mode,
+            min_similarity=min_similarity,
+        )
     except ValueError as err:
         # Unknown formatter name
         console_err.print(f"[red]{SYMBOLS['error']}[/red] {err}")

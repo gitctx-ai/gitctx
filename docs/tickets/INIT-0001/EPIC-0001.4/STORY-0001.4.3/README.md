@@ -3,7 +3,7 @@
 **Parent Epic**: [EPIC-0001.4](../README.md)
 **Status**: 🟡 In Progress
 **Story Points**: 4 (16 hours estimated = 4 points)
-**Progress**: ████░░░░░░ 20%
+**Progress**: ███████░░░ 38% (6/16 hours, 2/5 tasks)
 
 ## User Story
 
@@ -499,9 +499,9 @@ class AuthMiddleware:
 | ID | Title | Status | Hours | BDD Progress |
 |----|-------|--------|-------|--------------|
 | [TASK-0001.4.3.1](TASK-0001.4.3.1.md) | Write 3 BDD Smoke Test Scenarios | ✅ Complete | 2 | 0/3 (all stubbed) |
-| [TASK-0001.4.3.2](TASK-0001.4.3.2.md) | Create FormatterBase with _filter_and_group() (TDD + BDD steps) | 🔵 Not Started | 4 | 2/3 passing |
-| [TASK-0001.4.3.3](TASK-0001.4.3.3.md) | Update TerseFormatter with Score Sorting (TDD - unit tests only) | 🔵 Not Started | 4 | 2/3 passing |
-| [TASK-0001.4.3.4](TASK-0001.4.3.4.md) | Update VerboseFormatter with Line Order + Best-Match Indicator (TDD - unit tests only) | 🔵 Not Started | 3 | 2/3 passing |
+| [TASK-0001.4.3.2](TASK-0001.4.3.2.md) | Create FormatterBase with _filter_and_group() (TDD + BDD steps) | ✅ Complete | 4 | 0/3 (BDD deferred) |
+| [TASK-0001.4.3.3](TASK-0001.4.3.3.md) | Update TerseFormatter with Score Sorting (TDD - unit tests only) | 🔵 Not Started | 4 | 0/3 (BDD deferred) |
+| [TASK-0001.4.3.4](TASK-0001.4.3.4.md) | Update VerboseFormatter with Line Order + Best-Match Indicator (TDD - unit tests only) | 🔵 Not Started | 3 | 0/3 (BDD deferred) |
 | [TASK-0001.4.3.5](TASK-0001.4.3.5.md) | Update MCPFormatter with Score Sorting (TDD + final BDD integration) | 🔵 Not Started | 3 | 3/3 passing ✅ |
 
 **Total Hours**: 16 (4 story points at 4h/point) - **24% faster than BDD-heavy approach**
@@ -512,12 +512,12 @@ class AuthMiddleware:
 
 **BDD Progress Tracking:**
 - TASK-1: 0/3 scenarios (smoke tests stubbed)
-- TASK-2: 2/3 scenarios (file grouping + filtering smoke tests passing)
-- TASK-3: 2/3 scenarios (unit tests added, BDD unchanged)
-- TASK-4: 2/3 scenarios (unit tests added, BDD unchanged)
-- TASK-5: 3/3 scenarios ✅ (format selection smoke test passing, ALL COMPLETE)
+- TASK-2: 0/3 scenarios (foundation complete, BDD deferred to TASK-5)
+- TASK-3: 0/3 scenarios (unit tests added, BDD deferred to TASK-5)
+- TASK-4: 0/3 scenarios (unit tests added, BDD deferred to TASK-5)
+- TASK-5: 3/3 scenarios ✅ (implement all BDD steps, ALL COMPLETE)
 
 ---
 
 **Created**: 2025-10-16
-**Last Updated**: 2025-10-16
+**Last Updated**: 2025-10-22

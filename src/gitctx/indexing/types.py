@@ -180,3 +180,27 @@ class SearchResult:
     bm25_score: float | None = None
     vector_score: float | None = None
     hybrid_score: float | None = None
+
+    @property
+    def score(self) -> float:
+        """Primary score for ranking (hybrid > vector > 0.0).
+
+        Returns hybrid_score if available, otherwise vector_score, otherwise 0.0.
+        This property simplifies formatter code by providing a single score field.
+
+        Returns:
+            float: The primary relevance score for this search result.
+
+        Examples:
+            >>> result = SearchResult(..., hybrid_score=0.9, vector_score=0.7)
+            >>> result.score
+            0.9
+            >>> result2 = SearchResult(..., hybrid_score=None, vector_score=0.8)
+            >>> result2.score
+            0.8
+        """
+        if self.hybrid_score is not None:
+            return self.hybrid_score
+        if self.vector_score is not None:
+            return self.vector_score
+        return 0.0

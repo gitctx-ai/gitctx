@@ -557,3 +557,55 @@ def test_search_cache_hit_shows_message(
         assert "Using cached query embedding" in output
         # Embedder should NOT be called since we have a cache hit
         mock_embedder.embed_query.assert_not_called()
+
+
+# CLI --filter flag tests (TDD for TASK-0001.4.3.2)
+def test_search_filter_flag_defaults_to_head(mock_search_repo):
+    """Test search command --filter flag defaults to 'head'."""
+    # ACT
+    with patch("gitctx.cli.search.get_formatter") as mock_get_formatter:
+        mock_formatter = Mock()
+        mock_get_formatter.return_value = mock_formatter
+
+        result = mock_search_repo.invoke(app, ["search", "test"])
+
+        # ASSERT
+        assert result.exit_code == 0
+        # Verify formatter.format() was called with filter='head' (default)
+        mock_formatter.format.assert_called_once()
+        call_kwargs = mock_formatter.format.call_args.kwargs
+        assert call_kwargs.get("filter") == "head"
+
+
+def test_search_filter_flag_accepts_history(mock_search_repo):
+    """Test search command --filter flag accepts 'history' mode."""
+    # ACT
+    with patch("gitctx.cli.search.get_formatter") as mock_get_formatter:
+        mock_formatter = Mock()
+        mock_get_formatter.return_value = mock_formatter
+
+        result = mock_search_repo.invoke(app, ["search", "test", "--filter=history"])
+
+        # ASSERT
+        assert result.exit_code == 0
+        # Verify formatter.format() was called with filter='history'
+        mock_formatter.format.assert_called_once()
+        call_kwargs = mock_formatter.format.call_args.kwargs
+        assert call_kwargs.get("filter") == "history"
+
+
+def test_search_filter_flag_accepts_all(mock_search_repo):
+    """Test search command --filter flag accepts 'all' mode."""
+    # ACT
+    with patch("gitctx.cli.search.get_formatter") as mock_get_formatter:
+        mock_formatter = Mock()
+        mock_get_formatter.return_value = mock_formatter
+
+        result = mock_search_repo.invoke(app, ["search", "test", "--filter=all"])
+
+        # ASSERT
+        assert result.exit_code == 0
+        # Verify formatter.format() was called with filter='all'
+        mock_formatter.format.assert_called_once()
+        call_kwargs = mock_formatter.format.call_args.kwargs
+        assert call_kwargs.get("filter") == "all"

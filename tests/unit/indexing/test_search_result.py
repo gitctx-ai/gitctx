@@ -247,3 +247,88 @@ def test_search_result_uses_primitive_types_only() -> None:
         assert any(t.__name__ in type_str for t in primitive_types), (
             f"Field '{field_name}' has non-primitive type: {field_type}"
         )
+
+
+# SearchResult.score property tests (TDD for TASK-0001.4.3.2)
+def test_searchresult_score_property_prefers_hybrid() -> None:
+    """Test SearchResult.score property returns hybrid_score when available."""
+    result = SearchResult(
+        chunk_content="test",
+        file_path="test.py",
+        distance=0.1,
+        commit_sha="a" * 40,
+        token_count=10,
+        blob_sha="b" * 40,
+        chunk_index=0,
+        start_line=1,
+        end_line=5,
+        total_chunks=1,
+        language="python",
+        author_name="Test",
+        author_email="test@example.com",
+        commit_date="2025-01-01T00:00:00Z",
+        commit_message="test",
+        is_head=True,
+        is_merge=False,
+        hybrid_score=0.9,
+        vector_score=0.7,
+    )
+
+    # Should prefer hybrid_score when available
+    assert result.score == 0.9
+
+
+def test_searchresult_score_property_fallback_to_vector() -> None:
+    """Test SearchResult.score property falls back to vector_score."""
+    result = SearchResult(
+        chunk_content="test",
+        file_path="test.py",
+        distance=0.1,
+        commit_sha="a" * 40,
+        token_count=10,
+        blob_sha="b" * 40,
+        chunk_index=0,
+        start_line=1,
+        end_line=5,
+        total_chunks=1,
+        language="python",
+        author_name="Test",
+        author_email="test@example.com",
+        commit_date="2025-01-01T00:00:00Z",
+        commit_message="test",
+        is_head=True,
+        is_merge=False,
+        hybrid_score=None,
+        vector_score=0.8,
+    )
+
+    # Should use vector_score when hybrid_score is None
+    assert result.score == 0.8
+
+
+def test_searchresult_score_property_fallback_to_zero() -> None:
+    """Test SearchResult.score property falls back to 0.0 when both scores None."""
+    result = SearchResult(
+        chunk_content="test",
+        file_path="test.py",
+        distance=0.1,
+        commit_sha="a" * 40,
+        token_count=10,
+        blob_sha="b" * 40,
+        chunk_index=0,
+        start_line=1,
+        end_line=5,
+        total_chunks=1,
+        language="python",
+        author_name="Test",
+        author_email="test@example.com",
+        commit_date="2025-01-01T00:00:00Z",
+        commit_message="test",
+        is_head=True,
+        is_merge=False,
+        hybrid_score=None,
+        vector_score=None,
+    )
+
+    # Should return 0.0 when both scores are None
+    assert result.score == 0.0
