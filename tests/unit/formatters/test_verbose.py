@@ -18,6 +18,7 @@ from io import StringIO
 from rich.console import Console
 
 from gitctx.formatters.verbose import VerboseFormatter
+from gitctx.indexing.types import DISTANCE_NO_VECTOR_MATCH
 
 
 def test_verbose_formatter_groups_chunks_by_file(mock_search_result_factory) -> None:
@@ -594,3 +595,94 @@ def test_verbose_formatter_preserves_syntax_highlighting_with_grouping(
     # Rich.Syntax should still apply (code content visible)
     assert "pass" in result
     assert "return True" in result
+
+
+def test_verbose_formatter_score_fallback_to_vector_score(mock_search_result_factory) -> None:
+    """Test score property falls back to vector_score when hybrid_score is None."""
+    # Create result with only vector_score (no hybrid_score)
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/test.py",
+            start_line=1,
+            end_line=5,
+            hybrid_score=None,  # Force fallback to vector_score
+            vector_score=0.75,
+            chunk_content="def test():\n    pass",
+        )
+    ]
+    results = [asdict(r) for r in results_objs]
+
+    output = StringIO()
+    console = Console(file=output, legacy_windows=False, width=200)
+    formatter = VerboseFormatter()
+
+    formatter.format(results, console)
+
+    result = output.getvalue()
+
+    # Result should be formatted with vector_score used for scoring
+    assert "src/test.py" in result
+    assert "def test():" in result
+
+
+def test_verbose_formatter_score_fallback_to_zero_for_infinite_distance(
+    mock_search_result_factory,
+) -> None:
+    """Test score property returns 0.0 for infinite distance."""
+    # Create result with infinite distance (BM25-only match)
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/bm25.py",
+            start_line=1,
+            end_line=5,
+            hybrid_score=None,
+            vector_score=None,
+            distance=DISTANCE_NO_VECTOR_MATCH,  # float("inf") - no vector match
+            chunk_content="# BM25-only result\nprint('hello')",
+        )
+    ]
+    results = [asdict(r) for r in results_objs]
+
+    output = StringIO()
+    console = Console(file=output, legacy_windows=False, width=200)
+    formatter = VerboseFormatter()
+
+    # Should handle BM25-only results (score=0.0)
+    # Need to set min_similarity to allow 0.0 scores (default is 0.5)
+    formatter.format(results, console, min_similarity=-1.0)
+
+    result = output.getvalue()
+
+    # Result should still be formatted despite 0.0 score
+    assert "src/bm25.py" in result
+    assert "BM25-only result" in result
+
+
+def test_verbose_formatter_score_computed_from_distance(mock_search_result_factory) -> None:
+    """Test score property computes from distance when no scores available (covers line 132)."""
+    # Create result with only distance (no hybrid_score or vector_score)
+    results_objs = [
+        mock_search_result_factory(
+            file_path="src/distance.py",
+            start_line=1,
+            end_line=5,
+            hybrid_score=None,
+            vector_score=None,
+            distance=0.3,  # Score should be 1.0 - 0.3 = 0.7
+            chunk_content="# Computed from distance\nprint('distance only')",
+        )
+    ]
+    results = [asdict(r) for r in results_objs]
+
+    output = StringIO()
+    console = Console(file=output, legacy_windows=False, width=200)
+    formatter = VerboseFormatter()
+
+    # Should compute score from distance: 1.0 - 0.3 = 0.7
+    formatter.format(results, console, min_similarity=0.5)
+
+    result = output.getvalue()
+
+    # Result should be formatted with computed score
+    assert "src/distance.py" in result
+    assert "Computed from distance" in result

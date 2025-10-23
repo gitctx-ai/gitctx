@@ -10,8 +10,8 @@ Tests validate shared filtering and grouping logic:
 
 import pytest
 
-from gitctx.formatters.base import filter_and_group_results
-from gitctx.indexing.types import SearchResult
+from gitctx.formatters.base import _ResultWrapper, filter_and_group_results
+from gitctx.indexing.types import DISTANCE_NO_VECTOR_MATCH, SearchResult
 
 
 @pytest.fixture
@@ -720,3 +720,73 @@ def test_filter_and_group_single_chunk_per_file():
     file_paths = list(grouped.keys())
     assert file_paths[0] == "a.py"
     assert file_paths[1] == "b.py"
+
+
+def test_result_wrapper_data_attribute_access():
+    """Test that _ResultWrapper can access _data attribute directly."""
+    data = {"file_path": "test.py", "distance": 0.5}
+    wrapper = _ResultWrapper(data)
+
+    # Access _data attribute directly (covers line 47)
+    assert wrapper._data == data
+    assert wrapper._data["file_path"] == "test.py"
+
+
+def test_result_wrapper_score_with_vector_score_only():
+    """Test score property falls back to vector_score when hybrid_score is None."""
+    # hybrid_score is None, but vector_score exists (covers line 62)
+    data = {
+        "file_path": "test.py",
+        "distance": 0.5,
+        "hybrid_score": None,
+        "vector_score": 0.75,
+    }
+    wrapper = _ResultWrapper(data)
+
+    # Should return vector_score since hybrid_score is None
+    assert wrapper.score == 0.75
+
+
+def test_result_wrapper_score_with_infinite_distance():
+    """Test score property returns 0.0 when distance is infinite (no vector match)."""
+    # No hybrid_score, no vector_score, infinite distance (covers line 67)
+    data = {
+        "file_path": "test.py",
+        "distance": DISTANCE_NO_VECTOR_MATCH,  # float("inf")
+    }
+    wrapper = _ResultWrapper(data)
+
+    # Should return 0.0 for BM25-only matches (no vector similarity)
+    assert wrapper.score == 0.0
+
+
+def test_result_wrapper_score_with_hybrid_score():
+    """Test score property returns hybrid_score when it exists (covers line 59)."""
+    # hybrid_score exists and is not None
+    data = {
+        "file_path": "test.py",
+        "distance": 0.5,
+        "hybrid_score": 0.85,
+        "vector_score": 0.70,  # Should be ignored since hybrid_score exists
+    }
+    wrapper = _ResultWrapper(data)
+
+    # Should return hybrid_score (highest priority)
+    assert wrapper.score == 0.85
+
+
+def test_result_wrapper_getattr_data_access():
+    """Test __getattr__ handles _data attribute access to prevent recursion."""
+    data = {"file_path": "test.py", "distance": 0.5}
+    wrapper = _ResultWrapper(data)
+
+    # Delete _data to force __getattr__ to be called
+    del wrapper._data
+
+    # Now accessing _data will call __getattr__ with name="_data"
+    # This should trigger the special case on line 47 that uses object.__getattribute__
+    # to prevent infinite recursion
+    with pytest.raises(AttributeError):
+        # After deleting _data, object.__getattribute__ will raise AttributeError
+        # but we've covered line 47 (the special case check)
+        _ = wrapper._data
