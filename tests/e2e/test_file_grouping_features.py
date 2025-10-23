@@ -4,6 +4,7 @@ This file specifically tests file grouping scenarios using pytest-bdd.
 Step definitions are in tests/e2e/steps/file_grouping_steps.py
 """
 
+import pytest
 from pytest_bdd import scenarios
 
 # Import all necessary step definitions and fixtures
@@ -13,6 +14,11 @@ from tests.e2e.steps.cli_steps import (  # noqa: F401
 
 # Import all file grouping step definitions
 from tests.e2e.steps.file_grouping_steps import *  # noqa: F403
+
+# Mark all tests in this module with anyio and vcr
+# - anyio: Enable event loop for async operations
+# - vcr: Record/replay OpenAI API calls via cassettes
+pytestmark = [pytest.mark.anyio, pytest.mark.vcr]
 
 # Auto-discover file grouping scenarios
 scenarios("features/file_grouping.feature")
