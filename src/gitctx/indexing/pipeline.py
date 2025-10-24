@@ -108,34 +108,40 @@ async def index_repository(
         # Phase 2: Chunk and embed
         reporter.phase("Generating embeddings")
 
+        # Initialize cache tracking
+        fresh_cost = 0.0
+        cached_cost_total = 0.0
+        cached_count = 0
+
         for blob_record in blob_records:
             try:
-                # Check if blob is in cache (for cost tracking)
-                was_cached = cache.get(blob_record.sha) is not None
-
                 # Single orchestrated call: check cache → chunk → embed → save cache
-                embeddings = await embed_with_cache(
+                # Returns tuple: (embeddings, was_cached, cached_cost)
+                embeddings, was_cached, saved_cost = await embed_with_cache(
                     chunker=chunker,
                     embedder=embedder,
                     cache=cache,
                     blob_record=blob_record,
                 )
 
-                # Track stats (embeddings already have all metadata)
+                # Track stats
                 total_tokens = sum(e.token_count for e in embeddings)
-                total_cost = sum(e.cost_usd for e in embeddings)
 
-                # Track cache savings separately
+                # Separate fresh costs from cached costs
                 if was_cached:
-                    # These tokens/cost were saved by using cache
-                    reporter.update(
-                        chunks=len(embeddings),
-                        cached_blobs=1,  # Increment cached blob count
-                        cached_cost=total_cost,  # Cost we would have paid
-                    )
+                    cached_count += 1
+                    cached_cost_total += saved_cost
                 else:
-                    # Fresh embeddings - actual API cost incurred
-                    reporter.update(tokens=total_tokens, cost=total_cost, chunks=len(embeddings))
+                    fresh_cost += sum(e.cost_usd for e in embeddings)
+
+                # Update reporter with cumulative metrics
+                reporter.update(
+                    tokens=total_tokens,
+                    chunks=len(embeddings),
+                    cost=fresh_cost,
+                    cached_blobs=cached_count,
+                    cached_cost=cached_cost_total,
+                )
 
                 # Store (embeddings have all fields: chunk_content, vectors, metadata)
                 blob_locations = {blob_record.sha: blob_record.locations}

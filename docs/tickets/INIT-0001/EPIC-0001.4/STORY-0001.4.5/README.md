@@ -1,9 +1,9 @@
 # STORY-0001.4.5: TUI Performance & Usability
 
 **Parent Epic**: [EPIC-0001.4](../README.md)
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 **Story Points**: 5
-**Progress**: ███████░░░ 75%
+**Progress**: ██████████ 100%
 
 ## User Story
 
@@ -576,9 +576,9 @@ Tokens: 450K | Cost: $0.00045
 | [TASK-0001.4.5.1](TASK-0001.4.5.1.md) | Write BDD Scenarios for TUI Progress | ✅ Complete | 2 | 0/7 (all failing) |
 | [TASK-0001.4.5.2](TASK-0001.4.5.2.md) | Add cents_per_million_tokens to ModelSpec Registry | ✅ Complete | 1.5 | 0/7 (foundation ready) |
 | [TASK-0001.4.5.3](TASK-0001.4.5.3.md) | Refactor ProgressReporter with Rich.Progress | ✅ Complete | 10 | 6/6 passing ✅ |
-| [TASK-0001.4.5.4](TASK-0001.4.5.4.md) | Update CLI Flags and Pipeline Integration | 🔵 Not Started | 4 | 7/7 passing ✅ |
+| [TASK-0001.4.5.4](TASK-0001.4.5.4.md) | Update CLI Flags and Pipeline Integration | ✅ Complete | 4 | 7/7 passing ✅ |
 
-**Total Hours:** 19 (story: 5 points × 4h/point = 20h ✓)
+**Total Hours:** 17.5 (story: 5 points × 4h/point = 20h ✓)
 
 **BDD Progress Tracking:**
 
@@ -595,4 +595,4 @@ Tokens: 450K | Cost: $0.00045
 ---
 
 **Created**: 2025-10-16
-**Last Updated**: 2025-10-16
+**Last Updated**: 2025-10-23

@@ -446,3 +446,22 @@ def test_snapshot_mode_no_warning(isolated_cli_runner, tmp_path, monkeypatch, gi
         assert "History Mode" not in output
         assert "Continue?" not in output
         assert "Indexed successfully" in output or result.exit_code == 0
+
+
+# ============================================================================
+# CLI Flag Tests (TASK-0001.4.5.4)
+# ============================================================================
+
+
+def test_index_command_verbose_flag_removed(isolated_cli_runner):
+    """Test that --verbose flag no longer exists (backward incompatible change for pre-1.0)."""
+    # Try to use --verbose flag
+    result = isolated_cli_runner.invoke(app, ["index", "--help"])
+
+    # Verify --verbose is NOT in help text
+    assert "--verbose" not in result.stdout
+    assert "-v" not in result.stdout or "-y" in result.stdout  # -v removed, -y (--yes) exists
+
+    # Try to run with --verbose (should fail)
+    result = isolated_cli_runner.invoke(app, ["index", "--verbose"])
+    assert result.exit_code != 0  # Should error due to unrecognized option

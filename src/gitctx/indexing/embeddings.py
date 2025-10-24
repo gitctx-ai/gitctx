@@ -26,7 +26,7 @@ async def embed_with_cache(
     embedder: EmbedderProtocol,
     cache: EmbeddingCache,
     blob_record: BlobRecord,
-) -> list[Embedding]:
+) -> tuple[list[Embedding], bool, float]:
     """Generate embeddings for a blob with caching.
 
     Orchestrates the full embedding pipeline:
@@ -42,7 +42,10 @@ async def embed_with_cache(
         blob_record: Blob to generate embeddings for
 
     Returns:
-        List of Embedding objects (from cache or freshly generated)
+        Tuple of (embeddings, was_cached, cached_cost):
+        - embeddings: List of Embedding objects (from cache or freshly generated)
+        - was_cached: True if retrieved from cache, False if freshly generated
+        - cached_cost: Cost saved by using cache (0.0 if not cached)
 
     Examples:
         >>> from gitctx.core import create_walker
@@ -56,14 +59,18 @@ async def embed_with_cache(
         >>> cache = EmbeddingCache("/path/to/.gitctx", model="text-embedding-3-large")
         >>>
         >>> # Process blob
-        >>> embeddings = await embed_with_cache(chunker, embedder, cache, blob_record)
+        >>> embeddings, was_cached, saved_cost = await embed_with_cache(
+        ...     chunker, embedder, cache, blob_record
+        ... )
         >>> # Logs: "Embedded blob abc12345: 3 chunks, 450 tokens, $0.0000585"
     """
     # Check cache first
     cached = cache.get(blob_record.sha)
     if cached is not None:
-        logger.info(f"Cache hit for blob {blob_record.sha[:8]}")
-        return cached
+        # Calculate what we would have paid (savings)
+        cached_cost = sum(emb.cost_usd for emb in cached)
+        logger.info(f"Cache hit for blob {blob_record.sha[:8]} (saved ${cached_cost:.6f})")
+        return (cached, True, cached_cost)
 
     # Cache miss - need to generate embeddings
     # Decode blob content
@@ -111,4 +118,4 @@ async def embed_with_cache(
         f"{len(storage_embeddings)} chunks, {total_tokens} tokens, ${total_cost:.6f}"
     )
 
-    return storage_embeddings
+    return (storage_embeddings, False, 0.0)
