@@ -59,7 +59,10 @@ async def index_repository(
     from gitctx.storage.lancedb_store import LanceDBStore
 
     # Initialize components
-    reporter = ProgressReporter(verbose=verbose)
+    # Note: ProgressReporter uses 'quiet' parameter (inverted semantics from 'verbose')
+    # verbose=True → quiet=False (show full progress)
+    # verbose=False → quiet=True (minimal output)
+    reporter = ProgressReporter(quiet=not verbose, model_name=settings.repo.model.embedding)
     walker = CommitWalker(str(repo_path), settings)
     chunker = LanguageAwareChunker(
         chunk_overlap_ratio=settings.repo.index.chunk_overlap_ratio,
@@ -107,6 +110,9 @@ async def index_repository(
 
         for blob_record in blob_records:
             try:
+                # Check if blob is in cache (for cost tracking)
+                was_cached = cache.get(blob_record.sha) is not None
+
                 # Single orchestrated call: check cache → chunk → embed → save cache
                 embeddings = await embed_with_cache(
                     chunker=chunker,
@@ -118,7 +124,18 @@ async def index_repository(
                 # Track stats (embeddings already have all metadata)
                 total_tokens = sum(e.token_count for e in embeddings)
                 total_cost = sum(e.cost_usd for e in embeddings)
-                reporter.update(tokens=total_tokens, cost=total_cost, chunks=len(embeddings))
+
+                # Track cache savings separately
+                if was_cached:
+                    # These tokens/cost were saved by using cache
+                    reporter.update(
+                        chunks=len(embeddings),
+                        cached_blobs=1,  # Increment cached blob count
+                        cached_cost=total_cost,  # Cost we would have paid
+                    )
+                else:
+                    # Fresh embeddings - actual API cost incurred
+                    reporter.update(tokens=total_tokens, cost=total_cost, chunks=len(embeddings))
 
                 # Store (embeddings have all fields: chunk_content, vectors, metadata)
                 blob_locations = {blob_record.sha: blob_record.locations}
@@ -139,8 +156,8 @@ async def index_repository(
                 reporter.record_error()
                 continue
 
-        # Phase 3: Optimize indexes (INVERTED for BM25 + IVF-PQ for vectors)
-        reporter.phase("Optimizing indexes")
+        # Phase 3: Save and optimize indexes (INVERTED for BM25 + IVF-PQ for vectors)
+        reporter.phase("Saving index")
         store.optimize()
 
     except KeyboardInterrupt:

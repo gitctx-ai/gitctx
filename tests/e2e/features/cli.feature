@@ -38,7 +38,7 @@ Feature: CLI Foundation
   Scenario: Index command help
     When I run "gitctx index --help"
     Then the output should contain "Index the repository"
-    And the output should contain "--verbose"
+    And the output should contain "--quiet"
     And the exit code should be 0
 
   Scenario: Search command help

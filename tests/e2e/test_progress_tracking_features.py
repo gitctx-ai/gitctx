@@ -10,16 +10,17 @@ from pytest_bdd import scenarios
 # Import all necessary step definitions and fixtures
 from tests.e2e.steps.cli_steps import (  # noqa: F401
     check_exit_code,
+    run_command,
+    setup_env_var,
 )
 
 # Import all progress tracking step definitions
 from tests.e2e.steps.progress_steps import *  # noqa: F403
 
-# Mark all tests in this module with vcr
+# Mark all tests in this module with anyio and vcr
+# - anyio: Enable event loop for async step functions (indexing pipeline is async)
 # - vcr: Record/replay OpenAI API calls via cassettes
-# Now that we use CliRunner (in-process) instead of subprocess,
-# VCR can intercept HTTP calls for cassette recording/replay.
-pytestmark = pytest.mark.vcr
+pytestmark = [pytest.mark.anyio, pytest.mark.vcr]
 
 # Auto-discover progress tracking scenarios
 scenarios("features/progress_tracking.feature")

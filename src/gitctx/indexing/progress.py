@@ -1,14 +1,15 @@
 """Progress reporting for indexing operations.
 
 Follows TUI_GUIDE.md patterns:
-- Default mode: Terse single-line output (git-like)
-- Verbose mode: Phase-by-phase progress with statistics
-- Spinner: Shows after 5s for long operations
+- Default mode: Multi-phase progress bars with real-time statistics
+- Quiet mode: Minimal single-line output
+- Rich.Progress integration for ETA calculation and throughput display
 """
 # ruff: noqa: PLC0415 # Conditional progress bar imports (optional rich dependency)
 
 from __future__ import annotations
 
+import logging
 import sys
 import time
 from dataclasses import dataclass
@@ -19,8 +20,17 @@ from typing import TYPE_CHECKING, TypedDict
 if TYPE_CHECKING:
     from gitctx.config.settings import GitCtxSettings
 
+from rich.console import Console
+from rich.progress import BarColumn, Progress, TextColumn
+
 from gitctx.cli.symbols import SYMBOLS
 from gitctx.indexing.formatting import format_cost, format_duration, format_number
+from gitctx.models.registry import get_model_spec
+
+logger = logging.getLogger(__name__)
+
+# ETA calculation threshold - show "calculating..." until we have enough samples
+MIN_SAMPLES_FOR_ETA = 10
 
 
 @dataclass
@@ -32,6 +42,8 @@ class IndexingStats:
     total_chunks: int = 0
     total_tokens: int = 0
     total_cost_usd: float = 0.0
+    cached_blobs: int = 0  # NEW: Number of blobs served from cache
+    cached_cost_usd: float = 0.0  # NEW: Cost saved by using cache
     errors: int = 0
     start_time: float = 0.0
 
@@ -41,54 +53,102 @@ class IndexingStats:
 
 
 class ProgressReporter:
-    """Report indexing progress per TUI_GUIDE.md patterns.
+    """Report indexing progress with Rich.Progress bars.
 
-    Default mode: Terse single-line output (git-like) with spinner for >5s operations
-    Verbose mode: Phase-by-phase progress with statistics
-    Spinner: ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ (10 frames, updated every 0.1s)
+    Default mode: Multi-phase progress bars with ETA, throughput, and cost tracking
+    Quiet mode: Minimal single-line summary output only
     """
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, quiet: bool = False, model_name: str = "text-embedding-3-large"):
         """Initialize progress reporter.
 
         Args:
-            verbose: If True, show detailed phase-by-phase progress
+            quiet: If True, show minimal output (old "terse" mode)
+            model_name: Embedding model for pricing display
         """
-        self.verbose = verbose
+        self.quiet = quiet
+        self.model_name = model_name
+        self.model_spec = get_model_spec(model_name)
         self.stats = IndexingStats()
         self.current_phase: str = ""
-        self.spinner_active: bool = False
-        self.spinner_frames = SYMBOLS["spinner_frames"]
-        self.spinner_start_time: float | None = None
-        self.last_spinner_update: float = 0.0
+        self.progress_ctx: Progress | None = None
+        self.task_id: int | None = None
 
     def start(self) -> None:
         """Start progress tracking."""
         self.stats.start_time = time.time()
-        # In verbose mode, announce start
-        if self.verbose:
-            print(f"{SYMBOLS['arrow']} Starting indexing...\n", file=sys.stderr)
-        # In terse mode, spinner will show after 5s (handled in update loop)
 
-    def phase(self, name: str) -> None:
-        """Start a new phase (verbose mode only).
+    def phase(self, name: str, total: int | None = None) -> None:
+        """Start a new phase with optional Rich.Progress bar.
 
         Args:
             name: Phase name (e.g., "Walking commit graph")
+            total: Total items for progress bar (None = indeterminate)
         """
         self.current_phase = name
-        if self.verbose:
+
+        if self.quiet:
+            return  # No output in quiet mode
+
+        # Create Console with terminal detection
+        console = Console(stderr=True)
+
+        if not console.is_terminal or console.is_dumb_terminal:
+            # Non-TTY or dumb terminal: Show phase markers only, no progress bars
+            if name == "Generating embeddings":
+                price = self.model_spec["cents_per_million_tokens"] / 100
+                print(
+                    f"{SYMBOLS['arrow']} {name} using OpenAI {self.model_name} "
+                    f"(${price:.2f}/M tokens)",
+                    file=sys.stderr,
+                )
+            else:
+                print(f"{SYMBOLS['arrow']} {name}", file=sys.stderr)
+            return
+
+        # TTY terminal: Show phase marker with Rich.Progress
+        if name == "Generating embeddings":
+            price = self.model_spec["cents_per_million_tokens"] / 100
+            print(
+                f"{SYMBOLS['arrow']} {name} using OpenAI {self.model_name} (${price:.2f}/M tokens)",
+                file=sys.stderr,
+            )
+        else:
             print(f"{SYMBOLS['arrow']} {name}", file=sys.stderr)
 
-    def update(
+        # Create Rich.Progress context (wrapped in try/except)
+        try:
+            if total is not None:
+                self.progress_ctx = Progress(
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TextColumn("{task.completed}/{task.total} ({task.percentage:.0f}%)"),
+                    TextColumn("ETA {task.fields[eta]}"),
+                    TextColumn("{task.fields[throughput]}"),
+                    console=Console(stderr=True),
+                )
+                self.task_id = self.progress_ctx.add_task(
+                    name,
+                    total=total,
+                    eta="calculating...",
+                    throughput="",
+                )
+                self.progress_ctx.start()
+        except Exception as e:
+            logger.warning(f"Progress display failed: {e}, continuing without progress bars")
+            self.progress_ctx = None
+
+    def update(  # noqa: PLR0913
         self,
         commits: int = 0,
         blobs: int = 0,
         chunks: int = 0,
         tokens: int = 0,
         cost: float = 0.0,
+        cached_blobs: int = 0,
+        cached_cost: float = 0.0,
     ) -> None:
-        """Update statistics (silent in default mode).
+        """Update statistics and progress bar.
 
         Args:
             commits: Number of commits processed (absolute count)
@@ -96,6 +156,8 @@ class ProgressReporter:
             chunks: Number of chunks created (incremental)
             tokens: Tokens consumed (incremental)
             cost: Cost in USD (incremental)
+            cached_blobs: Number of cached blobs (incremental)
+            cached_cost: Cost saved by cache (incremental)
         """
         # Update stats (use assignment for totals, += for incremental)
         if commits:
@@ -108,37 +170,83 @@ class ProgressReporter:
             self.stats.total_tokens += tokens
         if cost:
             self.stats.total_cost_usd += cost
+        if cached_blobs:
+            self.stats.cached_blobs += cached_blobs  # Accumulate cache hits
+        if cached_cost:
+            self.stats.cached_cost_usd += cached_cost  # Accumulate saved costs
 
-        # In verbose mode, show progress for phase milestones
-        if self.verbose and blobs > 0 and blobs % 100 == 0:
-            print(f"  Processed {blobs} blobs...", file=sys.stderr)
+        # Update progress bar (if active)
+        if self.progress_ctx and self.task_id is not None and not self.quiet:
+            try:
+                elapsed = time.time() - self.stats.start_time
+                completed = self.stats.total_blobs
+                throughput = completed / elapsed if elapsed > 0 else 0
+
+                # Show "calculating..." until sufficient samples
+                if completed < MIN_SAMPLES_FOR_ETA:
+                    eta_display = "calculating..."
+                else:
+                    task = self.progress_ctx.tasks[self.task_id]
+                    remaining = task.total - completed if task.total else 0
+                    eta_seconds = remaining / throughput if throughput > 0 else 0
+                    eta_display = str(timedelta(seconds=int(eta_seconds)))
+
+                # Import TaskID for type safety
+                from rich.progress import TaskID
+
+                self.progress_ctx.update(
+                    TaskID(self.task_id),
+                    completed=completed,
+                    eta=eta_display,
+                    throughput=f"{throughput:.0f} blobs/sec",
+                )
+            except Exception as e:
+                logger.warning(f"Progress update failed: {e}")
+
+        # Show cost breakdown for embedding phase (default mode only)
+        if self.current_phase == "Generating embeddings" and not self.quiet:
+            fresh_blobs = self.stats.total_blobs - self.stats.cached_blobs
+            print(
+                f"  Total Costs: ${self.stats.total_cost_usd:.5f} ({fresh_blobs} blobs) | "
+                f"Saved using repo cache: ${self.stats.cached_cost_usd:.5f} "
+                f"({self.stats.cached_blobs} blobs)",
+                file=sys.stderr,
+            )
 
     def record_error(self) -> None:
         """Record an error (silent tracking)."""
         self.stats.errors += 1
 
     def finish(self) -> None:
-        """Print final summary (both modes).
+        """Print final summary.
 
-        Default mode: Single terse line per TUI_GUIDE.md:208-209
-        Verbose mode: Detailed table per TUI_GUIDE.md:246-256
+        Quiet mode: Single line summary to stdout
+        Default mode: Detailed statistics table to stderr
         """
+        # Stop progress context if active
+        if self.progress_ctx:
+            try:
+                self.progress_ctx.stop()
+            except Exception as e:
+                logger.warning(f"Progress stop failed: {e}")
+
         elapsed = self.stats.elapsed_seconds()
 
-        if self.verbose:
-            self._print_verbose_summary(elapsed)
+        if self.quiet:
+            self._print_quiet_summary(elapsed)
         else:
-            self._print_terse_summary(elapsed)
+            self._print_default_summary(elapsed)
 
-    def _print_terse_summary(self, elapsed: float) -> None:
-        """Print terse single-line summary (default mode)."""
-        # Format: "Indexed 5678 commits (1234 unique blobs) in 8.2s"
+    def _print_quiet_summary(self, elapsed: float) -> None:
+        """Print minimal single-line summary (quiet mode)."""
+        # Format: "Indexed 5678 commits (1234 unique blobs, 292 cached) in 8.2s"
         print(
             f"Indexed {format_number(self.stats.total_commits)} commits "
-            f"({format_number(self.stats.total_blobs)} unique blobs) in {format_duration(elapsed)}"
+            f"({format_number(self.stats.total_blobs)} unique blobs, "
+            f"{self.stats.cached_blobs} cached) in {format_duration(elapsed)}"
         )
 
-        # Always show cost summary on next line
+        # Show cost summary on next line
         print(
             f"Tokens: {format_number(self.stats.total_tokens)} | "
             f"Cost: {format_cost(self.stats.total_cost_usd)}"
@@ -147,18 +255,22 @@ class ProgressReporter:
         if self.stats.errors > 0:
             print(f"Errors: {self.stats.errors}", file=sys.stderr)
 
-    def _print_verbose_summary(self, elapsed: float) -> None:
-        """Print detailed statistics table (verbose mode)."""
-        print(f"\n{SYMBOLS['success']} Indexing Complete\n", file=sys.stderr)
+    def _print_default_summary(self, elapsed: float) -> None:
+        """Print detailed statistics table (default mode)."""
+        print(f"{SYMBOLS['success']} Indexing Complete\n", file=sys.stderr)
 
-        # Statistics table (simplified, no Rich dependencies)
+        # Statistics table
         print("Statistics:", file=sys.stderr)
         print(f"  Commits:      {format_number(self.stats.total_commits)}", file=sys.stderr)
-        print(f"  Unique blobs: {format_number(self.stats.total_blobs)}", file=sys.stderr)
+        print(
+            f"  Unique blobs: {format_number(self.stats.total_blobs)} "
+            f"({self.stats.cached_blobs} cached)",
+            file=sys.stderr,
+        )
         print(f"  Chunks:       {format_number(self.stats.total_chunks)}", file=sys.stderr)
         print(f"  Tokens:       {format_number(self.stats.total_tokens)}", file=sys.stderr)
         print(f"  Cost:         {format_cost(self.stats.total_cost_usd)}", file=sys.stderr)
-        print(f"  Time:         {timedelta(seconds=int(elapsed))!s}", file=sys.stderr)
+        print(f"  Time:         {format_duration(elapsed)}", file=sys.stderr)
 
         if self.stats.errors > 0:
             print(f"  Errors:       {self.stats.errors}", file=sys.stderr)
