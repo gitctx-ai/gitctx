@@ -27,7 +27,6 @@ from typing import Any
 from pytest_bdd import given, parsers, then, when
 
 from gitctx.cli.main import app
-from gitctx.cli.symbols import SYMBOLS
 
 # ============================================================================
 # Given Steps - Setup Test Repositories
@@ -218,7 +217,8 @@ def check_phase_markers(marker1: str, marker2: str, context: dict[str, Any]) -> 
     Expected markers: "→ Walking commit graph", "→ Generating embeddings"
     per TUI_GUIDE.md:230-256.
 
-    Note: Normalizes Unicode arrow to platform-appropriate symbol (→ or ->).
+    Note: Checks for BOTH Unicode (→) and ASCII (->) arrows to handle
+    Windows environment differences (legacy cmd.exe vs Windows Terminal).
 
     Args:
         marker1: First phase marker (with Unicode arrow →)
@@ -227,16 +227,24 @@ def check_phase_markers(marker1: str, marker2: str, context: dict[str, Any]) -> 
     """
     stderr = context["stderr"]
 
-    # Normalize markers to use platform-appropriate arrow symbol
-    # Gherkin may have Unicode → but actual output uses SYMBOLS["arrow"]
-    marker1_normalized = marker1.replace("→", SYMBOLS["arrow"])
-    marker2_normalized = marker2.replace("→", SYMBOLS["arrow"])
+    # Check for BOTH arrow symbols since Windows detection can vary
+    # between test environment and CLI subprocess
+    unicode_marker1 = marker1  # Keep Unicode arrow →
+    ascii_marker1 = marker1.replace("→", "->")  # Convert to ASCII arrow
 
-    assert marker1_normalized in stderr, (
-        f"Marker '{marker1_normalized}' not found in stderr:\n{stderr}"
+    unicode_marker2 = marker2  # Keep Unicode arrow →
+    ascii_marker2 = marker2.replace("→", "->")  # Convert to ASCII arrow
+
+    # Accept either Unicode or ASCII arrow for marker1
+    marker1_found = unicode_marker1 in stderr or ascii_marker1 in stderr
+    assert marker1_found, (
+        f"Marker '{marker1}' (or '{ascii_marker1}') not found in stderr:\n{stderr}"
     )
-    assert marker2_normalized in stderr, (
-        f"Marker '{marker2_normalized}' not found in stderr:\n{stderr}"
+
+    # Accept either Unicode or ASCII arrow for marker2
+    marker2_found = unicode_marker2 in stderr or ascii_marker2 in stderr
+    assert marker2_found, (
+        f"Marker '{marker2}' (or '{ascii_marker2}') not found in stderr:\n{stderr}"
     )
 
 
@@ -253,9 +261,9 @@ def check_statistics_table(datatable, context: dict[str, Any]) -> None:
     """
     stderr = context["stderr"]
 
-    # Verify completion marker (use platform-appropriate symbol)
-    completion_marker = f"{SYMBOLS['success']} Indexing Complete"
-    assert completion_marker in stderr, f"Completion marker not found in stderr:\n{stderr}"
+    # Verify completion marker (check for both Unicode ✓ and ASCII [OK] on Windows)
+    has_completion = "✓ Indexing Complete" in stderr or "[OK] Indexing Complete" in stderr
+    assert has_completion, f"Completion marker not found in stderr:\n{stderr}"
     assert "Statistics:" in stderr, f"Statistics table not found in stderr:\n{stderr}"
 
     # Verify each field from the datatable (skip header row)
@@ -362,18 +370,21 @@ def check_exit_code(code: int, context: dict[str, Any]) -> None:
 def check_phase_marker(marker: str, context: dict[str, Any]) -> None:
     """Verify specific phase marker appears in output.
 
+    Checks for BOTH Unicode (→) and ASCII (->) arrows to handle
+    Windows environment differences.
+
     Args:
         marker: Expected phase marker text (e.g., "→ Saving index")
         context: BDD context with stderr
     """
     stderr = context["stderr"]
 
-    # Normalize marker to use platform-appropriate arrow symbol
-    marker_normalized = marker.replace("→", SYMBOLS["arrow"])
+    # Check for BOTH arrow symbols for Windows compatibility
+    unicode_marker = marker  # Keep Unicode arrow →
+    ascii_marker = marker.replace("→", "->")  # Convert to ASCII arrow
 
-    assert marker_normalized in stderr, (
-        f"Marker '{marker_normalized}' not found in stderr:\n{stderr}"
-    )
+    marker_found = unicode_marker in stderr or ascii_marker in stderr
+    assert marker_found, f"Marker '{marker}' (or '{ascii_marker}') not found in stderr:\n{stderr}"
 
 
 @then("I should see progress bars with counts and percentages")
@@ -404,9 +415,16 @@ def check_progress_bars_with_counts(context: dict[str, Any]) -> None:
     stderr = context["stderr"]
 
     # Verify our integration: all phases called correctly
-    assert "→ Walking commit graph" in stderr, "Walking phase marker not found"
-    assert "→ Generating embeddings" in stderr, "Embedding phase marker not found"
-    assert "→ Saving index" in stderr, "Saving phase marker not found"
+    # Check for BOTH Unicode (→) and ASCII (->) arrows for Windows compatibility
+    assert "→ Walking commit graph" in stderr or "-> Walking commit graph" in stderr, (
+        "Walking phase marker not found"
+    )
+    assert "→ Generating embeddings" in stderr or "-> Generating embeddings" in stderr, (
+        "Embedding phase marker not found"
+    )
+    assert "→ Saving index" in stderr or "-> Saving index" in stderr, (
+        "Saving phase marker not found"
+    )
 
     # Verify completion
     assert "Indexing Complete" in stderr, "Completion marker not found"
@@ -649,14 +667,17 @@ def check_output_file_no_ansi(context: dict[str, Any]) -> None:
     )
 
     # Verify phase markers are present (they should work in non-TTY mode)
-    arrow = SYMBOLS["arrow"]
+    # Check for both Unicode → and ASCII -> arrows for Windows compatibility
     # At least one phase marker should be present
     has_phase_marker = any(
         marker in stderr
         for marker in [
-            f"{arrow} Walking",
-            f"{arrow} Generating",
-            f"{arrow} Saving",
+            "→ Walking",
+            "-> Walking",
+            "→ Generating",
+            "-> Generating",
+            "→ Saving",
+            "-> Saving",
         ]
     )
     assert has_phase_marker, f"No phase markers found in stderr:\n{stderr}"

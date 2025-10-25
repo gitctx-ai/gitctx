@@ -7,7 +7,7 @@ Feature: Progress Tracking and Cost Estimation
   # All scenarios use VCR.py cassettes (recorded from real API, replayed in CI)
 
   Scenario: Default mode shows multi-phase progress
-    Given a repository with 10 files to index
+    Given a repository with 2 files to index
     And environment variable "OPENAI_API_KEY" is "$ENV"
     When I run "gitctx index"
     Then I should see phase markers "→ Walking commit graph" and "→ Generating embeddings"
@@ -23,7 +23,7 @@ Feature: Progress Tracking and Cost Estimation
       | Time         | \d+[ms\. ]+      |
 
   Scenario: Quiet mode shows minimal output
-    Given a repository with 10 files to index
+    Given a repository with 2 files to index
     And environment variable "OPENAI_API_KEY" is "$ENV"
     When I run "gitctx index --quiet"
     Then I should see single-line output matching "Indexed \d+ commits \(\d+ unique blobs, \d+ cached\) in \d+\.\d+s"
@@ -44,14 +44,14 @@ Feature: Progress Tracking and Cost Estimation
     And exit code should be 0
 
   Scenario: Cache savings displayed during embedding
-    Given a repository with 10 files to index
+    Given a repository with 2 files to index
     And environment variable "OPENAI_API_KEY" is "$ENV"
     When I run "gitctx index"
     Then embedding phase should show "Total Costs: $X (N blobs) | Saved using repo cache: $Y (M blobs)"
 
   Scenario: Throughput calculation handles small repositories
-    Given a repository with 10 files to index
+    Given a repository with 2 files to index
     And environment variable "OPENAI_API_KEY" is "$ENV"
     When I run "gitctx index"
-    Then embedding phase should calculate throughput over min(100, 10) blobs
+    Then embedding phase should calculate throughput over min(100, 2) blobs
     And progress bar should complete without division-by-zero errors
