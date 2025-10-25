@@ -54,12 +54,6 @@ def main(
 
 @app.command(name="index")
 def index_command_wrapper(
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Show detailed output during indexing",
-    ),
     quiet: bool = typer.Option(
         False,
         "--quiet",
@@ -83,7 +77,6 @@ def index_command_wrapper(
     from gitctx.cli.index import index_command
 
     index_command(
-        verbose=verbose,
         quiet=quiet,
         skip_confirmation=skip_confirmation,
         _force=_force,

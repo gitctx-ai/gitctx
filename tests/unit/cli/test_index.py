@@ -57,8 +57,11 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
 
     with patch("gitctx.config.settings.GitCtxSettings", return_value=mock_settings):
         # Mock index_repository to simulate successful indexing with output
-        async def mock_index_impl(repo_path, settings, dry_run=False, verbose=False):
-            """Mock implementation that produces expected output."""
+        async def mock_index_impl(repo_path, settings, dry_run=False, verbose=True):
+            """Mock implementation that produces expected output.
+
+            Note: verbose parameter defaults to True (matches new default behavior).
+            """
             if dry_run:
                 print("Files:        5")
                 print("Lines:        100")
@@ -68,6 +71,7 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
                 return
 
             if verbose:
+                # Default mode - verbose output
                 print("→ Walking commit graph", file=sys.stderr)
                 print("→ Generating embeddings", file=sys.stderr)
                 print("\n✓ Indexing Complete\n", file=sys.stderr)
@@ -79,7 +83,7 @@ def mock_git_repo(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base
                 print("  Cost:         $0.0001", file=sys.stderr)
                 print("  Time:         0:00:01", file=sys.stderr)
             else:
-                # Terse mode - single line
+                # Quiet mode - single line
                 print("Indexed 1 commits (1 unique blobs) in 0.1s")
                 print("Tokens: 50 | Cost: $0.0001")
 
@@ -99,24 +103,10 @@ def test_index_command_exists(isolated_cli_runner):
 
 
 def test_index_default_output(mock_git_repo):
-    """Verify default mode is terse (minimal output)."""
+    """Verify default mode is verbose (detailed output)."""
     result = mock_git_repo.invoke(app, ["index"])
     assert result.exit_code == 0
-    lines = [line for line in result.stdout.split("\n") if line.strip()]
-    # Default should be terse: summary line + cost line
-    assert len(lines) == 2
-    assert "Indexed" in result.stdout
-    assert "commits" in result.stdout
-    assert "unique blobs" in result.stdout
-    assert "Tokens:" in result.stdout
-    assert "Cost:" in result.stdout
-
-
-def test_index_verbose_flag(mock_git_repo):
-    """Verify --verbose flag shows detailed output."""
-    result = mock_git_repo.invoke(app, ["index", "--verbose"])
-    assert result.exit_code == 0
-    # Verbose output goes to stderr
+    # Default should be verbose: phase markers + statistics
     output = result.stdout + result.stderr
     assert "Walking commit graph" in output or "→" in output
     assert "Statistics:" in output
@@ -124,13 +114,43 @@ def test_index_verbose_flag(mock_git_repo):
     assert len(lines) > 5  # Multiple lines in verbose mode
 
 
+def test_index_quiet_flag(mock_git_repo):
+    """Verify --quiet flag shows minimal output."""
+
+    # Need to pass quiet=True to mock (inverted from verbose)
+    async def mock_index_quiet(repo_path, settings, dry_run=False, verbose=False):
+        """Mock with quiet output."""
+        print("Indexed 1 commits (1 unique blobs) in 0.1s")
+        print("Tokens: 50 | Cost: $0.0001")
+
+    with patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index_quiet):
+        result = mock_git_repo.invoke(app, ["index", "--quiet"])
+        assert result.exit_code == 0
+        lines = [line for line in result.stdout.split("\n") if line.strip()]
+        # Quiet should be minimal: summary line + cost line
+        assert len(lines) == 2
+        assert "Indexed" in result.stdout
+        assert "commits" in result.stdout
+        assert "unique blobs" in result.stdout
+        assert "Tokens:" in result.stdout
+        assert "Cost:" in result.stdout
+
+
 def test_index_short_flags(mock_git_repo):
-    """Verify -v short flag works."""
-    result = mock_git_repo.invoke(app, ["index", "-v"])
-    assert result.exit_code == 0
-    # Verbose output goes to stderr
-    output = result.stdout + result.stderr
-    assert "→" in output or "Walking commit graph" in output
+    """Verify -q short flag works."""
+
+    # Need to pass verbose=False to mock for quiet mode
+    async def mock_index_quiet(repo_path, settings, dry_run=False, verbose=False):
+        """Mock with quiet output."""
+        print("Indexed 1 commits (1 unique blobs) in 0.1s")
+        print("Tokens: 50 | Cost: $0.0001")
+
+    with patch("gitctx.indexing.pipeline.index_repository", side_effect=mock_index_quiet):
+        result = mock_git_repo.invoke(app, ["index", "-q"])
+        assert result.exit_code == 0
+        lines = [line for line in result.stdout.split("\n") if line.strip()]
+        assert len(lines) == 2  # Quiet mode
+        assert "Indexed" in result.stdout
 
 
 def test_index_handles_config_error(isolated_cli_runner, tmp_path, monkeypatch, git_isolation_base):
@@ -250,10 +270,10 @@ def test_index_handles_generic_exception(
 def test_index_help_text(isolated_cli_runner):
     """Verify help text includes all options."""
     result = isolated_cli_runner.invoke(app, ["index", "--help"])
-    assert "--verbose" in result.stdout
-    assert "-v" in result.stdout
     assert "--quiet" in result.stdout
     assert "-q" in result.stdout
+    assert "--yes" in result.stdout
+    assert "-y" in result.stdout
     assert "--dry-run" in result.stdout
 
 
@@ -426,3 +446,22 @@ def test_snapshot_mode_no_warning(isolated_cli_runner, tmp_path, monkeypatch, gi
         assert "History Mode" not in output
         assert "Continue?" not in output
         assert "Indexed successfully" in output or result.exit_code == 0
+
+
+# ============================================================================
+# CLI Flag Tests (TASK-0001.4.5.4)
+# ============================================================================
+
+
+def test_index_command_verbose_flag_removed(isolated_cli_runner):
+    """Test that --verbose flag no longer exists (backward incompatible change for pre-1.0)."""
+    # Try to use --verbose flag
+    result = isolated_cli_runner.invoke(app, ["index", "--help"])
+
+    # Verify --verbose is NOT in help text
+    assert "--verbose" not in result.stdout
+    assert "-v" not in result.stdout or "-y" in result.stdout  # -v removed, -y (--yes) exists
+
+    # Try to run with --verbose (should fail)
+    result = isolated_cli_runner.invoke(app, ["index", "--verbose"])
+    assert result.exit_code != 0  # Should error due to unrecognized option

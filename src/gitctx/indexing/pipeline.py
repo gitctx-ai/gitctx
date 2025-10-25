@@ -59,7 +59,10 @@ async def index_repository(
     from gitctx.storage.lancedb_store import LanceDBStore
 
     # Initialize components
-    reporter = ProgressReporter(verbose=verbose)
+    # Note: ProgressReporter uses 'quiet' parameter (inverted semantics from 'verbose')
+    # verbose=True → quiet=False (show full progress)
+    # verbose=False → quiet=True (minimal output)
+    reporter = ProgressReporter(quiet=not verbose, model_name=settings.repo.model.embedding)
     walker = CommitWalker(str(repo_path), settings)
     chunker = LanguageAwareChunker(
         chunk_overlap_ratio=settings.repo.index.chunk_overlap_ratio,
@@ -103,22 +106,45 @@ async def index_repository(
         )
 
         # Phase 2: Chunk and embed
-        reporter.phase("Generating embeddings")
+        reporter.phase("Generating embeddings", total=len(blob_records))
+
+        # Initialize cache tracking
+        fresh_cost = 0.0
+        cached_cost_total = 0.0
+        cached_count = 0
+        processed_count = 0
 
         for blob_record in blob_records:
+            processed_count += 1
             try:
                 # Single orchestrated call: check cache → chunk → embed → save cache
-                embeddings = await embed_with_cache(
+                # Returns tuple: (embeddings, was_cached, cached_cost)
+                embeddings, was_cached, saved_cost = await embed_with_cache(
                     chunker=chunker,
                     embedder=embedder,
                     cache=cache,
                     blob_record=blob_record,
                 )
 
-                # Track stats (embeddings already have all metadata)
+                # Track stats
                 total_tokens = sum(e.token_count for e in embeddings)
-                total_cost = sum(e.cost_usd for e in embeddings)
-                reporter.update(tokens=total_tokens, cost=total_cost, chunks=len(embeddings))
+
+                # Separate fresh costs from cached costs
+                if was_cached:
+                    cached_count += 1
+                    cached_cost_total += saved_cost
+                else:
+                    fresh_cost += sum(e.cost_usd for e in embeddings)
+
+                # Update reporter with cumulative metrics
+                reporter.update(
+                    blobs=processed_count,
+                    tokens=total_tokens,
+                    chunks=len(embeddings),
+                    cost=fresh_cost,
+                    cached_blobs=cached_count,
+                    cached_cost=cached_cost_total,
+                )
 
                 # Store (embeddings have all fields: chunk_content, vectors, metadata)
                 blob_locations = {blob_record.sha: blob_record.locations}
@@ -139,8 +165,8 @@ async def index_repository(
                 reporter.record_error()
                 continue
 
-        # Phase 3: Optimize indexes (INVERTED for BM25 + IVF-PQ for vectors)
-        reporter.phase("Optimizing indexes")
+        # Phase 3: Save and optimize indexes (INVERTED for BM25 + IVF-PQ for vectors)
+        reporter.phase("Saving index")
         store.optimize()
 
     except KeyboardInterrupt:

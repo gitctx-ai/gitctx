@@ -61,7 +61,7 @@ class TestEmbedWithCache:
         embedder = AsyncMock()
 
         # ACT - Call embed_with_cache
-        result = await embed_with_cache(
+        result, was_cached, cached_cost = await embed_with_cache(
             chunker=chunker, embedder=embedder, cache=cache, blob_record=blob
         )
 
@@ -70,6 +70,10 @@ class TestEmbedWithCache:
         # Check approximate equality (safetensors uses float32, not exact floats)
         assert all(abs(v - 0.1) < 0.001 for v in result[0].vector)
         assert result[0].blob_sha == "test_blob_sha_001"
+
+        # ASSERT - Cache hit metadata
+        assert was_cached is True
+        assert cached_cost > 0.0
 
         # ASSERT - Chunker and embedder NOT called (cache hit)
         chunker.chunk_file.assert_not_called()
@@ -127,7 +131,7 @@ class TestEmbedWithCache:
         embedder.embed_chunks.return_value = [test_embedding]
 
         # ACT - Call embed_with_cache
-        result = await embed_with_cache(
+        result, was_cached, cached_cost = await embed_with_cache(
             chunker=chunker, embedder=embedder, cache=cache, blob_record=blob
         )
 
@@ -144,6 +148,10 @@ class TestEmbedWithCache:
         assert len(result) == 1
         assert all(abs(v - 0.2) < 0.001 for v in result[0].vector)
         assert result[0].blob_sha == "test_blob_sha_002"
+
+        # ASSERT - Cache miss metadata
+        assert was_cached is False
+        assert cached_cost == 0.0
 
         # ASSERT - Embeddings stored in cache
         cached = cache.get("test_blob_sha_002")
@@ -305,3 +313,164 @@ class TestEmbedWithCache:
             "Cache hit" in record.message and "miss_blo" in record.message
             for record in caplog.records
         )
+
+
+# ============================================================================
+# Cache Cost Tracking Tests (TASK-0001.4.5.4)
+# ============================================================================
+
+
+@pytest.mark.anyio
+class TestEmbedWithCacheCostTracking:
+    """Test embed_with_cache returns tuple with cached cost for TUI progress."""
+
+    async def test_embed_with_cache_returns_cached_cost_on_hit(self, tmp_path: Path):
+        """When cache hit occurs, return tuple with (embeddings, True, cached_cost).
+
+        Given: A blob with embeddings in cache (with cost_usd metadata)
+        When: I call embed_with_cache
+        Then: Function returns (embeddings, was_cached=True, cached_cost=sum(costs))
+        """
+        # ARRANGE - Create cache with embeddings that have cost
+        cache = EmbeddingCache(cache_dir=tmp_path, model="text-embedding-3-large")
+        cached_embeddings = [
+            Embedding(
+                vector=[0.1] * 3072,
+                token_count=100,
+                model="text-embedding-3-large",
+                cost_usd=0.000013,  # Cost for 100 tokens
+                blob_sha="cached_blob_001",
+                chunk_index=0,
+            ),
+            Embedding(
+                vector=[0.2] * 3072,
+                token_count=150,
+                model="text-embedding-3-large",
+                cost_usd=0.0000195,  # Cost for 150 tokens
+                blob_sha="cached_blob_001",
+                chunk_index=1,
+            ),
+        ]
+        cache.set("cached_blob_001", cached_embeddings)
+
+        # Create test blob
+        blob_location = BlobLocation(
+            commit_sha="abc123" * 7,
+            file_path="test.py",
+            is_head=True,
+            author_name="Test",
+            author_email="test@example.com",
+            commit_date=1234567890,
+            commit_message="Test",
+            is_merge=False,
+        )
+        blob = BlobRecord(
+            sha="cached_blob_001",
+            content=b"def test(): pass",
+            size=16,
+            locations=[blob_location],
+        )
+
+        # Mock chunker and embedder (should NOT be called)
+        chunker = Mock(spec=LanguageAwareChunker)
+        embedder = AsyncMock()
+
+        # ACT - Call embed_with_cache
+        result = await embed_with_cache(
+            chunker=chunker, embedder=embedder, cache=cache, blob_record=blob
+        )
+
+        # ASSERT - Returns tuple (embeddings, was_cached, cached_cost)
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+
+        embeddings, was_cached, cached_cost = result
+
+        # Verify embeddings
+        assert len(embeddings) == 2
+        assert all(abs(v - 0.1) < 0.001 for v in embeddings[0].vector)
+
+        # Verify cache status
+        assert was_cached is True
+
+        # Verify cached cost = sum of embedding costs
+        expected_cost = 0.000013 + 0.0000195
+        assert abs(cached_cost - expected_cost) < 0.0000001
+
+        # Verify embedder NOT called (cache hit)
+        embedder.embed_chunks.assert_not_called()
+
+    async def test_embed_with_cache_cache_miss_returns_zero_cost(self, tmp_path: Path):
+        """When cache miss occurs, return tuple with (embeddings, False, 0.0).
+
+        Given: A blob NOT in cache
+        When: I call embed_with_cache
+        Then: Function returns (embeddings, was_cached=False, cached_cost=0.0)
+        """
+        # ARRANGE - Create empty cache
+        cache = EmbeddingCache(cache_dir=tmp_path, model="text-embedding-3-large")
+
+        # Create test blob
+        blob_location = BlobLocation(
+            commit_sha="def456" * 7,
+            file_path="new.py",
+            is_head=True,
+            author_name="Test",
+            author_email="test@example.com",
+            commit_date=1234567890,
+            commit_message="Add new file",
+            is_merge=False,
+        )
+        blob = BlobRecord(
+            sha="new_blob_002",
+            content=b"def new_func(): return 42",
+            size=26,
+            locations=[blob_location],
+        )
+
+        # Mock chunker
+        chunker = Mock(spec=LanguageAwareChunker)
+        test_chunk = CodeChunk(
+            content="def new_func(): return 42",
+            start_line=1,
+            end_line=1,
+            token_count=20,
+            metadata={"chunk_index": 0, "total_chunks": 1},
+        )
+        chunker.chunk_file.return_value = [test_chunk]
+
+        # Mock embedder
+        embedder = AsyncMock()
+        test_embedding = Embedding(
+            vector=[0.3] * 3072,
+            token_count=20,
+            model="text-embedding-3-large",
+            cost_usd=0.0000026,
+            blob_sha="new_blob_002",
+            chunk_index=0,
+        )
+        embedder.embed_chunks.return_value = [test_embedding]
+
+        # ACT - Call embed_with_cache
+        result = await embed_with_cache(
+            chunker=chunker, embedder=embedder, cache=cache, blob_record=blob
+        )
+
+        # ASSERT - Returns tuple (embeddings, was_cached, cached_cost)
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+
+        embeddings, was_cached, cached_cost = result
+
+        # Verify embeddings
+        assert len(embeddings) == 1
+        assert all(abs(v - 0.3) < 0.001 for v in embeddings[0].vector)
+
+        # Verify cache status
+        assert was_cached is False
+
+        # Verify cached cost is 0.0 (no savings on cache miss)
+        assert cached_cost == 0.0
+
+        # Verify embedder WAS called (cache miss)
+        embedder.embed_chunks.assert_called_once()

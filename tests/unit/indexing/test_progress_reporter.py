@@ -40,20 +40,11 @@ class TestIndexingStats:
 class TestProgressReporterTerse:
     """Test ProgressReporter in default (terse) mode."""
 
-    def test_reporter_initialization(self):
-        """Test ProgressReporter initializes with platform-appropriate symbols."""
-
-        reporter = ProgressReporter(verbose=False)
-
-        # Verify spinner frames are set from SYMBOLS
-        assert reporter.spinner_frames == SYMBOLS["spinner_frames"]
-        assert len(reporter.spinner_frames) > 0
-
     def test_terse_mode_output(self, capsys):
         """Test terse mode produces single-line summary."""
 
         # Create reporter in terse mode
-        reporter = ProgressReporter(verbose=False)
+        reporter = ProgressReporter(quiet=True)
 
         # Start and update with mock time
         with patch("time.time") as mock_time:
@@ -70,15 +61,15 @@ class TestProgressReporterTerse:
         # Capture output
         captured = capsys.readouterr()
 
-        # Assert single-line format
-        assert "Indexed 5,678 commits (1,234 unique blobs) in 8.2s" in captured.out
+        # Assert quiet mode format (includes cached count now)
+        assert "Indexed 5,678 commits (1,234 unique blobs, 0 cached) in 8.2s" in captured.out
         assert "Tokens: 125,000" in captured.out
         assert "Cost: $0.0163" in captured.out
 
     def test_terse_mode_shows_errors(self, capsys):
         """Test terse mode displays error count."""
 
-        reporter = ProgressReporter(verbose=False)
+        reporter = ProgressReporter(quiet=True)
 
         with patch("time.time") as mock_time:
             mock_time.return_value = 100.0
@@ -98,7 +89,7 @@ class TestProgressReporterTerse:
     def test_empty_repo_no_division_error(self, capsys):
         """Test terse mode handles zero values gracefully."""
 
-        reporter = ProgressReporter(verbose=False)
+        reporter = ProgressReporter(quiet=True)
 
         with patch("time.time") as mock_time:
             mock_time.return_value = 100.0
@@ -109,7 +100,7 @@ class TestProgressReporterTerse:
             reporter.finish()
 
         captured = capsys.readouterr()
-        assert "Indexed 0 commits (0 unique blobs)" in captured.out
+        assert "Indexed 0 commits (0 unique blobs, 0 cached)" in captured.out
         assert "Tokens: 0" in captured.out
         assert "$0.0000" in captured.out
 
@@ -120,7 +111,7 @@ class TestProgressReporterVerbose:
     def test_verbose_mode_shows_phases(self, capsys):
         """Test verbose mode displays phase markers."""
 
-        reporter = ProgressReporter(verbose=True)
+        reporter = ProgressReporter(quiet=False)
 
         with patch("time.time") as mock_time:
             mock_time.return_value = 100.0
@@ -138,42 +129,43 @@ class TestProgressReporterVerbose:
         captured = capsys.readouterr()
 
         # Assert phase markers in stderr (use platform-appropriate symbols)
-        assert f"{SYMBOLS['arrow']} Starting indexing" in captured.err
         assert f"{SYMBOLS['arrow']} Walking commit graph" in captured.err
+        # Generating embeddings includes model pricing in the message
         assert f"{SYMBOLS['arrow']} Generating embeddings" in captured.err
+        assert "text-embedding-3-large" in captured.err
 
         # Assert verbose summary (use platform-appropriate symbols)
         assert f"{SYMBOLS['success']} Indexing Complete" in captured.err
         assert "Statistics:" in captured.err
         assert "Commits:" in captured.err
         assert "Unique blobs:" in captured.err
+        assert "cached" in captured.err  # Shows cached count
         assert "Chunks:" in captured.err
         assert "Tokens:" in captured.err
         assert "Cost:" in captured.err
         assert "Time:" in captured.err
 
-    def test_verbose_mode_milestone_progress(self, capsys):
-        """Test verbose mode shows milestone progress."""
+    def test_verbose_mode_handles_multiple_updates(self, capsys):
+        """Test verbose mode handles multiple updates correctly."""
 
-        reporter = ProgressReporter(verbose=True)
+        reporter = ProgressReporter(quiet=False)
 
         with patch("time.time") as mock_time:
             mock_time.return_value = 100.0
             reporter.start()
             reporter.phase("Processing")
 
-            # Update at milestone (100 blobs)
+            # Multiple updates (simulating incremental progress)
             reporter.update(blobs=100)
-
-            # Update at another milestone (200 blobs)
-            reporter.update(blobs=200)
+            reporter.update(blobs=200)  # This sets total to 200, not increments by 200
 
             mock_time.return_value = 105.0
             reporter.finish()
 
         captured = capsys.readouterr()
-        assert "Processed 100 blobs" in captured.err
-        assert "Processed 200 blobs" in captured.err
+        # Check that final summary shows correct totals
+        assert "Unique blobs: 200" in captured.err
+        assert f"{SYMBOLS['success']} Indexing Complete" in captured.err
 
 
 class TestProgressReporterErrorTracking:
@@ -196,7 +188,7 @@ class TestProgressReporterErrorTracking:
     def test_errors_displayed_in_summary(self, capsys):
         """Test errors shown in final summary."""
 
-        reporter = ProgressReporter(verbose=False)
+        reporter = ProgressReporter(quiet=True)
 
         with patch("time.time") as mock_time:
             mock_time.return_value = 100.0

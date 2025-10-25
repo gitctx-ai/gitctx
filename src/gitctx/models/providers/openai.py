@@ -45,6 +45,7 @@ class OpenAIEmbedder:
     DIMENSIONS = 3072
     COST_PER_MILLION_TOKENS = 0.13
     MAX_BATCH_SIZE = 2048
+    MAX_TOKENS_PER_REQUEST = 300_000  # OpenAI API limit for embeddings
 
     def __init__(
         self, api_key: str, max_retries: int = 3, show_progress: bool = False, **kwargs: Any
@@ -106,6 +107,13 @@ class OpenAIEmbedder:
         if not chunks:
             return []
 
+        # Check total token count to avoid exceeding API limit
+        total_tokens = sum(chunk.token_count for chunk in chunks)
+
+        # If total exceeds limit, split into multiple API calls
+        if total_tokens > self.MAX_TOKENS_PER_REQUEST:
+            return await self._embed_chunks_split(chunks, blob_sha)
+
         contents = [chunk.content for chunk in chunks]
 
         # Call OpenAI API directly to get usage data
@@ -165,6 +173,57 @@ class OpenAIEmbedder:
             )
 
         return embeddings
+
+    async def _embed_chunks_split(self, chunks: list[CodeChunk], blob_sha: str) -> list[Embedding]:
+        """Split chunks into multiple API calls to respect token limit.
+
+        Args:
+            chunks: List of code chunks (total tokens > MAX_TOKENS_PER_REQUEST)
+            blob_sha: Git blob SHA for metadata tracking
+
+        Returns:
+            List of Embedding objects from multiple API calls
+
+        Note:
+            This handles large files (e.g., E2E test cassettes) that produce
+            many chunks exceeding the 300K token API limit.
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        all_embeddings: list[Embedding] = []
+        current_batch: list[CodeChunk] = []
+        current_tokens = 0
+
+        for chunk in chunks:
+            # If adding this chunk would exceed limit, process current batch first
+            if current_tokens + chunk.token_count > self.MAX_TOKENS_PER_REQUEST and current_batch:
+                logger.debug(
+                    f"Splitting large blob {blob_sha[:8]}: "
+                    f"batch {len(current_batch)} chunks, {current_tokens} tokens"
+                )
+                batch_embeddings = await self.embed_chunks(current_batch, blob_sha)
+                all_embeddings.extend(batch_embeddings)
+
+                # Start new batch
+                current_batch = [chunk]
+                current_tokens = chunk.token_count
+            else:
+                current_batch.append(chunk)
+                current_tokens += chunk.token_count
+
+        # Process final batch
+        if current_batch:
+            batch_embeddings = await self.embed_chunks(current_batch, blob_sha)
+            all_embeddings.extend(batch_embeddings)
+
+        logger.info(
+            f"Split large blob {blob_sha[:8]} into {len(chunks)} chunks "
+            f"across multiple API calls (total {current_tokens} tokens)"
+        )
+
+        return all_embeddings
 
     def estimate_cost(self, token_count: int) -> float:
         """Estimate API cost for embedding token_count tokens.

@@ -15,12 +15,6 @@ console_err = Console(stderr=True)
 
 
 def index_command(
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Show detailed output during indexing",
-    ),
     quiet: bool = typer.Option(
         False,
         "--quiet",
@@ -48,13 +42,10 @@ def index_command(
 
     Examples:
 
-        # Basic indexing (terse output)
+        # Basic indexing (shows progress)
         $ gitctx index
 
-        # Detailed output
-        $ gitctx index --verbose
-
-        # Silent operation
+        # Quiet mode (minimal output)
         $ gitctx index --quiet
 
         # Force reindex
@@ -103,8 +94,8 @@ def index_command(
     repo_path = Path.cwd()
 
     try:
-        # Quiet mode suppresses progress output
-        use_verbose = verbose and not quiet
+        # Default is full progress mode unless --quiet is specified
+        use_verbose = not quiet
 
         asyncio.run(
             index_repository(
