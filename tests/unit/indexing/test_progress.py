@@ -454,3 +454,110 @@ class TestModelSpecPricingUsage:
         assert "$0.02" in stderr_output or "text-embedding-3-small" in stderr_output, (
             "Should display model pricing from registry"
         )
+
+
+class TestQuadraticAccumulationFix:
+    """Test fix for quadratic accumulation bug (GitHub issue #XX).
+
+    Previously, update() would INCREMENT cumulative parameters like cost and
+    cached_blobs, leading to quadratic growth (sum of 1+2+3+...+N instead of N).
+    This caused 42x cost overreporting and negative blob counts.
+    """
+
+    def test_cumulative_cost_not_accumulated_quadratically(self) -> None:
+        """Test that cumulative cost is ASSIGNED not incremented."""
+        reporter = ProgressReporter(quiet=True, model_name="text-embedding-3-large")
+        reporter.start()
+        reporter.phase("Generating embeddings")
+
+        # Simulate pipeline passing cumulative totals
+        # First update: cost = 0.10
+        reporter.update(cost=0.10)
+        assert reporter.stats.total_cost_usd == 0.10, "First update should set cost to 0.10"
+
+        # Second update: cost = 0.20 (cumulative total, not delta!)
+        reporter.update(cost=0.20)
+        assert reporter.stats.total_cost_usd == 0.20, "Should ASSIGN 0.20, not add to 0.10"
+
+        # Third update: cost = 0.30 (cumulative total)
+        reporter.update(cost=0.30)
+        assert reporter.stats.total_cost_usd == 0.30, "Should ASSIGN 0.30, not add to 0.20"
+
+        # OLD BUG: Would have been 0.10 + 0.20 + 0.30 = 0.60 (quadratic!)
+        # NEW FIX: Is 0.30 (correct cumulative total)
+
+    def test_cumulative_cached_blobs_not_accumulated_quadratically(self) -> None:
+        """Test that cumulative cached_blobs is ASSIGNED not incremented."""
+        reporter = ProgressReporter(quiet=True, model_name="text-embedding-3-large")
+        reporter.start()
+        reporter.phase("Generating embeddings", total=100)
+        reporter.update(blobs=100)  # Set total blobs
+
+        # Simulate pipeline passing cumulative cached count
+        # Pipeline: cached_count = 0, 1, 2, 3, ...
+        reporter.update(cached_blobs=1)
+        assert reporter.stats.cached_blobs == 1, "Should be 1, not accumulated"
+
+        reporter.update(cached_blobs=2)
+        assert reporter.stats.cached_blobs == 2, "Should be 2, not 1+2=3"
+
+        reporter.update(cached_blobs=3)
+        assert reporter.stats.cached_blobs == 3, "Should be 3, not 1+2+3=6"
+
+        # OLD BUG: Would have been 1 + 2 + 3 = 6 (quadratic!)
+        # NEW FIX: Is 3 (correct cumulative count)
+
+    def test_cumulative_cached_cost_not_accumulated_quadratically(self) -> None:
+        """Test that cumulative cached_cost is ASSIGNED not incremented."""
+        reporter = ProgressReporter(quiet=True, model_name="text-embedding-3-large")
+        reporter.start()
+        reporter.phase("Generating embeddings")
+
+        # Simulate pipeline passing cumulative cached cost totals
+        reporter.update(cached_cost=0.01)
+        assert reporter.stats.cached_cost_usd == 0.01
+
+        reporter.update(cached_cost=0.02)
+        assert reporter.stats.cached_cost_usd == 0.02, "Should ASSIGN 0.02, not add to 0.01"
+
+        reporter.update(cached_cost=0.03)
+        assert reporter.stats.cached_cost_usd == 0.03, "Should ASSIGN 0.03, not add to 0.02"
+
+        # OLD BUG: Would have been 0.01 + 0.02 + 0.03 = 0.06 (quadratic!)
+        # NEW FIX: Is 0.03 (correct cumulative total)
+
+    def test_incremental_chunks_still_accumulate(self) -> None:
+        """Test that INCREMENTAL parameters (chunks, tokens) still accumulate."""
+        reporter = ProgressReporter(quiet=True, model_name="text-embedding-3-large")
+        reporter.start()
+
+        # Chunks are incremental (each update is a delta)
+        reporter.update(chunks=10)
+        assert reporter.stats.total_chunks == 10
+
+        reporter.update(chunks=5)  # Add 5 more
+        assert reporter.stats.total_chunks == 15, "Chunks should accumulate (15 = 10 + 5)"
+
+        reporter.update(chunks=3)  # Add 3 more
+        assert reporter.stats.total_chunks == 18, "Chunks should accumulate (18 = 15 + 3)"
+
+        # Same for tokens (incremental)
+        reporter.update(tokens=100)
+        assert reporter.stats.total_tokens == 100
+
+        reporter.update(tokens=50)
+        assert reporter.stats.total_tokens == 150, "Tokens should accumulate (150 = 100 + 50)"
+
+    def test_defensive_assertion_prevents_regression(self) -> None:
+        """Test that defensive assertions catch quadratic accumulation."""
+        reporter = ProgressReporter(quiet=True, model_name="text-embedding-3-large")
+        reporter.start()
+        reporter.phase("Generating embeddings", total=100)
+        reporter.update(blobs=100)
+
+        # This should work - cached <= total
+        reporter.update(cached_blobs=50)
+
+        # This should raise assertion error - cached > total
+        with pytest.raises(AssertionError, match=r"Cached.*total.*blobs"):
+            reporter.update(cached_blobs=150)  # 150 > 100 total!

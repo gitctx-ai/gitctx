@@ -138,7 +138,7 @@ class ProgressReporter:
             logger.warning(f"Progress display failed: {e}, continuing without progress bars")
             self.progress_ctx = None
 
-    def update(  # noqa: PLR0913
+    def update(  # noqa: PLR0913, PLR0912
         self,
         commits: int = 0,
         blobs: int = 0,
@@ -151,15 +151,15 @@ class ProgressReporter:
         """Update statistics and progress bar.
 
         Args:
-            commits: Number of commits processed (absolute count)
-            blobs: Number of blobs processed (absolute count)
-            chunks: Number of chunks created (incremental)
-            tokens: Tokens consumed (incremental)
-            cost: Cost in USD (incremental)
-            cached_blobs: Number of cached blobs (incremental)
-            cached_cost: Cost saved by cache (incremental)
+            commits: Number of commits processed (CUMULATIVE total)
+            blobs: Number of blobs processed (CUMULATIVE total)
+            chunks: Number of chunks created (INCREMENTAL delta)
+            tokens: Tokens consumed (INCREMENTAL delta)
+            cost: Fresh cost in USD (CUMULATIVE total)
+            cached_blobs: Number of cached blobs (CUMULATIVE total)
+            cached_cost: Cost saved by cache (CUMULATIVE total)
         """
-        # Update stats (use assignment for totals, += for incremental)
+        # Update stats (use assignment for cumulative totals, += for incremental deltas)
         if commits:
             self.stats.total_commits = commits
         if blobs:
@@ -169,11 +169,21 @@ class ProgressReporter:
         if tokens:
             self.stats.total_tokens += tokens
         if cost:
-            self.stats.total_cost_usd += cost
+            self.stats.total_cost_usd = cost  # ASSIGN cumulative fresh cost
         if cached_blobs:
-            self.stats.cached_blobs += cached_blobs  # Accumulate cache hits
+            self.stats.cached_blobs = cached_blobs  # ASSIGN cumulative cached count
         if cached_cost:
-            self.stats.cached_cost_usd += cached_cost  # Accumulate saved costs
+            self.stats.cached_cost_usd = cached_cost  # ASSIGN cumulative saved cost
+
+        # Defensive assertions to catch quadratic accumulation regressions
+        if self.stats.total_blobs > 0:
+            assert self.stats.cached_blobs <= self.stats.total_blobs, (
+                f"Cached ({self.stats.cached_blobs}) > total ({self.stats.total_blobs}) blobs"
+            )
+
+        assert self.stats.total_cost_usd >= 0, f"Negative cost: {self.stats.total_cost_usd}"
+
+        assert self.stats.cached_cost_usd >= 0, f"Negative cache: {self.stats.cached_cost_usd}"
 
         # Update progress bar (if active)
         if self.progress_ctx and self.task_id is not None and not self.quiet:

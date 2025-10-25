@@ -106,14 +106,16 @@ async def index_repository(
         )
 
         # Phase 2: Chunk and embed
-        reporter.phase("Generating embeddings")
+        reporter.phase("Generating embeddings", total=len(blob_records))
 
         # Initialize cache tracking
         fresh_cost = 0.0
         cached_cost_total = 0.0
         cached_count = 0
+        processed_count = 0
 
         for blob_record in blob_records:
+            processed_count += 1
             try:
                 # Single orchestrated call: check cache → chunk → embed → save cache
                 # Returns tuple: (embeddings, was_cached, cached_cost)
@@ -136,6 +138,7 @@ async def index_repository(
 
                 # Update reporter with cumulative metrics
                 reporter.update(
+                    blobs=processed_count,
                     tokens=total_tokens,
                     chunks=len(embeddings),
                     cost=fresh_cost,
