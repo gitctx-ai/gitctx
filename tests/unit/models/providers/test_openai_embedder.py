@@ -223,3 +223,194 @@ class TestEstimateCost:
         embedder = OpenAIEmbedder(api_key="test-key")
         cost = embedder.estimate_cost(0)
         assert cost == 0.0
+
+
+@pytest.mark.anyio
+class TestBatchSplitting:
+    """Test _embed_chunks_split() method for handling token limits."""
+
+    async def test_embed_chunks_split_multiple_batches(self, mock_openai_response):
+        """Chunks exceeding 300K tokens are split into multiple API calls."""
+        # ARRANGE - 10 chunks of 40K tokens each = 400K total (exceeds 300K limit)
+        chunks = [
+            CodeChunk(
+                content="x" * 160_000,  # ~40K tokens worth of content
+                start_line=i * 100 + 1,
+                end_line=(i + 1) * 100,
+                token_count=40_000,
+                metadata={"chunk_index": i},
+            )
+            for i in range(10)
+        ]
+
+        embedder = OpenAIEmbedder(api_key="test-key")
+
+        # Track API calls
+        call_count = 0
+        call_args_list = []
+
+        async def mock_embed_chunks(batch, blob_sha):
+            """Mock embed_chunks to track calls and return embeddings."""
+            nonlocal call_count
+            call_count += 1
+            call_args_list.append((len(batch), sum(c.token_count for c in batch)))
+
+            # Return mock embeddings for this batch
+            return [
+                MagicMock(
+                    vector=[0.1] * 3072,
+                    cost_usd=0.0001,
+                    token_count=chunk.token_count,
+                    blob_sha=blob_sha,
+                    chunk_index=i,
+                )
+                for i, chunk in enumerate(batch)
+            ]
+
+        # Patch embed_chunks (not _embed_chunks_split) to avoid recursion
+        with patch.object(embedder, "embed_chunks", new=mock_embed_chunks):
+            # ACT - Call _embed_chunks_split directly (simulates being called from embed_chunks)
+            embeddings = await embedder._embed_chunks_split(chunks, "test_sha")
+
+            # ASSERT - Should split into multiple batches
+            # Batch 1: 7 chunks (280K tokens) - fits under 300K limit
+            # Batch 2: 3 chunks (120K tokens)
+            assert call_count == 2, f"Expected 2 API calls, got {call_count}"
+            assert len(embeddings) == 10, "Should return all 10 embeddings"
+
+            # Verify batch sizes
+            batch1_chunks, batch1_tokens = call_args_list[0]
+            batch2_chunks, batch2_tokens = call_args_list[1]
+
+            assert batch1_chunks == 7, f"Batch 1 should have 7 chunks, got {batch1_chunks}"
+            assert batch1_tokens == 280_000, f"Batch 1 should have 280K tokens, got {batch1_tokens}"
+            assert batch2_chunks == 3, f"Batch 2 should have 3 chunks, got {batch2_chunks}"
+            assert batch2_tokens == 120_000, f"Batch 2 should have 120K tokens, got {batch2_tokens}"
+
+    async def test_embed_chunks_split_boundary_exactly_at_limit(self, mock_openai_response):
+        """Chunks totaling exactly 300K tokens should NOT trigger split."""
+        # ARRANGE - Exactly 300K tokens (at boundary, not exceeding)
+        chunks = [
+            CodeChunk(
+                content="x" * 600_000,
+                start_line=1,
+                end_line=100,
+                token_count=150_000,
+                metadata={},
+            ),
+            CodeChunk(
+                content="x" * 600_000,
+                start_line=101,
+                end_line=200,
+                token_count=150_000,
+                metadata={},
+            ),
+        ]
+
+        embedder = OpenAIEmbedder(api_key="test-key")
+
+        # Mock API response for normal path (not split)
+        mock_response = mock_openai_response(num_chunks=2, total_tokens=300_000)
+
+        with patch.object(
+            embedder._embeddings.async_client, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = MagicMock(model_dump=lambda: mock_response)
+
+            # ACT - Call embed_chunks (should NOT trigger split)
+            embeddings = await embedder.embed_chunks(chunks, "test_sha")
+
+            # ASSERT - Should call API once (no split)
+            assert mock_create.call_count == 1, "Should make single API call (no split at boundary)"
+            assert len(embeddings) == 2
+
+    async def test_embed_chunks_split_boundary_just_over_limit(self, mock_openai_response):
+        """Chunks totaling 300K + 1 token should trigger split."""
+        # ARRANGE - 300,001 tokens (just over limit)
+        chunks = [
+            CodeChunk(
+                content="x" * 600_000,
+                start_line=1,
+                end_line=100,
+                token_count=150_000,
+                metadata={},
+            ),
+            CodeChunk(
+                content="x" * 600_000,
+                start_line=101,
+                end_line=200,
+                token_count=150_001,  # Just 1 token over
+                metadata={},
+            ),
+        ]
+
+        embedder = OpenAIEmbedder(api_key="test-key")
+
+        # Track API calls
+        call_count = 0
+
+        async def mock_embed_chunks(batch, blob_sha):
+            """Mock embed_chunks to track calls."""
+            nonlocal call_count
+            call_count += 1
+            return [
+                MagicMock(
+                    vector=[0.1] * 3072,
+                    cost_usd=0.0001,
+                    token_count=chunk.token_count,
+                    blob_sha=blob_sha,
+                    chunk_index=i,
+                )
+                for i, chunk in enumerate(batch)
+            ]
+
+        # Patch embed_chunks to avoid recursion
+        with patch.object(embedder, "embed_chunks", new=mock_embed_chunks):
+            # ACT
+            embeddings = await embedder._embed_chunks_split(chunks, "test_sha")
+
+            # ASSERT - Should split (300,001 > 300,000)
+            assert call_count == 2, "Should split into 2 batches when just over limit"
+            assert len(embeddings) == 2
+
+    async def test_embed_chunks_triggers_split_when_exceeds_limit(self, mock_openai_response):
+        """Test embed_chunks() calls _embed_chunks_split when total > 300K tokens."""
+        # ARRANGE - 400K tokens (exceeds limit, should trigger split at line 115)
+        chunks = [
+            CodeChunk(
+                content="x" * 160_000,
+                start_line=i * 100 + 1,
+                end_line=(i + 1) * 100,
+                token_count=40_000,
+                metadata={},
+            )
+            for i in range(10)  # 10 * 40K = 400K tokens
+        ]
+
+        embedder = OpenAIEmbedder(api_key="test-key")
+
+        # Mock _embed_chunks_split to verify it's called
+        split_called = False
+
+        async def mock_split(chunks_arg, blob_sha):
+            nonlocal split_called
+            split_called = True
+            # Return mock embeddings
+            return [
+                MagicMock(
+                    vector=[0.1] * 3072,
+                    cost_usd=0.0001,
+                    token_count=chunk.token_count,
+                    blob_sha=blob_sha,
+                    chunk_index=i,
+                )
+                for i, chunk in enumerate(chunks_arg)
+            ]
+
+        with patch.object(embedder, "_embed_chunks_split", new=mock_split):
+            # ACT - Call embed_chunks (should trigger split at line 115)
+            embeddings = await embedder.embed_chunks(chunks, "test_sha")
+
+            # ASSERT - _embed_chunks_split was called
+            assert split_called, "embed_chunks should call _embed_chunks_split when tokens > 300K"
+            assert len(embeddings) == 10

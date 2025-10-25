@@ -561,3 +561,31 @@ class TestQuadraticAccumulationFix:
         # This should raise assertion error - cached > total
         with pytest.raises(AssertionError, match=r"Cached.*total.*blobs"):
             reporter.update(cached_blobs=150)  # 150 > 100 total!
+
+    def test_defensive_assertion_negative_cost(self) -> None:
+        """Test that defensive assertion catches negative total_cost_usd."""
+        reporter = ProgressReporter(quiet=True, model_name="text-embedding-3-large")
+        reporter.start()
+        reporter.phase("Generating embeddings")
+
+        # Positive cost should work
+        reporter.update(cost=0.10)
+        assert reporter.stats.total_cost_usd == 0.10
+
+        # Negative cost should raise assertion error
+        with pytest.raises(AssertionError, match=r"Negative cost"):
+            reporter.update(cost=-0.05)
+
+    def test_defensive_assertion_negative_cached_cost(self) -> None:
+        """Test that defensive assertion catches negative cached_cost_usd."""
+        reporter = ProgressReporter(quiet=True, model_name="text-embedding-3-large")
+        reporter.start()
+        reporter.phase("Generating embeddings")
+
+        # Positive cached cost should work
+        reporter.update(cached_cost=0.05)
+        assert reporter.stats.cached_cost_usd == 0.05
+
+        # Negative cached cost should raise assertion error
+        with pytest.raises(AssertionError, match=r"Negative cache"):
+            reporter.update(cached_cost=-0.03)
